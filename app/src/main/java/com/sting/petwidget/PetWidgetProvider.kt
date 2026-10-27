@@ -122,7 +122,6 @@ class PetWidgetProvider : AppWidgetProvider() {
                 val ids = awm.getAppWidgetIds(ComponentName(context, PetWidgetProvider::class.java))
                 if (ids.isEmpty()) return
 
-                val prefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
                 val now = System.currentTimeMillis()
                 val last = prefs.getLong("last_static", 0L)
                 val step = if (last > 0) (now - last).coerceIn(300L, 60_000L) else 1_000L
