@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.widget.RemoteViews
 
@@ -54,7 +55,7 @@ class PetWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-        /** Раз в 15 минут мягко проверяем, что сервис жизни жив. Не будит телефон. */
+        /** Раз в 2 минуты мягко проверяем, что сервис жизни жив. Не будит телефон. */
         fun scheduleKeepAlive(context: Context) {
             val am = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
             val pi = PendingIntent.getBroadcast(
@@ -62,13 +63,23 @@ class PetWidgetProvider : AppWidgetProvider() {
                 Intent(context, AlarmReceiver::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
+            val canExact = if (Build.VERSION.SDK_INT >= 31) am.canScheduleExactAlarms() else true
             try {
-                am.setInexactRepeating(
-                    android.app.AlarmManager.ELAPSED_REALTIME,   // не будит телефон
-                    android.os.SystemClock.elapsedRealtime() + 60_000,
-                    15 * 60_000L,
-                    pi
-                )
+                if (canExact) {
+                    // точный будильник пробивает даже глубокий сон прошивки
+                    am.setExactAndAllowWhileIdle(
+                        android.app.AlarmManager.ELAPSED_REALTIME,
+                        android.os.SystemClock.elapsedRealtime() + 120_000,
+                        pi
+                    )
+                } else {
+                    am.setInexactRepeating(
+                        android.app.AlarmManager.ELAPSED_REALTIME,
+                        android.os.SystemClock.elapsedRealtime() + 120_000,
+                        120_000L,
+                        pi
+                    )
+                }
             } catch (_: Exception) {}
         }
 

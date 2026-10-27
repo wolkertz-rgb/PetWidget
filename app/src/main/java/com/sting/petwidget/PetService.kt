@@ -103,7 +103,7 @@ class PetService : Service() {
                 }
             }
         }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     override fun onDestroy() {
