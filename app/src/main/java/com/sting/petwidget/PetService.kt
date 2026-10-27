@@ -17,7 +17,6 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.widget.RemoteViews
-import kotlin.math.abs
 
 /**
  * Сердце питомца: живёт как лёгкий foreground-сервис и гоняет кадры сцены
@@ -164,18 +163,7 @@ class PetService : Service() {
                 }
                 awm?.partiallyUpdateAppWidget(ids, rv)
             }
-            handler.postDelayed(this, nextDelay())
-        }
-    }
-
-    /** Пока идёт действие — кадры чаще, спит — реже. Батарею бережём. */
-    private fun nextDelay(): Long {
-        return when {
-            sim.state == PetSim.State.HAPPY || sim.state == PetSim.State.INTERACT -> 180L
-            sim.state == PetSim.State.WALK -> 220L
-            sim.items.any { abs(it.vx) > 0.01f } -> 250L
-            sim.state == PetSim.State.SLEEP -> 900L
-            else -> 450L
+            handler.postDelayed(this, 50L) // ТУРБО: 20 ФПС, пока экран включён
         }
     }
 
