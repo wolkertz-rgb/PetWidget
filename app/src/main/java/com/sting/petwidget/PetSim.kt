@@ -33,6 +33,10 @@ class PetSim(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val rng = Random.Default
 
+    /** надёжные вспомогательные генераторы (не зависят от версии Kotlin) */
+    private fun rL(a: Long, b: Long): Long = rng.nextLong(a, b)
+    private fun rF(a: Float, b: Float): Float = a + (b - a) * rng.nextFloat()
+
     var x = 0.5f                 // позиция питомца
     var dir = 1                  // куда смотрит: 1 вправо, -1 влево
     var state = State.IDLE
@@ -75,7 +79,7 @@ class PetSim(context: Context) {
         // случайные появления новых предметов
         nextSpawnIn -= dt
         if (nextSpawnIn <= 0) {
-            nextSpawnIn = (14_000..55_000).random(rng)
+            nextSpawnIn = rL(14_000, 55_000)
             if (items.size < 2 && state != State.SLEEP) spawnItem()
         }
 
@@ -119,7 +123,7 @@ class PetSim(context: Context) {
                         if (reaction == ItemDefs.Reaction.EAT || reaction == ItemDefs.Reaction.SMELL) {
                             items.remove(ti)          // съел
                         } else {
-                            ti.vx = dir * (0.35f..0.7f).random(rng) // толкнул/пинал
+                            ti.vx = dir * rF(0.35f, 0.7f) // толкнул/пинал
                         }
                     }
                     targetItem = null
@@ -158,20 +162,20 @@ class PetSim(context: Context) {
             r < 0.55f -> {
                 walkMode = WalkMode.RANDOM
                 state = State.WALK
-                stateDur = (2_500..7_000).random(rng)
+                stateDur = rL(2_500, 7_000)
                 dir = if (rng.nextBoolean()) 1 else -1
             }
             r < 0.78f -> {
                 state = State.SIT
-                stateDur = (3_000..8_000).random(rng)
+                stateDur = rL(3_000, 8_000)
             }
             r < 0.93f -> {
                 state = State.IDLE
-                stateDur = (2_000..6_000).random(rng)
+                stateDur = rL(2_000, 6_000)
             }
             else -> {
                 state = State.SLEEP
-                stateDur = (5_000..16_000).random(rng)
+                stateDur = rL(5_000, 16_000)
             }
         }
     }
@@ -181,9 +185,9 @@ class PetSim(context: Context) {
         stateTime = 0
         reaction = item.def.reaction
         stateDur = when (reaction) {
-            ItemDefs.Reaction.EAT   -> (1_500..2_500).random(rng)
+            ItemDefs.Reaction.EAT   -> rL(1_500, 2_500)
             ItemDefs.Reaction.SMELL -> 1_300
-            ItemDefs.Reaction.PLAY  -> (1_200..2_000).random(rng)
+            ItemDefs.Reaction.PLAY  -> rL(1_200, 2_000)
             ItemDefs.Reaction.PUSH  -> 900
         }
         dir = if (item.x >= x) 1 else -1
@@ -206,7 +210,7 @@ class PetSim(context: Context) {
             items.removeAll { it.ageMs > it.ttlMs }
         }
         if (gapMs > 4 * 60 * 60_000) {
-            sleepAfterGap = (8_000..18_000).random(rng)
+            sleepAfterGap = rL(8_000, 18_000)
         }
         stateDur = stateTime + 1 // чтобы сразу выбрать новое действие
         save()
@@ -220,10 +224,10 @@ class PetSim(context: Context) {
         items.add(
             SpawnedItem(
                 def.id,
-                x = (0.15f..0.85f).random(rng),
+                x = rF(0.15f, 0.85f),
                 vx = 0f,
                 ageMs = -900L, // эффект "появился из воздуха"
-                ttlMs = (90_000..210_000).random(rng)
+                ttlMs = rL(90_000, 210_000)
             )
         )
     }
