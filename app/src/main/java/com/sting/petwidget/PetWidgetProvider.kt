@@ -53,9 +53,9 @@ class PetWidgetProvider : AppWidgetProvider() {
         }
 
         private fun tapIntent(context: Context): PendingIntent =
-            PendingIntent.getForegroundService(
+            PendingIntent.getBroadcast(
                 context, 11,
-                Intent(context, PetService::class.java).setAction(PetService.ACTION_TAP),
+                Intent(context, TapBridgeReceiver::class.java).setAction(PetService.ACTION_TAP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
@@ -93,6 +93,17 @@ class PetWidgetProvider : AppWidgetProvider() {
                 )
             } catch (_: Exception) {
                 // сервис не дают запустить — живём уровнем 2: будильник + ходы питомца
+            }
+        }
+
+        /**
+         * Серия живых кадров "прямо сейчас" — работает даже если сервис заморожен.
+         * Вызывается сразу после тапа/разблокировки: в этот момент процесс не спит.
+         */
+        fun burst(context: Context, frames: Int = 24, everyMs: Long = 450L) {
+            val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            for (i in 0 until frames) {
+                handler.postDelayed({ advanceAndRender(context) }, i * everyMs)
             }
         }
 

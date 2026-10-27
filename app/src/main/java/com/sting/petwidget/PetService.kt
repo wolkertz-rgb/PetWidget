@@ -87,7 +87,7 @@ class PetService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_TAP -> {
-                if (screenOn && this::sim.isInitialized) {
+                if (this::sim.isInitialized && screenOn) {
                     sim.tap()
                     if (sizeW == 0) recomputeSizes()
                     handler.removeCallbacks(frameRunnable)

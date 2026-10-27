@@ -53,6 +53,26 @@ class PetStarterActivity : Activity() {
 
     private fun askBattery() {
         val prefs = applicationContext.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
+
+        // Разрешение на точные будильники (особое разрешение на Android 12+) —
+        // без него мои "ходы" питомца на TECNO не доходят вообще
+        if (Build.VERSION.SDK_INT >= 31 &&
+            !prefs.getBoolean("alarms_asked", false)
+        ) {
+            try {
+                val am = getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+                if (am != null && !am.canScheduleExactAlarms()) {
+                    prefs.edit().putBoolean("alarms_asked", true).apply()
+                    startActivity(
+                        Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                            .setData(Uri.parse("package:$packageName"))
+                    )
+                    finish()
+                    return
+                }
+            } catch (_: Exception) {}
+        }
+
         if (!prefs.getBoolean("battery_asked", false) && Build.VERSION.SDK_INT >= 23) {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             if (pm != null && !pm.isIgnoringBatteryOptimizations(packageName)) {

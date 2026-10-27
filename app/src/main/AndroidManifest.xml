@@ -48,6 +48,16 @@
 
         <receiver android:name=".AlarmReceiver" android:exported="false" />
 
+        <receiver
+            android:name=".UnlockReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.USER_PRESENT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".TapBridgeReceiver" android:exported="false" />
+
         <activity
             android:name=".PetStarterActivity"
             android:exported="true"
