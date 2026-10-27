@@ -15,6 +15,18 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("petDebug") {
+            val ksFile = file("../keystore/petdebug.keystore")
+            if (ksFile.exists()) {
+                storeFile = ksFile
+                storePassword = "petwidget123"
+                keyAlias = "pet"
+                keyPassword = "petwidget123"
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // постоянный ключ подписи хранится в репозитории (keystore/)
@@ -26,18 +38,6 @@ android {
         }
         release {
             isMinifyEnabled = false
-        }
-    }
-
-    signingConfigs {
-        create("petDebug") {
-            val ksFile = file("../keystore/petdebug.keystore")
-            if (ksFile.exists()) {
-                storeFile = ksFile
-                storePassword = "petwidget123"
-                keyAlias = "pet"
-                keyPassword = "petwidget123"
-            }
         }
     }
 
