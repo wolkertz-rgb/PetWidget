@@ -150,6 +150,13 @@ class PetService : Service() {
 
             if (sizeW == 0 || sizeH == 0) recomputeSizes()
 
+            // синхронизируемся с общим состоянием — burst/будильник и сервис
+            // всегда рисуют одну и ту же правду
+            sim.load()
+            sim.tick(dt)
+            sim.save()
+            prefs.edit().putLong("frame_at", System.currentTimeMillis()).apply()
+
             val bmp = renderer.render(sim, sizeW, sizeH)
             if (bmp != null && ids.isNotEmpty()) {
                 val rv = RemoteViews(packageName, R.layout.pet_widget).apply {

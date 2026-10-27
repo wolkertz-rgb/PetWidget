@@ -240,6 +240,7 @@ class PetSim(context: Context) {
             .putInt(KEY_DIR, dir)
             .putString(KEY_STATE, state.name)
             .putString(KEY_MODE, walkMode.name)
+            .putFloat(KEY_PHASE, animPhase)
             .putString(
                 KEY_ITEMS,
                 items.joinToString("|") { "${it.defId},${it.x},${it.vx},${it.ageMs},${it.ttlMs}" }
@@ -247,13 +248,15 @@ class PetSim(context: Context) {
             .apply()
     }
 
-    private fun load() {
+    /** Загрузка из prefs (не сбрасывает таймеры состояния) */
+    fun load() {
         x = prefs.getFloat(KEY_X, 0.5f).coerceIn(X_MIN, X_MAX)
         dir = prefs.getInt(KEY_DIR, 1)
         state = try { PetSim.State.valueOf(prefs.getString(KEY_STATE, "IDLE")!!) } catch (_: Exception) { State.IDLE }
         walkMode = try { WalkMode.valueOf(prefs.getString(KEY_MODE, "NONE")!!) } catch (_: Exception) { WalkMode.NONE }
-        stateTime = 0
-        stateDur = 2_000
+        animPhase = prefs.getFloat(KEY_PHASE, animPhase)
+        // ВАЖНО: stateTime/stateDur специально НЕ сбрасываем — впрыгиваем
+        // в продолжение текущего состояния, чтобы кадры не дёргались
         targetItem = null
         items.clear()
         prefs.getString(KEY_ITEMS, null)?.takeIf { it.isNotBlank() }?.split("|")?.forEach { s ->
@@ -271,6 +274,7 @@ class PetSim(context: Context) {
         private const val KEY_DIR = "dir"
         private const val KEY_STATE = "state"
         private const val KEY_MODE = "mode"
+        private const val KEY_PHASE = "phase"
         private const val KEY_ITEMS = "items"
 
         const val WALK_SPEED = 0.075f

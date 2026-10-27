@@ -113,6 +113,11 @@ class PetWidgetProvider : AppWidgetProvider() {
          */
         fun advanceAndRender(context: Context) {
             try {
+                // если сервис жив и рисует кадры — не мешаем ему
+                val prefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
+                val frameAt = prefs.getLong("frame_at", 0L)
+                if (frameAt > 0 && System.currentTimeMillis() - frameAt < 2_500) return
+
                 val awm = AppWidgetManager.getInstance(context)
                 val ids = awm.getAppWidgetIds(ComponentName(context, PetWidgetProvider::class.java))
                 if (ids.isEmpty()) return
