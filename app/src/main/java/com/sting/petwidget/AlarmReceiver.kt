@@ -10,6 +10,9 @@ import android.content.Intent
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         PetWidgetProvider.tryStartService(context)
+        // страховка: независимо от того, дали ли системе запустить сервис,
+        // питомец делает ход и кадр обновляется
+        PetWidgetProvider.advanceAndRender(context)
         PetWidgetProvider.scheduleKeepAlive(context)
     }
 }

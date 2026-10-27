@@ -12,22 +12,27 @@ import android.os.Bundle
 import android.widget.RemoteViews
 
 /**
- * Точка входа виджета. При добавлении/обновлении пытается запустить сервис жизни,
- * а если система не даёт (рестрикции фона) — рисует один статичный кадр,
- * чтобы питомец всё равно был виден.
+ * Точка входа виджета. Двухуровневая жизнь питомца:
+ *
+ * Уровень 1 (идеальный): foreground-сервис PetService анимирует всё плавно.
+ * Уровень 2 (страховка от фризилок вроде HiOS/TECNO): каждые ~2 минуты
+ * точный будильник будит код, питомец "делает ход" и кадр перерисовывается.
+ * Так питомец живёт на ЛЮБОМ телефоне, даже если сервис убивают.
  */
 class PetWidgetProvider : AppWidgetProvider() {
 
     override fun onUpdate(context: Context, awm: AppWidgetManager, appWidgetIds: IntArray) {
         for (id in appWidgetIds) updateOne(context, awm, id)
         tryStartService(context)
+        advanceAndRender(context)
+        scheduleKeepAlive(context)
     }
 
     override fun onAppWidgetOptionsChanged(
         context: Context, awm: AppWidgetManager, appWidgetId: Int, newOptions: Bundle?
     ) {
         updateOne(context, awm, appWidgetId)
-        tryStartService(context)
+        advanceAndRender(context)
     }
 
     override fun onEnabled(context: Context) {
@@ -36,7 +41,6 @@ class PetWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
-        // если все виджеты удалены — сервис сам завершится (refreshIds → ids пуст)
         tryStartService(context)
     }
 
@@ -55,7 +59,7 @@ class PetWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-        /** Раз в 2 минуты мягко проверяем, что сервис жизни жив. Не будит телефон. */
+        /** Раз в ~2 минуты мягко проверяем, что сервис жив (не будит телефон). */
         fun scheduleKeepAlive(context: Context) {
             val am = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
             val pi = PendingIntent.getBroadcast(
@@ -66,7 +70,6 @@ class PetWidgetProvider : AppWidgetProvider() {
             val canExact = if (Build.VERSION.SDK_INT >= 31) am.canScheduleExactAlarms() else true
             try {
                 if (canExact) {
-                    // точный будильник пробивает даже глубокий сон прошивки
                     am.setExactAndAllowWhileIdle(
                         android.app.AlarmManager.ELAPSED_REALTIME,
                         android.os.SystemClock.elapsedRealtime() + 120_000,
@@ -89,51 +92,56 @@ class PetWidgetProvider : AppWidgetProvider() {
                     Intent(context, PetService::class.java).setAction(PetService.ACTION_SHOW)
                 )
             } catch (_: Exception) {
-                // Система не разрешила запуск сервиса из фона — рисуем статичный кадр.
-                // Питомец оживёт при следующем разблокировании (_ANDROID_UPDATE или тап).
-                renderStatic(context)
+                // сервис не дают запустить — живём уровнем 2: будильник + ходы питомца
             }
         }
 
-        /** Один кадр без сервиса: питомец стоит и ждёт, состояние подтянуто из prefs. */
-        fun renderStatic(context: Context) {
-            val awm = AppWidgetManager.getInstance(context)
-            val ids = awm.getAppWidgetIds(ComponentName(context, PetWidgetProvider::class.java))
-            if (ids.isEmpty()) return
+        /**
+         * Один "ход" питомца: подтягивает состояние, проживает время с прошлой
+         * отметки и рисует свежий кадр. Работает без всякого сервиса.
+         */
+        fun advanceAndRender(context: Context) {
+            try {
+                val awm = AppWidgetManager.getInstance(context)
+                val ids = awm.getAppWidgetIds(ComponentName(context, PetWidgetProvider::class.java))
+                if (ids.isEmpty()) return
 
-            val sim = PetSim(context)
-            // статичный кадр всё же "проживает" чуть времени, чтобы питомец
-            // просыпался, если система нарисовала его в позе сна
-            sim.tick(1_400)
-            sim.tick(1_400)
-            val renderer = SceneRenderer()
+                val prefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
+                val now = System.currentTimeMillis()
+                val last = prefs.getLong("last_static", 0L)
+                val step = if (last > 0) (now - last).coerceIn(300L, 60_000L) else 1_000L
+                prefs.edit().putLong("last_static", now).apply()
 
-            for (id in ids) {
-                val opts = awm.getAppWidgetOptions(id)
-                val d = context.resources.displayMetrics.density
-                val wDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
-                val hDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 110)
-                val w = (wDp * d).toInt().coerceIn(80, 1600)
-                val h = (hDp * d).toInt().coerceIn(60, 900)
-                val bmp = renderer.render(sim, w, h) ?: continue
-                val rv = RemoteViews(context.packageName, R.layout.pet_widget)
-                rv.setImageViewBitmap(R.id.scene, bmp)
-                rv.setOnClickPendingIntent(R.id.scene, tapIntent(context))
-                awm.updateAppWidget(id, rv)
+                val sim = PetSim(context)
+                sim.tick(step)
+                sim.save()
+                val renderer = SceneRenderer()
+
+                for (id in ids) {
+                    val opts = awm.getAppWidgetOptions(id)
+                    val d = context.resources.displayMetrics.density
+                    val wDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
+                    val hDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 110)
+                    val w = (wDp * d).toInt().coerceIn(80, 1600)
+                    val h = (hDp * d).toInt().coerceIn(60, 900)
+                    val bmp = renderer.render(sim, w, h) ?: continue
+                    val rv = RemoteViews(context.packageName, R.layout.pet_widget)
+                    rv.setImageViewBitmap(R.id.scene, bmp)
+                    rv.setOnClickPendingIntent(R.id.scene, tapIntent(context))
+                    awm.updateAppWidget(id, rv)
+                }
+            } catch (_: Exception) {
+                // даже если всё плохо — виджет не должен лежать
             }
         }
     }
 }
 
-/** Пробуждение после перезагрузки телефона — питомец продолжает свою жизнь. */
+/** Пробуждение после перезагрузки телефона. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        try {
-            context.startForegroundService(
-                Intent(context, PetService::class.java).setAction(PetService.ACTION_SHOW)
-            )
-        } catch (_: Exception) {
-            PetWidgetProvider.renderStatic(context)
-        }
+        PetWidgetProvider.tryStartService(context)
+        PetWidgetProvider.advanceAndRender(context)
+        PetWidgetProvider.scheduleKeepAlive(context)
     }
 }
