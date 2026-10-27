@@ -71,6 +71,9 @@ class PetService : Service() {
         if (startupGap > 60_000) sim.onResume(startupGap)
 
         registerCompat()
+
+        // подстрахуемся от "убийц фона" на TECNO/HiOS
+        try { PetWidgetProvider.scheduleKeepAlive(this) } catch (_: Exception) {}
     }
 
     private fun registerCompat() {

@@ -29,7 +29,10 @@ class PetWidgetProvider : AppWidgetProvider() {
         tryStartService(context)
     }
 
-    override fun onEnabled(context: Context) = tryStartService(context)
+    override fun onEnabled(context: Context) {
+        tryStartService(context)
+        scheduleKeepAlive(context)
+    }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         // если все виджеты удалены — сервис сам завершится (refreshIds → ids пуст)
@@ -45,13 +48,31 @@ class PetWidgetProvider : AppWidgetProvider() {
         }
 
         private fun tapIntent(context: Context): PendingIntent =
-            PendingIntent.getService(
+            PendingIntent.getForegroundService(
                 context, 11,
                 Intent(context, PetService::class.java).setAction(PetService.ACTION_TAP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-        private fun tryStartService(context: Context) {
+        /** Раз в 15 минут мягко проверяем, что сервис жизни жив. Не будит телефон. */
+        fun scheduleKeepAlive(context: Context) {
+            val am = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            val pi = PendingIntent.getBroadcast(
+                context, 7,
+                Intent(context, AlarmReceiver::class.java),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            try {
+                am.setInexactRepeating(
+                    android.app.AlarmManager.ELAPSED_REALTIME,   // не будит телефон
+                    android.os.SystemClock.elapsedRealtime() + 60_000,
+                    15 * 60_000L,
+                    pi
+                )
+            } catch (_: Exception) {}
+        }
+
+        fun tryStartService(context: Context) {
             try {
                 context.startForegroundService(
                     Intent(context, PetService::class.java).setAction(PetService.ACTION_SHOW)
@@ -70,7 +91,10 @@ class PetWidgetProvider : AppWidgetProvider() {
             if (ids.isEmpty()) return
 
             val sim = PetSim(context)
-            sim.tick(0)
+            // статичный кадр всё же "проживает" чуть времени, чтобы питомец
+            // просыпался, если система нарисовала его в позе сна
+            sim.tick(1_400)
+            sim.tick(1_400)
             val renderer = SceneRenderer()
 
             for (id in ids) {
