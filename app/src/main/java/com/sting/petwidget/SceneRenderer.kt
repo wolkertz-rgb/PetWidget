@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import java.util.Calendar
@@ -59,6 +60,12 @@ class SceneRenderer {
     /** контекст для аварийного журнала (задаётся при создании симуляции) */
     var lastPrefs: android.content.SharedPreferences? = null
 
+    /** тёплый свет включён? (переключается тапом по лампочке) */
+    var lightOn = false
+
+    /** плотность экрана (px на dp) — для позиции лампочки */
+    var density = 3f
+
     // ---------------------------------------------------------------- сцена
 
     private fun paintScene(c: Canvas, sim: PetSim) {
@@ -112,6 +119,9 @@ class SceneRenderer {
         // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
         drawChairBack(c, unit, floorY)
 
+        // лампочка на шнурке (зона тапа — отдельный View сверху по центру)
+        drawBulb(c, unit, floorY)
+
         // когда питомец НЕ спит в кресле — подлокотники тоже позади него
         val sleepingInChair = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
         if (!sleepingInChair) drawChairFront(c, unit, floorY)
@@ -151,6 +161,9 @@ class SceneRenderer {
         // спит в кресле — подлокотники обнимают его ПОВЕРХ
         if (sleepingInChair) drawChairFront(c, unit, floorY)
 
+        // свет лампочки: тьма или тёплое сияние — поверх всей сцены
+        applyLightOverlay(c, unit, floorY)
+
         // ---- ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ БЕЙДЖ (потом уберём)
         try {
             val err = lastPrefs?.getString("render_err", null)
@@ -163,6 +176,74 @@ class SceneRenderer {
             pZ.textAlign = Paint.Align.CENTER
             pZ.color = 0xFF75808B.toInt()
         } catch (_: Throwable) {}
+    }
+
+    // ------------------------------------------------------- свет и лампа
+
+    private fun drawBulb(c: Canvas, unit: Float, floorY: Float) {
+        val bx = w / 2f
+        val by = 26f * density          // фиксируем в dp, чтобы совпадало с зоной тапа
+        val glass = unit * 0.62f
+
+        // шнур
+        pS.color = 0x55707070.toInt()
+        pS.strokeWidth = unit * 0.1f
+        c.drawLine(bx, 0f, bx, by - glass - unit * 0.1f, pS)
+
+        // цоколь
+        pF.color = 0xFF9B9B93.toInt()
+        rect.set(bx - unit * 0.26f, by - glass - unit * 0.12f, bx + unit * 0.26f, by - glass * 0.25f)
+        c.drawRoundRect(rect, unit * 0.06f, unit * 0.06f, pF)
+
+        // колба
+        pF.color = if (lightOn) 0xFFFFE9A8.toInt() else 0xFFDCD8CA.toInt()
+        c.drawCircle(bx, by, glass, pF)
+        // контур колбы (виден и в темноте — чтобы найти тапом)
+        pS.color = if (lightOn) 0x66C9A54A.toInt() else 0x5A6B6B66.toInt()
+        pS.strokeWidth = unit * 0.1f
+        c.drawCircle(bx, by, glass, pS)
+
+        // нить накала
+        pS.color = if (lightOn) 0xFFFFB84D.toInt() else 0xFF8E8E82.toInt()
+        pS.strokeWidth = unit * 0.09f
+        c.drawCircle(bx, by + glass * 0.12f, unit * 0.17f, pS)
+
+        // блик
+        pF.color = 0x66FFFFFF.toInt()
+        c.drawCircle(bx - glass * 0.35f, by - glass * 0.35f, glass * 0.22f, pF)
+    }
+
+    private fun applyLightOverlay(c: Canvas, unit: Float, floorY: Float) {
+        val bx = w / 2f
+        val by = 26f * density
+        if (!lightOn) {
+            // ТЕМНАЯ КОМНАТА: глубокий синеватый полумрак, силуэты едва видны
+            c.drawColor(0xBE131C2C.toInt())
+            // лунный отсвет на полу под лампочкой (намёк)
+            pF.color = 0x141A2A4A.toInt()
+            rect.set(bx - w * 0.22f, floorY - unit * 0.3f, bx + w * 0.22f, floorY + unit * 0.6f)
+            c.drawOval(rect, pF)
+            return
+        }
+        // ТЁПЛЫЙ СВЕТ: радиальное сияние вокруг лампы
+        val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = RadialGradient(
+                bx, by, w * 0.95f,
+                intArrayOf(0x54FFD98E.toInt(), 0x2AFFD98E.toInt(), 0x00FFD98E.toInt()),
+                floatArrayOf(0f, 0.35f, 1f),
+                Shader.TileMode.CLAMP
+            )
+        }
+        c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), glow)
+        // тёплый тон всей комнате
+        c.drawColor(0x14FFC97A.toInt())
+        // световое пятно на полу
+        pF.color = 0x2EFFE2A0.toInt()
+        rect.set(bx - w * 0.30f, floorY - unit * 0.5f, bx + w * 0.30f, floorY + unit * 0.7f)
+        c.drawOval(rect, pF)
+        // пульс-дыхание света
+        val pulse = 0x10 + ((sin(System.currentTimeMillis() / 900.0) + 1f) * 0.5f * 0x14).toInt()
+        c.drawColor((pulse shl 24) or 0x00FFD98E)
     }
 
     // ------------------------------------------------------------- захват
@@ -406,27 +487,43 @@ class SceneRenderer {
         c.save()
         c.rotate(rot * 57.2958f, px, cy)
 
-        // тело
+        // антеннка с шариком (покачивается) — рисуется до тела, торчит из макушки
+        val antBob = sin(sim.animPhase * 2.2f) * unit * 0.12f
+        val antTopX = px + r * 0.1f + antBob * 0.5f
+        val antTopY = cy - r * sy - unit * 0.55f + antBob
+        pS.color = 0xFF4E8F6E.toInt()
+        pS.strokeWidth = unit * 0.1f
+        c.drawLine(px + r * 0.02f, cy - r * sy * 0.92f, antTopX, antTopY, pS)
+        pF.color = 0xFFF4C95D.toInt()
+        c.drawCircle(antTopX, antTopY, unit * 0.14f, pF)
+        pS.color = 0x66B98A2B.toInt()
+        pS.strokeWidth = unit * 0.06f
+        c.drawCircle(antTopX, antTopY, unit * 0.14f, pS)
+
+        // тело: свежая палитра (мята → шалфей → тёмный низ)
         val body = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(
                 px - r * 0.4f, cy - r * sy, px + r * 0.2f, cy + r * sy,
-                intArrayOf(0xFF9ADDB8.toInt(), 0xFF7CC8A2.toInt(), 0xFF5FAE88.toInt()),
+                intArrayOf(0xFFA8E6C3.toInt(), 0xFF6FBE97.toInt(), 0xFF4FA379.toInt()),
                 null, Shader.TileMode.CLAMP
             )
         }
         rect.set(px - r * sx, cy - r * sy, px + r * sx, cy + r * sy)
         c.drawOval(rect, body)
-        pS.color = 0x6E3C7A63.toInt()
+        pS.color = 0x7A35684E.toInt()
         pS.strokeWidth = unit * 0.11f
         c.drawOval(rect, pS)
 
-        // блик
-        pF.color = 0x52FFFFFF.toInt()
-        rect.set(px - r * 0.62f * sx, cy - r * sy * 0.95f, px + r * 0.12f * sx, cy - r * sy * 0.40f)
+        // двойной блик (стеклянность)
+        pF.color = 0x59FFFFFF.toInt()
+        rect.set(px - r * 0.66f * sx, cy - r * sy * 0.98f, px + r * 0.10f * sx, cy - r * sy * 0.42f)
+        c.drawOval(rect, pF)
+        pF.color = 0x30FFFFFF.toInt()
+        rect.set(px + r * 0.16f * sx, cy - r * sy * 0.80f, px + r * 0.42f * sx, cy - r * sy * 0.52f)
         c.drawOval(rect, pF)
 
         // животик
-        pF.color = 0xFFB4E3C9.toInt()
+        pF.color = 0xFFBDEBCF.toInt()
         rect.set(px - r * 0.55f * sx, cy + r * sy * 0.02f, px + r * 0.55f * sx, cy + r * sy * 0.84f)
         c.drawOval(rect, pF)
 
@@ -486,13 +583,13 @@ class SceneRenderer {
                 c.drawLine(px + eyeDx - r * 0.15f, eyeY, px + eyeDx + r * 0.15f, eyeY, pS)
             }
             else -> {
-                val er = r * 0.21f
-                circleAt(c, px - eyeDx, eyeY, er, 0xFF2E3B34.toInt())
-                circleAt(c, px + eyeDx, eyeY, er, 0xFF2E3B34.toInt())
-                circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
+                val er = r * 0.24f
+                circleAt(c, px - eyeDx, eyeY, er, 0xFF22333B.toInt())
+                circleAt(c, px + eyeDx, eyeY, er, 0xFF22333B.toInt())
+                circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.28f, er * 0.42f, 0xFFFFFFFF.toInt())
                 circleAt(c, px + eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
-                circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.35f, er * 0.16f, 0x30FFFFFF.toInt())
-                circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.35f, er * 0.16f, 0x30FFFFFF.toInt())
+                circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
+                circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
             }
         }
 

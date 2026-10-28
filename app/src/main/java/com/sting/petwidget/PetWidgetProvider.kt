@@ -46,9 +46,23 @@ class PetWidgetProvider : AppWidgetProvider() {
 
     companion object {
 
+        const val ACTION_LIGHT = "com.sting.petwidget.LIGHT"
+
+        private fun lightIntent(context: Context): PendingIntent =
+            PendingIntent.getBroadcast(
+                context, 23,
+                Intent(context, TapBridgeReceiver::class.java).setAction(ACTION_LIGHT),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+        fun applyClicks(rv: RemoteViews, context: Context) {
+            rv.setOnClickPendingIntent(R.id.scene, tapIntent(context))
+            rv.setOnClickPendingIntent(R.id.bulb_tap, lightIntent(context))
+        }
+
         private fun updateOne(context: Context, awm: AppWidgetManager, id: Int) {
             val rv = RemoteViews(context.packageName, R.layout.pet_widget)
-            rv.setOnClickPendingIntent(R.id.scene, tapIntent(context))
+            applyClicks(rv, context)
             awm.updateAppWidget(id, rv)
         }
 
@@ -132,6 +146,8 @@ class PetWidgetProvider : AppWidgetProvider() {
                 sim.save()
                 val renderer = SceneRenderer()
                 renderer.lastPrefs = prefs
+                renderer.lightOn = prefs.getBoolean("light_on", false)
+                renderer.density = context.resources.displayMetrics.density
 
                 for (id in ids) {
                     val opts = awm.getAppWidgetOptions(id)
@@ -143,7 +159,7 @@ class PetWidgetProvider : AppWidgetProvider() {
                     val bmp = renderer.render(sim, w, h) ?: continue
                     val rv = RemoteViews(context.packageName, R.layout.pet_widget)
                     rv.setImageViewBitmap(R.id.scene, bmp)
-                    rv.setOnClickPendingIntent(R.id.scene, tapIntent(context))
+                    applyClicks(rv, context)
                     awm.updateAppWidget(id, rv)
                 }
             } catch (_: Exception) {

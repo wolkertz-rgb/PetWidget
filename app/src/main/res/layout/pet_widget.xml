@@ -10,4 +10,11 @@
         android:layout_height="match_parent"
         android:scaleType="fitXY"
         android:contentDescription="@string/app_name" />
+
+    <!-- невидимая зона тапа по лампочке (верх, центр) -->
+    <View
+        android:id="@+id/bulb_tap"
+        android:layout_width="76dp"
+        android:layout_height="70dp"
+        android:layout_gravity="top|center_horizontal" />
 </FrameLayout>

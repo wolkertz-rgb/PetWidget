@@ -150,6 +150,10 @@ class PetService : Service() {
 
             if (sizeW == 0 || sizeH == 0) recomputeSizes()
 
+            // состояние света лампочки + плотность экрана для отрисовки
+            renderer.lightOn = prefs.getBoolean("light_on", false)
+            renderer.density = resources.displayMetrics.density
+
             // синхронизируемся с общим состоянием — burst/будильник и сервис
             // всегда рисуют одну и ту же правду
             sim.load()
@@ -161,6 +165,7 @@ class PetService : Service() {
             if (bmp != null && ids.isNotEmpty()) {
                 val rv = RemoteViews(packageName, R.layout.pet_widget).apply {
                     setImageViewBitmap(R.id.scene, bmp)
+                    PetWidgetProvider.applyClicks(this, this@PetService)
                 }
                 awm?.partiallyUpdateAppWidget(ids, rv)
             }

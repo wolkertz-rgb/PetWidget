@@ -74,15 +74,19 @@ object ItemDefs {
 
     // ------------------------------------------------------------ игрушки
 
-    /** Мячик — можно толкать, он катится */
+    /** Мячик — пляжный, в полоску */
     private fun ball() = Def("ball", "Мячик", Kind.TOY, Reaction.PUSH, 2.2f) { c, cx, fy, s, _ ->
         val r = s * 0.95f
         val cy = fy - r
-        circle(c, cx, cy, r, 0xFFF87171.toInt())
-        pF.color = 0xFF60A5FA.toInt()
+        circle(c, cx, cy, r, 0xFFF8F5EC.toInt())
+        pF.color = 0xFF7CC8A2.toInt()
         rect.set(cx - r, cy - r, cx + r, cy + r)
-        c.drawArc(rect, 180f, 180f, true, pF) // нижняя половина синяя
-        line(c, cx - r, cy, cx + r, cy, s * 0.09f, 0xFFFFFFFF.toInt())
+        c.drawArc(rect, -60f, 60f, true, pF)      // мятный сектор
+        pF.color = 0xFFF26D7E.toInt()
+        c.drawArc(rect, 60f, 60f, true, pF)       // розовый сектор
+        pF.color = 0xFFF4C95D.toInt()
+        c.drawArc(rect, 180f, 60f, true, pF)      // жёлтый сектор
+        line(c, cx - r, cy, cx + r, cy, s * 0.08f, 0x33FFFFFF.toInt())
         circle(c, cx - r * 0.35f, cy - r * 0.35f, r * 0.16f, 0x66FFFFFF.toInt())
     }
 
@@ -149,16 +153,20 @@ object ItemDefs {
 
     /** Робот с мигающей лампочкой */
     private fun robot() = Def("robot", "Робот", Kind.TOY, Reaction.PLAY, 2.2f) { c, cx, fy, s, t ->
-        val body = 0xFF94A3B8.toInt()
-        roundRect(c, cx - s * 0.85f, fy - s * 1.7f, cx + s * 0.85f, fy - s * 0.02f, s * 0.2f, body)
-        roundRect(c, cx - s * 0.62f, fy - s * 3.1f, cx + s * 0.62f, fy - s * 1.6f, s * 0.2f, 0xFFCBD5E1.toInt())
-        line(c, cx, fy - s * 3.1f, cx, fy - s * 3.7f, s * 0.08f, 0xFF64748B.toInt())
-        // лампочка мигает
+        val body = 0xFFB8C4D9.toInt()
+        roundRect(c, cx - s * 0.85f, fy - s * 1.7f, cx + s * 0.85f, fy - s * 0.02f, s * 0.26f, body)
+        // экран-лицо
+        roundRect(c, cx - s * 0.58f, fy - s * 3.0f, cx + s * 0.58f, fy - s * 1.65f, s * 0.22f, 0xFF2E3B4A.toInt())
         val on = (sin(t * 3.0f) > 0f)
-        circle(c, cx, fy - s * 3.85f, s * 0.18f, if (on) 0xFFEF4444.toInt() else 0xFF7F1D1D.toInt())
-        circle(c, cx - s * 0.3f, fy - s * 2.35f, s * 0.13f, 0xFF1E293B.toInt())
-        circle(c, cx + s * 0.3f, fy - s * 2.35f, s * 0.13f, 0xFF1E293B.toInt())
-        line(c, cx - s * 0.3f, fy - s * 1.1f, cx + s * 0.3f, fy - s * 1.1f, s * 0.08f, 0xFF475569.toInt())
+        circle(c, cx - s * 0.26f, fy - s * 2.4f, s * 0.12f, 0xFF9FE8C4.toInt())
+        circle(c, cx + s * 0.26f, fy - s * 2.4f, s * 0.12f, 0xFF9FE8C4.toInt())
+        // улыбка роботу
+        pS.color = 0xFF9FE8C4.toInt()
+        pS.strokeWidth = s * 0.07f
+        rect.set(cx - s * 0.2f, fy - s * 2.1f, cx + s * 0.2f, fy - s * 1.9f)
+        c.drawArc(rect, 15f, 150f, false, pS)
+        line(c, cx, fy - s * 3.0f, cx, fy - s * 3.5f, s * 0.08f, 0xFF64748B.toInt())
+        circle(c, cx, fy - s * 3.62f, s * 0.16f, if (on) 0xFFFFD54D.toInt() else 0xFF7A6420.toInt())
         line(c, cx - s * 0.85f, fy - s * 1.2f, cx - s * 1.2f, fy - s * 0.7f, s * 0.16f, body)
         line(c, cx + s * 0.85f, fy - s * 1.2f, cx + s * 1.2f, fy - s * 0.7f, s * 0.16f, body)
     }
@@ -295,12 +303,22 @@ object ItemDefs {
         circle(c, cx + s * 0.5f, fy - s * 1.1f, s * 0.11f, 0xFF5C3A21.toInt())
     }
 
-    /** Кофе */
+    /** Кофе с сердечком на кружке */
     private fun coffee() = Def("coffee", "Кофе", Kind.FOOD, Reaction.SMELL, 2.0f) { c, cx, fy, s, t ->
-        roundRect(c, cx - s * 0.9f, fy - s * 1.8f, cx + s * 0.9f, fy - s * 0.05f, s * 0.25f, 0xFFF5F5F4.toInt())
+        roundRect(c, cx - s * 0.9f, fy - s * 1.8f, cx + s * 0.9f, fy - s * 0.05f, s * 0.25f, 0xFFFFF7EC.toInt())
         ellipse(c, cx, fy - s * 1.8f, s * 0.9f, s * 0.22f, 0xFF78350F.toInt())
         ellipse(c, cx, fy - s * 1.8f, s * 0.6f, s * 0.13f, 0xFFB45309.toInt())
-        line(c, cx + s * 0.9f, fy - s * 1.4f, cx + s * 0.9f, fy - s * 0.9f, s * 0.16f, 0xFFF5F5F4.toInt())
+        // сердечко на кружке
+        pF.color = 0xFFE58C8C.toInt()
+        val hy = fy - s * 0.85f
+        path.reset()
+        path.moveTo(cx, hy + s * 0.18f)
+        path.quadTo(cx - s * 0.26f, hy, cx - s * 0.1f, hy - s * 0.14f)
+        path.quadTo(cx, hy - s * 0.2f, cx, hy - s * 0.06f)
+        path.quadTo(cx, hy - s * 0.2f, cx + s * 0.1f, hy - s * 0.14f)
+        path.quadTo(cx + s * 0.26f, hy, cx, hy + s * 0.18f)
+        c.drawPath(path, pF)
+        line(c, cx + s * 0.9f, fy - s * 1.4f, cx + s * 0.9f, fy - s * 0.9f, s * 0.16f, 0xFFFFF7EC.toInt())
         // пар поднимается
         for (i in 0..1) {
             val ph = t * 2.0f + i * 1.6f

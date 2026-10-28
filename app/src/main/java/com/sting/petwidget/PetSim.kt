@@ -80,11 +80,11 @@ class PetSim(context: Context) {
             }
         }
 
-        // спавн (упавшие с потолка / подарки)
+        // спавн (упавшие с потолка / подарки) — ЛИМИТ: максимум 1 предмет
         nextSpawnIn -= dt
         if (nextSpawnIn <= 0) {
             nextSpawnIn = rL(14_000, 55_000)
-            if (items.size < 2 && state != State.SLEEP) spawnItem()
+            if (items.isEmpty() && state != State.SLEEP) spawnItem()
         }
 
         // "Я ВАС ВИЖУ!" — махание владельцу раз в ~5 минут вежливости
