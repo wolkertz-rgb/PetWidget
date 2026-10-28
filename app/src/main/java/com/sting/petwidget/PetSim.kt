@@ -183,6 +183,7 @@ class PetSim(context: Context) {
             ItemDefs.Reaction.RUB   -> 2_500       // гладит/трёт
             ItemDefs.Reaction.PUSH  -> 900
             ItemDefs.Reaction.OPEN  -> 2_800       // открывает подарок
+            ItemDefs.Reaction.PLAY  -> rL(1_200, 2_000) // простая возня носом
         }
         dir = if (item.x >= x) 1 else -1
     }

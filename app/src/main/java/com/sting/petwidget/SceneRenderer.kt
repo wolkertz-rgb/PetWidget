@@ -273,7 +273,7 @@ class SceneRenderer {
     private fun spawnDust(c: Canvas, x: Float, floorY: Float, r: Float, p: Float) {
         val n = 5
         for (i in 0 until n) {
-            val ang = (i.toFloat() / n) * PI * 2f + 0.4f
+            val ang = (i.toFloat() / n) * PI.toFloat() * 2f + 0.4f
             val d = p * r * 1.6f
             val dx = cos(ang) * d
             val dy = -abs(sin(ang)) * d * 0.5f + r * 0.2f
@@ -286,7 +286,7 @@ class SceneRenderer {
 
     private fun drawConfetti(c: Canvas, x: Float, floorY: Float, unit: Float, p: Float) {
         for (i in 0 until 9) {
-            val ang = i * (PI * 2f / 9f)
+            val ang = i * (PI.toFloat() * 2f / 9f)
             val spread = 0.5f + p * 1.6f
             val dx = cos(ang) * unit * spread
             val dy = sin(ang) * unit * spread * 0.7f - p * unit * 0.8f
