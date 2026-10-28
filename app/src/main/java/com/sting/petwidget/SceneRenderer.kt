@@ -14,8 +14,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Художник сцены. Всё рисуется непрерывно: позы/углы/офсеты — функции
- * (state, stateTime, animPhase), поэтому переходы между действиями гладкие.
+ * Художник сцены: градиентная комната, кожаное мини-кресло, предметы
+ * с появлением "с потолка", резиновые ручки блоба, трюки, приветствие.
+ * Всё — функции непрерывного времени: без "слайдов".
  */
 class SceneRenderer {
 
@@ -39,15 +40,11 @@ class SceneRenderer {
     fun render(sim: PetSim, newW: Int, newH: Int): Bitmap? {
         if (newW <= 0 || newH <= 0) return null
         if (bmp == null || w != newW || h != newH) {
-            try {
-                bmp = Bitmap.createBitmap(newW, newH, Bitmap.Config.ARGB_8888)
-            } catch (_: OutOfMemoryError) {
-                return null
-            }
+            try { bmp = Bitmap.createBitmap(newW, newH, Bitmap.Config.ARGB_8888) } catch (_: OutOfMemoryError) { return null }
             w = newW; h = newH
         }
         val c = Canvas(bmp!!)
-        paintScene(c, sim)
+        try { paintScene(c, sim) } catch (_: Throwable) { /* кадр важнее идеала */ }
         return bmp
     }
 
@@ -59,13 +56,9 @@ class SceneRenderer {
         val floorY = h - h * 0.115f
         val itemX: (Float) -> Float = { pad + it.coerceIn(0f, 1f) * (w - 2 * pad) }
 
-        // фон с градиентом
+        // фон
         val bg = Paint().apply {
-            shader = LinearGradient(
-                0f, pad, 0f, floorY,
-                0xFFF2F2EF.toInt(), 0xFFE8E8E4.toInt(),
-                Shader.TileMode.CLAMP
-            )
+            shader = LinearGradient(0f, pad, 0f, floorY, 0xFFF2F2EF.toInt(), 0xFFE8E8E4.toInt(), Shader.TileMode.CLAMP)
         }
         c.drawRect(0f, 0f, w.toFloat(), floorY + 1f, bg)
         c.drawRect(0f, floorY, w.toFloat(), h.toFloat(), bg)
@@ -79,24 +72,16 @@ class SceneRenderer {
             else -> {}
         }
 
-        // стены: боковые затенения
-        val wallL = Paint().apply {
-            shader = LinearGradient(0f, 0f, pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP)
-        }
+        // стены/потолок
+        val wallL = Paint().apply { shader = LinearGradient(0f, 0f, pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, pad * 2.4f, h.toFloat(), wallL)
-        val wallR = Paint().apply {
-            shader = LinearGradient(w.toFloat(), 0f, w - pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP)
-        }
+        val wallR = Paint().apply { shader = LinearGradient(w.toFloat(), 0f, w - pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP) }
         c.drawRect(w - pad * 2.4f, 0f, w.toFloat(), h.toFloat(), wallR)
-        val ceil = Paint().apply {
-            shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP)
-        }
+        val ceil = Paint().apply { shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, w.toFloat(), pad * 1.6f, ceil)
 
-        // пол с градиентом + плинтус
-        val floor = Paint().apply {
-            shader = LinearGradient(0f, floorY, 0f, h.toFloat(), 0xFFE1E1DC.toInt(), 0xFFD3D3CE.toInt(), Shader.TileMode.CLAMP)
-        }
+        // пол + плинтус
+        val floor = Paint().apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), 0xFFE1E1DC.toInt(), 0xFFD3D3CE.toInt(), Shader.TileMode.CLAMP) }
         rect.set(pad, floorY, w - pad, h - pad)
         c.drawRect(rect, floor)
         pF.color = 0xFFDCDCD6.toInt()
@@ -108,61 +93,65 @@ class SceneRenderer {
         pS.color = 0x40FFFFFF
         c.drawLine(pad + 1, floorY + 1, w - pad - 1, floorY + 1, pS)
 
-        // рамка поверх
+        // рамка
         pS.color = 0x66C9C9C3.toInt()
         pS.strokeWidth = unit * 0.12f
         c.drawRect(pad, pad, w - pad, h - pad, pS)
 
-        // ---- уютная лежанка (постоянный элемент комнаты)
-        drawBed(c, unit, floorY)
+        // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
+        drawChairBack(c, unit, floorY)
 
-        // ---- информация о взаимодействии (held item, руки, крышка)
-        val inter = readInteract(sim, itemX, floorY, r = unit * 1.55f)
+        val inter = readInteract(sim, itemX, r = unit * 1.55f)
 
-        // ---- предметы
+        // предметы
         for (item in sim.items) {
-            val isHeld = inter.holding && item === inter.target
-            if (isHeld) continue // нарисуем в руках потом
-            drawFloorItem(c, sim, item, itemX(item.x), floorY, unit, itemX)
+            if (inter.holding && item === inter.target) continue // в руках
+            drawFloorItem(c, sim, item, itemX(item.x), floorY, unit)
         }
+        // крышка подарка
+        if (inter.lidProg > 0f && inter.target != null) drawLidPop(c, inter, unit, floorY)
 
-        // крышка подарка, если питомец её приоткрывает
-        if (inter.lidProg > 0f && inter.target != null) {
-            drawLidPop(c, inter, unit, floorY)
-        }
-
-        // питомец (тело+лицо), затем предмет в руках, поверх — ручки
+        // питомец
         drawPet(c, sim, itemX(sim.x), floorY, unit, inter)
 
-        if (inter.holding && inter.target != null && inter.holdProg > 0f) {
+        // предмет в руках
+        if (inter.holding && inter.target != null && inter.prog > 0f) {
             drawHeldItem(c, sim, inter, unit, floorY)
         }
-        drawArms(c, sim, inter, unit, floorY)
 
-        // ---- конфетти из открытого подарка
+        // ручки
+        drawArms(c, sim, inter, unit, floorY, itemX)
+
+        // сердечки при приветствии
+        if (sim.state == PetSim.State.WAVE) drawHearts(c, sim, itemX(sim.x), floorY, unit)
+
+        // конфетти
         for (item in sim.items) {
             if (item.confetti && item.ageMs in 0L..420L) {
                 drawConfetti(c, itemX(item.x), floorY, unit, item.ageMs / 420f)
             }
         }
+
+        // передняя часть кресла — подлокотники ПОВЕРХ питомца (уютно)
+        drawChairFront(c, unit, floorY)
     }
 
-    // ------------------------------------------------------------ захват
+    // ------------------------------------------------------------- захват
 
     private class InteractInfo {
         var holding = false
         var target: PetSim.SpawnedItem? = null
-        var holdProg = 0f        // 0..1: насколько ручки с предметом
-        var holdDX = 0f          // сдвиг предмета в руках
-        var holdDY = 0f
-        var lidProg = 0f         // для подарка: насколько открыта крышка
-        var armProg = 0f         // 0..1: вылезли ли руки
+        var prog = 0f          // 0..1 — плавный ход "от пола к рукам"
+        var armReach = 0f      // насколько вылезли руки
+        var fromX = 0f         // px предмета на полу
+        var toX = 0f           // px возле питомца
+        var liftPx = 0f        // подъём (смスク отрицательный)
+        var lidProg = 0f
         var rubPhase = 0f
+        var eatFade = 0f       // 0..1 — съедание (затухание предмета)
     }
 
-    private fun readInteract(
-        sim: PetSim, itemX: (Float) -> Float, floorY: Float, r: Float
-    ): InteractInfo {
+    private fun readInteract(sim: PetSim, itemX: (Float) -> Float, r: Float): InteractInfo {
         val info = InteractInfo()
         if (sim.state != PetSim.State.INTERACT) return info
         val ti = sim.targetItem ?: return info
@@ -173,49 +162,38 @@ class SceneRenderer {
         info.target = ti
         info.rubPhase = sim.animPhase * 6f
 
-        // прогресс вылезания рук: 0..1 первые 300мс, у финала убираем за 250мс
-        val base = (t.toFloat() / PetSim.HOLD_AT).coerceIn(0f, 1f)
+        val reach = (t.toFloat() / 700f).coerceIn(0f, 1f)
         val rel = if (t >= dur - PetSim.RELEASE_MS)
             ((dur - t).toFloat() / PetSim.RELEASE_MS).coerceIn(0f, 1f) else 1f
-        info.armProg = (base * rel).coerceIn(0f, 1f)
+        info.prog = (smooth(reach) * rel).coerceIn(0f, 1f)
+        info.armReach = (smooth((t.toFloat() / 380f).coerceIn(0f, 1f)) * rel).coerceIn(0f, 1f)
 
-        val needsHold = sim.reaction == ItemDefs.Reaction.SMELL ||
-            sim.reaction == ItemDefs.Reaction.LIFT ||
-            sim.reaction == ItemDefs.Reaction.RUB
-        if (!needsHold) {
-            if (sim.reaction == ItemDefs.Reaction.OPEN) {
-                info.lidProg = ((t - (dur - 800f)).toFloat() / 800f).coerceIn(0f, 1f)
-                info.holdProg = info.armProg
+        info.fromX = itemX(ti.x)
+        info.toX = itemX((sim.x + sim.dir * 0.48f).coerceIn(0.12f, 0.88f))
+
+        when (sim.reaction) {
+            ItemDefs.Reaction.SMELL -> { info.holding = true; info.liftPx = -r * 1.72f }
+            ItemDefs.Reaction.LIFT  -> { info.holding = true; info.liftPx = -r * 1.05f }
+            ItemDefs.Reaction.EAT   -> {
+                info.holding = true
+                info.liftPx = -r * 1.15f
+                info.eatFade = ((t - (dur - 400f)).toFloat() / 400f).coerceIn(0f, 1f)
             }
-            return info
+            ItemDefs.Reaction.OPEN  -> {
+                info.lidProg = ((t - (dur - 800f)).toFloat() / 800f).coerceIn(0f, 1f)
+            }
+            else -> {} // RUB/PUSH/PLAY: предмет на полу, руки сами
         }
-
-        info.holding = true
-        info.holdProg = (info.armProg).coerceIn(0f, 1f)
-        val ix = itemX(ti.x)
-        info.holdDX = sim.dir * r * 0.62f
-        info.holdDY = when (sim.reaction) {
-            ItemDefs.Reaction.SMELL -> -r * 1.72f
-            ItemDefs.Reaction.LIFT  -> -r * 1.05f
-            else -> 0f
-        }
-        // мягкая дуга подъёма: ближе к grabbing предмет приподнимается плавно
         return info
     }
 
     // ------------------------------------------------------ предмет на полу
 
-    private fun drawFloorItem(
-        c: Canvas, sim: PetSim, item: PetSim.SpawnedItem,
-        ix: Float, floorY: Float, unit: Float, itemX: (Float) -> Float
-    ) {
+    private fun drawFloorItem(c: Canvas, sim: PetSim, item: PetSim.SpawnedItem, ix: Float, floorY: Float, unit: Float) {
         val def = item.def
-
-        // ---- спавн: телеграф тени, падение с потолка, отскок, пыль
-        val a = item.ageMs
-        if (a < 0) {
+        if (item.ageMs < 0) {
+            val a = item.ageMs
             if (a < -1000) {
-                // телеграф: тень на месте будущего падения
                 val tp = ((a + 1500f) / 500f).coerceIn(0f, 1f)
                 pF.color = 0xFF000000.toInt()
                 pF.alpha = (tp * 46).toInt().coerceIn(0, 255)
@@ -225,27 +203,22 @@ class SceneRenderer {
                 pF.alpha = 255
                 return
             }
-            // падение (0..0.62) и два отскока
             val p = ((a + 1000f) / 1000f).coerceIn(0f, 1f)
             val yOff: Float
             var squash = 1f
             when {
-                p < 0.62f -> {
-                    val q = p / 0.62f
-                    yOff = -(1f - q * q) * unit * 9f
-                }
+                p < 0.62f -> { val q = p / 0.62f; yOff = -(1f - q * q) * unit * 9f }
                 p < 0.82f -> {
                     val q = (p - 0.62f) / 0.20f
-                    yOff = -sin(q * PI.toFloat()) * unit * 1.15f
+                    yOff = -sin((q * PI).toFloat()) * unit * 1.15f
                     if (q < 0.25f) squash = 1f - 0.3f * (1f - q * 4f)
                 }
                 else -> {
                     val q = (p - 0.82f) / 0.18f
-                    yOff = -sin(q * PI.toFloat()) * unit * 0.35f
+                    yOff = -sin((q * PI).toFloat()) * unit * 0.35f
                     if (q < 0.25f) squash = 1f - 0.2f * (1f - q * 4f)
                 }
             }
-            // пыль при ударе
             if (p > 0.60f && p < 0.78f) spawnDust(c, ix, floorY, unit * 0.9f, (p - 0.60f) / 0.18f)
             if (p > 0.80f && p < 0.98f) spawnDust(c, ix, floorY, unit * 0.5f, (p - 0.80f) / 0.18f)
 
@@ -259,10 +232,9 @@ class SceneRenderer {
             return
         }
 
-        // ---- обычное состояние: pop-in при выскакивании из подарка
-        val pop = if (item.confetti) 1f else (a / 900f).coerceIn(0f, 1f)
+        val pop = if (item.confetti) 1f else (item.ageMs / 900f).coerceIn(0f, 1f)
         val sc = if (pop >= 1f) 1f else 0.55f + 0.45f * pop
-        val fade = 1f - ((a - item.ttlMs + 1500f) / 1500f).coerceIn(0f, 1f)
+        val fade = 1f - ((item.ageMs - item.ttlMs + 1500f) / 1500f).coerceIn(0f, 1f)
         if (fade <= 0f) return
         val alpha = (fade * 255).toInt()
         c.save()
@@ -293,11 +265,7 @@ class SceneRenderer {
             val spread = 0.5f + p * 1.6f
             val dx = cos(ang) * unit * spread
             val dy = sin(ang) * unit * spread * 0.7f - p * unit * 0.8f
-            pF.color = when (i % 3) {
-                0 -> 0xFFE05B5B.toInt()
-                1 -> 0xFFF4C95D.toInt()
-                else -> 0xFF7CC8A2.toInt()
-            }
+            pF.color = when (i % 3) { 0 -> 0xFFE05B5B.toInt(); 1 -> 0xFFF4C95D.toInt(); else -> 0xFF7CC8A2.toInt() }
             pF.alpha = ((1f - p) * 255f).toInt().coerceIn(0, 255)
             c.save()
             c.translate(x + dx, floorY + dy)
@@ -309,16 +277,15 @@ class SceneRenderer {
         pF.alpha = 255
     }
 
-    // ------------------------------------------------------------ подарок
+    // ------------------------------------------------------------- крышка
 
     private fun drawLidPop(c: Canvas, inter: InteractInfo, unit: Float, floorY: Float) {
         val ti = inter.target ?: return
         val p = inter.lidProg
         if (p <= 0f || p >= 1f) return
-        val ix = floorXfor(ti.x, unit)
         val topY = floorY - unit * 1.05f - unit * 0.3f
         c.save()
-        c.translate(ix, topY - p * unit * 2.4f)
+        c.translate(inter.fromX, topY - p * unit * 2.4f)
         c.rotate(-p * 130f)
         val lw = unit * 1.15f * 1.08f
         pF.color = 0xFFD8945C.toInt()
@@ -334,38 +301,50 @@ class SceneRenderer {
 
     // ------------------------------------------------------------- питомец
 
+    private fun petCy(sim: PetSim, floorY: Float, unit: Float, r: Float): Float {
+        val onBed = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
+        var cy = floorY - r * 0.92f - if (onBed) unit * 0.62f else 0f
+        if (sim.state == PetSim.State.HAPPY) {
+            val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
+            cy -= sin((p * PI).toFloat()) * (r * 1.5f)
+        }
+        if (sim.state == PetSim.State.WALK) {
+            cy -= abs(sin(sim.animPhase * 5.5f)) * r * 0.14f
+        }
+        if (sim.state == PetSim.State.ROLL) {
+            val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
+            cy -= sin((p * PI).toFloat()) * r * 0.3f
+        }
+        if (sim.state == PetSim.State.WAVE) {
+            cy -= abs(sin(sim.stateTime / 280f)) * r * 0.12f
+        }
+        return cy
+    }
+
     private fun drawPet(
         c: Canvas, sim: PetSim, cx: Float, floorY: Float, unit: Float, inter: InteractInfo
     ) {
         val r = unit * 1.55f
         val onBed = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
-        val bedLift = if (onBed) unit * 0.52f else 0f
-        var cy = floorY - r * 0.92f - bedLift
+        var cy = petCy(sim, floorY, unit, r)
         var dx = 0f
         var sx = 1f
         var sy = 1f
         var rot = 0f
         val st = sim.state
 
-        // д soft тень (в лежанке — мягче и меньше)
+        // тень (в кресле чуть меньше)
         pF.color = if (onBed) 0x0A000000 else 0x0F000000
-        rect.set(
-            cx - r * (if (onBed) 1.15f else 1.45f), floorY - unit * 0.30f,
-            cx + r * (if (onBed) 1.15f else 1.45f), floorY + unit * 0.18f
-        )
+        val shadowR = if (onBed) 1.15f else 1.45f
+        rect.set(cx - r * shadowR, floorY - unit * 0.30f, cx + r * shadowR, floorY + unit * 0.18f)
         c.drawOval(rect, pF)
         pF.color = if (onBed) 0x0E000000 else 0x17000000
-        rect.set(
-            cx - r * (if (onBed) 0.85f else 1.0f), floorY - unit * 0.20f,
-            cx + r * (if (onBed) 0.85f else 1.0f), floorY + unit * 0.12f
-        )
+        rect.set(cx - r * (if (onBed) 0.85f else 1.0f), floorY - unit * 0.20f, cx + r * (if (onBed) 0.85f else 1.0f), floorY + unit * 0.12f)
         c.drawOval(rect, pF)
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
         when (st) {
-            PetSim.State.HAPPY -> cy -= sin((p * PI).toFloat()) * (r * 1.5f)
             PetSim.State.WALK -> {
-                cy -= abs(sin(sim.animPhase * 5.5f)) * r * 0.14f
                 sx = 1f + 0.05f * sin(sim.animPhase * 11f)
                 sy = 1f - 0.035f * sin(sim.animPhase * 11f)
             }
@@ -374,26 +353,19 @@ class SceneRenderer {
                 sy = 1f - 0.02f * sin(sim.animPhase * 1.2f)
             }
             PetSim.State.INTERACT -> sx = 1f + 0.05f * sin(sim.stateTime / 50f)
-            // кувырок: полный оборот корпуса; плавные начала/концы
             PetSim.State.ROLL -> {
-                val e = smooth(p)
-                rot = e * 2f * PI.toFloat() * sim.dir
-                cy -= sin((p * PI).toFloat()) * r * 0.3f
+                rot = smooth(p) * 2f * PI.toFloat() * sim.dir
                 sx = 1f + 0.12f * sin((p * PI).toFloat())
                 sy = 1f - 0.10f * sin((p * PI).toFloat())
             }
-            // покачивание маятником, возвращает в центр
             PetSim.State.SWAY -> {
-                val osc = sin(p * PI.toFloat() * 3f) // 1.5 цикла, ends at 0
+                val osc = sin(p * PI.toFloat() * 3f)
                 rot = osc * 0.36f
                 dx = osc * unit * 0.9f
             }
-            PetSim.State.LOOK -> { /* глаза двигаются сами */ }
-            // потягивание: тянется вверх и вниз по синусу
-            PetSim.State.STRETCH -> {
-                val s = sin((p * PI).toFloat())
-                sy = 1f + 0.42f * s
-                sx = 1f - 0.13f * s
+            PetSim.State.WAVE -> {
+                sx = 1f + 0.04f * sin(sim.stateTime / 240f)
+                sy = 1f + 0.03f * sin(sim.stateTime / 240f)
             }
             else -> {
                 sx = 1f + 0.02f * sin(sim.animPhase * 1.5f)
@@ -405,14 +377,12 @@ class SceneRenderer {
         c.save()
         c.rotate(rot * 57.2958f, px, cy)
 
-        // ---- тело: градиент
+        // тело
         val body = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(
-                px - r * 0.4f, cy - r * sy,
-                px + r * 0.2f, cy + r * sy,
+                px - r * 0.4f, cy - r * sy, px + r * 0.2f, cy + r * sy,
                 intArrayOf(0xFF9ADDB8.toInt(), 0xFF7CC8A2.toInt(), 0xFF5FAE88.toInt()),
-                null,
-                Shader.TileMode.CLAMP
+                null, Shader.TileMode.CLAMP
             )
         }
         rect.set(px - r * sx, cy - r * sy, px + r * sx, cy + r * sy)
@@ -435,15 +405,16 @@ class SceneRenderer {
         val eyeY = cy - r * sy * 0.30f
         val eyeDx = r * 0.40f * sx
         val sleeping = st == PetSim.State.SLEEP
-        val blinking = !sleeping && (sim.animPhase % 4.4f) < 0.14f
+        val stretching = st == PetSim.State.STRETCH
+        val waving = st == PetSim.State.WAVE
+        val blinking = !sleeping && !stretching && !waving && (sim.animPhase % 4.4f) < 0.14f
         val happy = st == PetSim.State.HAPPY || st == PetSim.State.INTERACT || st == PetSim.State.ROLL
 
         var lookX = sim.dir * 0.18f
         var lookY = 0f
         if (st == PetSim.State.LOOK) {
-            val lp = sim.stateTime / 1000f
-            lookX = sin(lp * PI * 1.4f).toFloat() * 0.25f
-        } else {
+            lookX = sin(sim.stateTime / 1000f * PI * 1.4f).toFloat() * 0.25f
+        } else if (!waving) {
             sim.targetItem?.let { ti ->
                 val dxT = ti.x - sim.x
                 val dyT = -(r * sy * 0.3f / r)
@@ -453,10 +424,9 @@ class SceneRenderer {
             }
         }
 
-        if (sleeping || st == PetSim.State.STRETCH) {
-            pS.color = 0xFF2E3B34.toInt()
-            pS.strokeWidth = unit * 0.16f
-            if (sleeping) {
+        when {
+            sleeping -> {
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
                 rect.set(px - eyeDx - r * 0.18f, eyeY - r * 0.10f, px - eyeDx + r * 0.18f, eyeY + r * 0.10f)
                 c.drawArc(rect, 20f, 140f, false, pS)
                 rect.set(px + eyeDx - r * 0.18f, eyeY - r * 0.10f, px + eyeDx + r * 0.18f, eyeY + r * 0.10f)
@@ -472,26 +442,29 @@ class SceneRenderer {
                     c.drawText("Z", zx, zy, pZ)
                 }
                 pZ.alpha = 255
-            } else {
-                // потягивается: глаза-полумесяцы (счастливые дуги)
-                rect.set(px - eyeDx - r * 0.16f, eyeY - r * 0.10f, px - eyeDx + r * 0.16f, eyeY + r * 0.10f)
-                c.drawArc(rect, 20f, 140f, false, pS)
-                rect.set(px + eyeDx - r * 0.16f, eyeY - r * 0.10f, px + eyeDx + r * 0.16f, eyeY + r * 0.10f)
-                c.drawArc(rect, 20f, 140f, false, pS)
             }
-        } else if (blinking && st != PetSim.State.ROLL) {
-            pS.color = 0xFF2E3B34.toInt()
-            pS.strokeWidth = unit * 0.16f
-            c.drawLine(px - eyeDx - r * 0.15f, eyeY, px - eyeDx + r * 0.15f, eyeY, pS)
-            c.drawLine(px + eyeDx - r * 0.15f, eyeY, px + eyeDx + r * 0.15f, eyeY, pS)
-        } else {
-            val er = r * 0.21f
-            circleAt(c, px - eyeDx, eyeY, er, 0xFF2E3B34.toInt())
-            circleAt(c, px + eyeDx, eyeY, er, 0xFF2E3B34.toInt())
-            circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
-            circleAt(c, px + eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
-            circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.35f, er * 0.16f, 0x30FFFFFF.toInt())
-            circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.35f, er * 0.16f, 0x30FFFFFF.toInt())
+            stretching || waving -> {
+                // счастливые дужки-глаза
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
+                rect.set(px - eyeDx - r * 0.16f, eyeY - r * 0.12f, px - eyeDx + r * 0.16f, eyeY + r * 0.06f)
+                c.drawArc(rect, 200f, 140f, false, pS)
+                rect.set(px + eyeDx - r * 0.16f, eyeY - r * 0.12f, px + eyeDx + r * 0.16f, eyeY + r * 0.06f)
+                c.drawArc(rect, 200f, 140f, false, pS)
+            }
+            blinking && st != PetSim.State.ROLL -> {
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
+                c.drawLine(px - eyeDx - r * 0.15f, eyeY, px - eyeDx + r * 0.15f, eyeY, pS)
+                c.drawLine(px + eyeDx - r * 0.15f, eyeY, px + eyeDx + r * 0.15f, eyeY, pS)
+            }
+            else -> {
+                val er = r * 0.21f
+                circleAt(c, px - eyeDx, eyeY, er, 0xFF2E3B34.toInt())
+                circleAt(c, px + eyeDx, eyeY, er, 0xFF2E3B34.toInt())
+                circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
+                circleAt(c, px + eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
+                circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.35f, er * 0.16f, 0x30FFFFFF.toInt())
+                circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.35f, er * 0.16f, 0x30FFFFFF.toInt())
+            }
         }
 
         // щёчки
@@ -506,6 +479,15 @@ class SceneRenderer {
         pS.strokeWidth = unit * 0.16f
         when {
             sleeping -> { /* нарисовано */ }
+            waving -> {
+                // широкая улыбка хозяину с открытым ротиком
+                pF.color = 0xFF2E3B34.toInt()
+                rect.set(px - r * 0.26f, mouthY - r * 0.24f, px + r * 0.26f, mouthY + r * 0.10f)
+                c.drawArc(rect, 0f, 180f, true, pF)
+                pF.color = 0xFFE58C8C.toInt()
+                rect.set(px - r * 0.10f, mouthY + r * 0.02f, px + r * 0.10f, mouthY + r * 0.10f)
+                c.drawOval(rect, pF) // язычок
+            }
             happy && (sim.reaction == ItemDefs.Reaction.EAT || sim.reaction == ItemDefs.Reaction.SMELL) && st == PetSim.State.INTERACT -> {
                 pF.color = 0xFF2E3B34.toInt()
                 c.drawCircle(px, mouthY + r * 0.02f, r * 0.11f, pF)
@@ -529,152 +511,206 @@ class SceneRenderer {
         c.restore()
     }
 
-    // --------------------------------------------------- предмет "в руках"
+    // ------------------------------------------------- предмет "в руках"
 
     private fun drawHeldItem(c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float) {
         val ti = inter.target ?: return
-        val prog = inter.holdProg
-        val ox = inter.holdDX * prog
-        val oy = inter.holdDY * prog
-        val ix0 = floorXfor(ti.x, unit)
+        val prog = inter.prog
+        val x = inter.fromX + (inter.toX - inter.fromX) * prog
+        val y = floorY + inter.liftPx * prog
         c.save()
-        c.translate(ox, oy)
-        c.translate(ix0, floorY)
-        val wob = if (inter.holdDY != 0f) sin(sim.animPhase * 3f) * 4f else 0f
-        c.rotate(wob, ix0, floorY)
-        ti.def.draw(c, ix0, floorY, unit, sim.animPhase)
+        c.translate(x, y)
+        c.rotate(sin(sim.animPhase * 3f) * 4f * prog)
+        val alpha = ((1f - inter.eatFade) * 255f).toInt().coerceIn(0, 255)
+        pF.alpha = alpha; pS.alpha = alpha; pZ.alpha = alpha
+        ti.def.draw(c, x, y, unit, sim.animPhase)
         c.restore()
+        pF.alpha = 255; pS.alpha = 255; pZ.alpha = 255
     }
 
     // --------------------------------------------------------------- руки
 
     private fun drawArms(
-        c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float
+        c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float, itemX: (Float) -> Float
     ) {
-        if (inter.armProg <= 0f) return
         val r = unit * 1.55f
-        val cx = floorXfor(sim.x, unit)
-        var cy = floorY - r * 0.92f
-        if (sim.state == PetSim.State.HAPPY) {
-            val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-            cy -= sin((p * PI).toFloat()) * (r * 1.5f)
+        val cx = itemX(sim.x)
+        val cy = petCy(sim, floorY, unit, r)
+        val st = sim.state
+
+        val armColor = 0xFF5CA985.toInt()
+        val palmColor = 0xFF9ADDB8.toInt()
+        val grip = unit * 0.24f
+
+        fun arm(ax: Float, ay: Float, hx: Float, hy: Float, up: Boolean) {
+            val mx = (ax + hx) / 2f
+            val my = (ay + hy) / 2f + (if (up) -unit * 0.30f else unit * 0.45f)
+            path.reset()
+            path.moveTo(ax, ay)
+            path.quadTo(mx, my, hx, hy)
+            pS.color = armColor
+            pS.strokeWidth = unit * 0.22f
+            c.drawPath(path, pS)
+            circleAt(c, hx, hy, grip, palmColor)
+            pS.color = 0x6E3C7A63.toInt()
+            pS.strokeWidth = unit * 0.08f
+            c.drawCircle(hx, hy, grip, pS)
         }
-        val prog = inter.armProg
 
-        data class Hand(val ax: Float, val ay: Float, val hx: Float, val hy: Float, val up: Boolean)
-        val hands = ArrayList<Hand>()
-
-        when (sim.state) {
+        when (st) {
             PetSim.State.STRETCH -> {
                 val sp = sin(((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)) * PI.toFloat())
                 val up = sp * r * 1.35f
-                hands.add(Hand(cx - r * 0.30f, cy - r * 0.85f, cx - r * 0.30f - r * 0.25f * sp, cy - r * 0.85f - up, true))
-                hands.add(Hand(cx + r * 0.30f, cy - r * 0.85f, cx + r * 0.30f + r * 0.25f * sp, cy - r * 0.85f - up, true))
+                arm(cx - r * 0.30f, cy - r * 0.85f, cx - r * 0.55f * sp, cy - r * 0.85f - up, true)
+                arm(cx + r * 0.30f, cy - r * 0.85f, cx + r * 0.55f * sp, cy - r * 0.85f - up, true)
             }
+
+            PetSim.State.WAVE -> {
+                val sw = sin(sim.stateTime / 230f) * unit * 0.6f
+                val reach = (sim.stateTime / 260f).coerceIn(0f, 1f)
+                arm(
+                    cx + r * 0.5f, cy - r * 0.35f,
+                    cx + r * 1.1f + sw, cy - r * 1.9f - unit * 0.2f * reach,
+                    true
+                )
+            }
+
             PetSim.State.INTERACT -> {
                 val ti = inter.target ?: return
-                val hix = floorXfor(ti.x, unit) + inter.holdDX * prog
-                val hiy = floorY + inter.holdDY * prog
-                val reach = prog // руки уже "длиной" согласно prog
+                val prog = inter.armReach
+                if (prog <= 0.01f) return
+                val axL = cx - r * 0.55f; val axR = cx + r * 0.55f
+                val ay = cy + r * 0.18f
+
                 when (sim.reaction) {
-                    ItemDefs.Reaction.EAT -> return // ест ртом, без рук
-                    ItemDefs.Reaction.SMELL, ItemDefs.Reaction.LIFT -> {
-                        hands.add(Hand(cx - r * 0.55f, cy + r * 0.20f, hix - unit * 0.30f, hiy - unit * 0.30f, false))
-                        hands.add(Hand(cx + r * 0.55f, cy + r * 0.20f, hix + unit * 0.30f, hiy - unit * 0.30f, false))
+                    // держит предмет двумя руками (в воздухе)
+                    ItemDefs.Reaction.SMELL, ItemDefs.Reaction.LIFT, ItemDefs.Reaction.EAT -> {
+                        val hx = inter.fromX + (inter.toX - inter.fromX) * inter.prog
+                        val hy = floorY + inter.liftPx * inter.prog
+                        arm(axL, ay, hx - unit * 0.3f, hy + unit * 0.22f, false)
+                        arm(axR, ay, hx + unit * 0.3f, hy + unit * 0.22f, false)
                     }
+                    // гладит: ручки кружат над предметом
                     ItemDefs.Reaction.RUB -> {
-                        // руки кружат над предметом
-                        val ax = hix
-                        val ay = hiy - unit * 0.55f
                         val a1 = inter.rubPhase
                         val a2 = inter.rubPhase + PI.toFloat()
-                        hands.add(Hand(cx - r * 0.5f, cy + r * 0.2f, ax + cos(a1) * unit * 0.38f, ay + sin(a1) * unit * 0.16f, false))
-                        hands.add(Hand(cx + r * 0.5f, cy + r * 0.2f, ax + cos(a2) * unit * 0.38f, ay + sin(a2) * unit * 0.16f, false))
+                        arm(axL, ay, inter.fromX + cos(a1) * unit * 0.42f, floorY - unit * 0.55f + sin(a1) * unit * 0.18f, false)
+                        arm(axR, ay, inter.fromX + cos(a2) * unit * 0.42f, floorY - unit * 0.55f + sin(a2) * unit * 0.18f, false)
                     }
+                    // открывает крышку
                     ItemDefs.Reaction.OPEN -> {
-                        // руки тянутся к крышке и приподнимают её
                         val lift = inter.lidProg
-                        hands.add(Hand(cx - r * 0.5f, cy + r * 0.2f, hix - unit * 0.5f, hiy - unit * 2.6f + unit * 1.4f * (1f - lift), false))
-                        hands.add(Hand(cx + r * 0.5f, cy + r * 0.2f, hix + unit * 0.5f, hiy - unit * 2.6f + unit * 1.4f * (1f - lift), false))
+                        arm(axL, ay, inter.fromX - unit * 0.5f, floorY - unit * 1.35f - unit * 1.3f * lift, false)
+                        arm(axR, ay, inter.fromX + unit * 0.5f, floorY - unit * 1.35f - unit * 1.3f * lift, false)
                     }
+                    // упирается обеими и толкает
                     else -> {
-                        // толкнуть: обе ладони упираются в предмет
-                        hands.add(Hand(cx - r * 0.5f, cy + r * 0.2f, hix - unit * 0.25f, hiy - unit * 0.35f, false))
-                        hands.add(Hand(cx + r * 0.5f, cy + r * 0.2f, hix + unit * 0.25f, hiy - unit * 0.35f, false))
+                        arm(axL, ay, inter.fromX - unit * 0.25f, floorY - unit * 0.42f, false)
+                        arm(axR, ay, inter.fromX + unit * 0.25f, floorY - unit * 0.42f, false)
                     }
                 }
             }
-            else -> return
+            else -> {}
         }
+    }
 
-        pS.strokeWidth = unit * 0.20f
-        pS.color = 0xFF5CA985.toInt()
-        for (hd in hands) {
-            // позиция ладони умножается на prog вылезания (руки растут из тела)
-            val hx = hd.ax + (hd.hx - hd.ax) * prog
-            val hy = hd.ay + (hd.hy - hd.ay) * prog
-            val mx = (hd.ax + hx) / 2f
-            val my = (hd.ay + hy) / 2f + (if (hd.up) -unit * 0.30f else unit * 0.45f)
+    // сердечки при волне
+    private fun drawHearts(c: Canvas, sim: PetSim, cx: Float, floorY: Float, unit: Float) {
+        val r = unit * 1.55f
+        val cy = petCy(sim, floorY, unit, r)
+        val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
+        for (i in 0..2) {
+            val hp = (p - 0.15f - i * 0.18f)
+            if (hp <= 0f || hp >= 1f) continue
+            val alpha = ((1f - hp) * 220f).toInt().coerceIn(0, 255)
+            pF.color = 0xFFF26D7E.toInt()
+            pF.alpha = alpha
+            val hx = cx + r * 1.1f + i * unit * 0.55f
+            val hy = cy - r * 1.9f - hp * unit * 1.6f
+            val s = unit * 0.16f
             path.reset()
-            path.moveTo(hd.ax, hd.ay)
-            path.quadTo(mx, my, hx, hy)
-            c.drawPath(path, pS)
-            // ладошка
-            circleAt(c, hx, hy, unit * 0.20f, 0xFF9ADDB8.toInt())
-            pS.color = 0x6E3C7A63.toInt()
-            pS.strokeWidth = unit * 0.08f
-            c.drawCircle(hx, hy, unit * 0.20f, pS)
-            pS.strokeWidth = unit * 0.20f
-            pS.color = 0xFF5CA985.toInt()
+            path.moveTo(hx, hy + s)
+            path.quadTo(hx - s, hy, hx - s * 0.4f, hy - s * 0.5f)
+            path.quadTo(hx, hy - s, hx, hy - s * 0.3f)
+            path.quadTo(hx, hy - s, hx + s * 0.4f, hy - s * 0.5f)
+            path.quadTo(hx + s, hy, hx, hy + s)
+            c.drawPath(path, pF)
         }
+        pF.alpha = 255
+    }
+
+    // ------------------------------------------------------ кожаное кресло
+
+    private fun drawChairBack(c: Canvas, unit: Float, floorY: Float) {
+        val bx = floorXfor(PetSim.BED_X, unit)
+
+        // тень кресла
+        pF.color = 0x14000000
+        rect.set(bx - unit * 2.0f, floorY - unit * 0.16f, bx + unit * 2.0f, floorY + unit * 0.14f)
+        c.drawOval(rect, pF)
+
+        // спинка с кожаным градиентом
+        val back = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(bx - unit, floorY - unit * 3.0f, bx + unit * 0.6f, floorY - unit * 0.5f,
+                0xFFAB7B44.toInt(), 0xFF6D4523.toInt(), Shader.TileMode.CLAMP)
+        }
+        rect.set(bx - unit * 1.05f, floorY - unit * 3.0f, bx + unit * 1.05f, floorY - unit * 0.4f)
+        c.drawRoundRect(rect, unit * 0.52f, unit * 0.52f, back)
+        // крылья спинки (ушейки)
+        rect.set(bx - unit * 1.30f, floorY - unit * 2.35f, bx - unit * 0.75f, floorY - unit * 0.55f)
+        c.drawRoundRect(rect, unit * 0.4f, unit * 0.4f, back)
+        rect.set(bx + unit * 0.75f, floorY - unit * 2.35f, bx + unit * 1.30f, floorY - unit * 0.55f)
+        c.drawRoundRect(rect, unit * 0.4f, unit * 0.4f, back)
+
+        // сиденье-подушка
+        val seat = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, floorY - unit * 0.95f, 0f, floorY,
+                0xFFC08A57.toInt(), 0xFF94613A.toInt(), Shader.TileMode.CLAMP)
+        }
+        rect.set(bx - unit * 1.35f, floorY - unit * 0.95f, bx + unit * 1.35f, floorY - unit * 0.05f)
+        c.drawRoundRect(rect, unit * 0.4f, unit * 0.4f, seat)
+        // блик на подушке
+        pF.color = 0x2EFFFFFF.toInt()
+        rect.set(bx - unit * 1.2f, floorY - unit * 0.92f, bx + unit * 0.6f, floorY - unit * 0.55f)
+        c.drawOval(rect, pF)
+    }
+
+    private fun drawChairFront(c: Canvas, unit: Float, floorY: Float) {
+        val bx = floorXfor(PetSim.BED_X, unit)
+
+        val roll = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, floorY - unit * 2.0f, 0f, floorY,
+                0xFFB98350.toInt(), 0xFF8A5A2E.toInt(), Shader.TileMode.CLAMP)
+        }
+        // подлокотники (передний план)
+        rect.set(bx - unit * 1.75f, floorY - unit * 1.85f, bx - unit * 1.05f, floorY - unit * 0.05f)
+        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll)
+        rect.set(bx + unit * 1.05f, floorY - unit * 1.85f, bx + unit * 1.75f, floorY - unit * 0.05f)
+        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll)
+        // заглушки-капельки на подлокотниках
+        pF.color = 0xFFC99563.toInt()
+        rect.set(bx - unit * 1.72f, floorY - unit * 1.96f, bx - unit * 1.08f, floorY - unit * 1.64f)
+        c.drawOval(rect, pF)
+        rect.set(bx + unit * 1.08f, floorY - unit * 1.96f, bx + unit * 1.72f, floorY - unit * 1.64f)
+        c.drawOval(rect, pF)
+        // строчки
+        pS.color = 0x886B4423.toInt()
+        pS.strokeWidth = unit * 0.07f
+        c.drawLine(bx - unit * 1.42f, floorY - unit * 1.6f, bx - unit * 1.38f, floorY - unit * 0.25f, pS)
+        c.drawLine(bx + unit * 1.38f, floorY - unit * 1.6f, bx + unit * 1.42f, floorY - unit * 0.25f, pS)
+        // ножки
+        pF.color = 0xFF5B3A1F.toInt()
+        rect.set(bx - unit * 1.15f, floorY - unit * 0.12f, bx - unit * 0.85f, floorY - unit * 0.0f)
+        c.drawRect(rect, pF)
+        rect.set(bx + unit * 0.85f, floorY - unit * 0.12f, bx + unit * 1.15f, floorY - unit * 0.0f)
+        c.drawRect(rect, pF)
     }
 
     // Helpers -----------------------------------------------------------
 
-    /** Экранная X по нормализованной позиции на полу */
     private fun floorXfor(xN: Float, unit: Float): Float {
         val pad = unit * 0.7f
         return pad + xN.coerceIn(0f, 1f) * (w - 2 * pad)
-    }
-
-    // ------------------------------------------------------------- лежанка
-
-    private fun drawBed(c: Canvas, unit: Float, floorY: Float) {
-        val bx = floorXfor(PetSim.BED_X, unit)
-
-        // мягкая тень под лежанкой
-        pF.color = 0x12000000
-        rect.set(bx - unit * 2.0f, floorY - unit * 0.16f, bx + unit * 2.0f, floorY + unit * 0.14f)
-        c.drawOval(rect, pF)
-
-        // наружный бортик (тёплый терракотовый)
-        pF.color = 0xFFD9A06B.toInt()
-        rect.set(bx - unit * 1.78f, floorY - unit * 0.95f, bx + unit * 1.78f, floorY + unit * 0.12f)
-        c.drawOval(rect, pF)
-        // блик на бортике сверху
-        pF.color = 0x36FFFFFF.toInt()
-        rect.set(bx - unit * 1.6f, floorY - unit * 0.95f, bx + unit * 1.6f, floorY - unit * 0.62f)
-        c.drawOval(rect, pF)
-        // внутренняя часть (светлая мягкая подушка)
-        pF.color = 0xFFF3DFC6.toInt()
-        rect.set(bx - unit * 1.32f, floorY - unit * 0.78f, bx + unit * 1.32f, floorY + unit * 0.02f)
-        c.drawOval(rect, pF)
-        // внутренняя мягкая тень для объёма
-        pF.color = 0x22A58A5B.toInt()
-        rect.set(bx - unit * 1.32f, floorY - unit * 0.30f, bx + unit * 1.32f, floorY + unit * 0.02f)
-        c.drawOval(rect, pF)
-
-        // стёжки на бортике (пунктирные дуги)
-        pS.color = 0x8EB7743F.toInt()
-        pS.strokeWidth = unit * 0.07f
-        val gap = unit * 0.62f
-        var i = -4
-        while (i <= 4) {
-            val sx = bx + i * gap
-            c.drawLine(sx, floorY - unit * 0.20f, sx + unit * 0.26f, floorY - unit * 0.20f, pS)
-            i++
-        }
-        pS.strokeWidth = unit * 0.12f
     }
 
     private fun smooth(p: Float): Float = p * p * (3f - 2f * p)

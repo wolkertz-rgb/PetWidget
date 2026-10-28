@@ -5,16 +5,15 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 /**
- * Автономная жизнь питомца-блоба.
- * Х хранится нормализованно: 0..1 внутри комнаты, пол внизу.
- *
- * ВАЖНО ДЛЯ НЕПРЕРЫВНОСТИ: save()/load() сохраняют ВСЁ, что нужно rendre
- * в текущем состоянии (реакцию, таймеры, цель), поэтому кадры после
- * пересоздания процесса продолжаются с того же места.
+ * Мозг питомца. Принцип: Blob — не рандом-машинка, а маленький домашний зверь:
+ * - у него есть ЛЮБОПЫТСТВО: новые предметы побуждают исследовать;
+ * - он ЗНАЕТ ВАС: раз в ~5 минут машет лапой и улыбается (пусть не одиноко);
+ * - сон всегда в его кожаном кресле;
+ * - все состояния непрерывны во времени: кадры без скачков.
  */
 class PetSim(context: Context) {
 
-    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH }
+    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE }
     enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED }
 
     /** Предмет в комнате */
@@ -47,10 +46,14 @@ class PetSim(context: Context) {
     var sleepingInBed = false
     val items = ArrayList<SpawnedItem>()
 
-    private var nextSpawnIn = 8_000L
+    private var nextSpawnIn = 6_000L             // первый предмет comes скорее
     private var sleepAfterGap = 0L
     private var saveTimer = 0L
     private var pendingSleepDur = 6_000L
+
+    // --- социальная жизнь
+    private var msSinceWave = 45_000L            // первый wамяк через ~4 мин
+    private var nextWaveEvery = rL(240_000, 360_000)
 
     init { load() }
 
@@ -76,14 +79,27 @@ class PetSim(context: Context) {
             }
         }
 
-        // спавн новых предметов
+        // спавн (упавшие с потолка / подарки)
         nextSpawnIn -= dt
         if (nextSpawnIn <= 0) {
             nextSpawnIn = rL(14_000, 55_000)
             if (items.size < 2 && state != State.SLEEP) spawnItem()
         }
 
-        // после долгой разлуки питомец досыпает
+        // "Я ВАС ВИЖУ!" — махание владельцу раз в ~5 минут вежливости
+        msSinceWave += dt
+        if (msSinceWave >= nextWaveEvery &&
+            state != State.SLEEP && state != State.INTERACT &&
+            state != State.ROLL && state != State.HAPPY
+        ) {
+            msSinceWave = 0
+            nextWaveEvery = rL(240_000, 360_000)
+            state = State.WAVE
+            stateTime = 0
+            stateDur = 2_400
+        }
+
+        // после долгой разлуки сладко досыпает
         if (sleepAfterGap > 0) {
             sleepAfterGap -= dt
             if (state != State.SLEEP) {
@@ -110,7 +126,6 @@ class PetSim(context: Context) {
                             dir = if (dxb > 0) 1 else -1
                             x = (x + dir * WALK_SPEED * dtS).coerceIn(X_MIN, X_MAX)
                             if (stateTime >= stateDur) {
-                                // не дошёл — засыпает прямо тут
                                 state = State.SLEEP
                                 stateTime = 0
                                 stateDur = pendingSleepDur
@@ -164,12 +179,27 @@ class PetSim(context: Context) {
         if (sleepAfterGap > 0) { state = State.SLEEP; stateDur = 2_500; return }
 
         val nearest = items.minByOrNull { abs(it.x - x) }
+        val fresh = items.firstOrNull { it.ageMs in 0L..12_000L }
         val r = rng.nextFloat()
-        when {
-            // проснулся — потянуться
-            woke && r < 0.55f -> { state = State.STRETCH; stateDur = 1_600 }
 
-            nearest != null && r < 0.62f -> {
+        when {
+            // только что проснулся: потянуться, а потом пусть имя жизнь продолжается
+            woke && (fresh == null || rng.nextFloat() < 0.5f) -> {
+                state = State.STRETCH
+                stateDur = 1_600
+            }
+
+            // ЛЮБОПЫТСТВО: свежий предмет исследуется почти всегда
+            fresh != null && rng.nextFloat() < 0.85f -> {
+                targetItem = fresh
+                walkMode = WalkMode.TO_ITEM
+                state = State.WALK
+                stateDur = 16_000
+                dir = if (fresh.x > x) 1 else -1
+            }
+
+            // обычное любопытство к предмету
+            nearest != null && r < 0.68f -> {
                 targetItem = nearest
                 walkMode = WalkMode.TO_ITEM
                 state = State.WALK
@@ -177,25 +207,27 @@ class PetSim(context: Context) {
                 dir = if (nearest.x > x) 1 else -1
             }
 
-            r < 0.72f -> {
+            // трюки
+            r < 0.76f -> {
                 val rr = rng.nextFloat()
                 when {
-                    rr < 0.38f -> { state = State.ROLL; stateDur = 1_300 }
-                    rr < 0.72f -> { state = State.SWAY; stateDur = 2_100 }
-                    else       -> { state = State.LOOK; stateDur = 1_600 }
+                    rr < 0.30f -> { state = State.ROLL; stateDur = 1_300 }
+                    rr < 0.58f -> { state = State.SWAY; stateDur = 2_100 }
+                    rr < 0.84f -> { state = State.LOOK; stateDur = 1_600 }
+                    else       -> { state = State.STRETCH; stateDur = 1_500 }
                 }
             }
 
-            r < 0.80f -> {
+            r < 0.84f -> {
                 walkMode = WalkMode.RANDOM
                 state = State.WALK
                 stateDur = rL(2_500, 7_000)
                 dir = if (rng.nextBoolean()) 1 else -1
             }
-            r < 0.90f -> { state = State.SIT; stateDur = rL(3_000, 8_000) }
-            r < 0.965f -> { state = State.IDLE; stateDur = rL(2_000, 6_000) }
+            r < 0.92f -> { state = State.SIT; stateDur = rL(3_000, 8_000) }
+            r < 0.97f -> { state = State.IDLE; stateDur = rL(2_000, 5_000) }
             else -> {
-                // сон всегда начинается с похода на лежанку
+                // сон всегда начинается с похода к своему креслу
                 pendingSleepDur = rL(5_000, 16_000)
                 walkMode = WalkMode.TO_BED
                 state = State.WALK
@@ -210,13 +242,13 @@ class PetSim(context: Context) {
         stateTime = 0
         reaction = item.def.reaction
         stateDur = when (reaction) {
-            ItemDefs.Reaction.EAT   -> rL(1_500, 2_500)
-            ItemDefs.Reaction.SMELL -> 2_400
-            ItemDefs.Reaction.LIFT  -> 2_100
-            ItemDefs.Reaction.RUB   -> 2_500
-            ItemDefs.Reaction.PUSH  -> 900
-            ItemDefs.Reaction.OPEN  -> 2_800
-            ItemDefs.Reaction.PLAY  -> rL(1_200, 2_000)
+            ItemDefs.Reaction.EAT   ->     rL(2_200, 3_200)  // накормили с рук!
+            ItemDefs.Reaction.SMELL ->     2_400
+            ItemDefs.Reaction.LIFT  ->     2_100
+            ItemDefs.Reaction.RUB   ->     2_500
+            ItemDefs.Reaction.PUSH  ->     1_100
+            ItemDefs.Reaction.OPEN  ->     2_800
+            ItemDefs.Reaction.PLAY  ->     rL(1_200, 2_000)
         }
         dir = if (item.x >= x) 1 else -1
     }
@@ -225,7 +257,13 @@ class PetSim(context: Context) {
         val ti = targetItem
         if (ti != null) {
             when (reaction) {
-                ItemDefs.Reaction.EAT, ItemDefs.Reaction.SMELL -> items.remove(ti)
+                ItemDefs.Reaction.EAT, ItemDefs.Reaction.SMELL -> {
+                    items.remove(ti)
+                    // поел — вскоре помашет владельцу "спасибо"
+                    if (rng.nextFloat() < 0.35f) {
+                        msSinceWave = nextWaveEvery - 900L
+                    }
+                }
                 ItemDefs.Reaction.PUSH -> ti.vx = dir * rF(0.35f, 0.7f)
                 ItemDefs.Reaction.OPEN -> openGift(ti)
                 else -> {}
@@ -260,17 +298,24 @@ class PetSim(context: Context) {
 
     fun tap() {
         if (state == State.SLEEP) return
-        if (rng.nextFloat() < 0.3f && state != State.INTERACT) {
-            state = State.ROLL
-            stateTime = 0
-            stateDur = 1_300
-        } else {
-            state = State.HAPPY
-            stateTime = 0
-            stateDur = 900
+        val r = rng.nextFloat()
+        stateState(r)
+    }
+
+    private fun stateState(r: Float) {
+        when {
+            r < 0.25f && state != State.INTERACT -> { state = State.WAVE; stateTime = 0; stateDur = 2_400 }
+            r < 0.55f && state != State.INTERACT -> { state = State.ROLL; stateTime = 0; stateDur = 1_300 }
+            r < 0.80f && state != State.INTERACT -> { state = State.SWAY; stateTime = 0; stateDur = 2_100 }
+            else -> {
+                state = State.HAPPY
+                stateTime = 0
+                stateDur = 900
+            }
         }
         targetItem = null
         walkMode = WalkMode.NONE
+        sleepingInBed = false
     }
 
     fun onResume(gapMs: Long) {
@@ -299,7 +344,7 @@ class PetSim(context: Context) {
 
     private fun newFalling(defId: String): SpawnedItem = SpawnedItem(
         defId,
-        x = rF(0.15f, 0.85f),
+        x = rF(0.10f, 0.66f), // левее кресла — кресло занимает правый угол
         vx = 0f,
         ageMs = -1500L,
         ttlMs = rL(90_000, 210_000)
@@ -359,7 +404,6 @@ class PetSim(context: Context) {
                 )
             }
         }
-        // восстановить цель взаимодействия — без этого "исчезают" руки
         if (state == State.INTERACT) {
             val tk = prefs.getString(KEY_TARGET, null)?.split(",")
             if (tk != null && tk.size == 2) {
@@ -390,8 +434,7 @@ class PetSim(context: Context) {
         const val X_MAX = 0.91f
         const val BED_X = 0.80f
 
-        const val REACH_MS = 300L
-        const val HOLD_AT = 600L
-        const val RELEASE_MS = 250L
+        const val HOLD_AT = 600L     // сколько мс тянуться/брать
+        const val RELEASE_MS = 250L  // плавно убрать руки
     }
 }
