@@ -138,7 +138,7 @@ class SceneRenderer {
 
         // ---- конфетти из открытого подарка
         for (item in sim.items) {
-            if (item.confetti && item.ageMs in 0..420) {
+            if (item.confetti && item.ageMs in 0L..420L) {
                 drawConfetti(c, itemX(item.x), floorY, unit, item.ageMs / 420f)
             }
         }
