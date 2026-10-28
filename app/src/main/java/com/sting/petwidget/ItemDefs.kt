@@ -2,6 +2,7 @@ package com.sting.petwidget
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import kotlin.math.cos
 import kotlin.math.sin
@@ -46,6 +47,7 @@ object ItemDefs {
         strokeJoin = Paint.Join.ROUND
     }
     private val rect = RectF()
+    private val path = Path()
 
     private fun fill(c: Canvas, col: Int) { pF.color = col; c.drawOval(rect, pF) }
 
