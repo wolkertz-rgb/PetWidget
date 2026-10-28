@@ -14,8 +14,8 @@ import kotlin.math.sin
  */
 object ItemDefs {
 
-    enum class Kind { TOY, FOOD }
-    enum class Reaction { EAT, PLAY, SMELL, PUSH }
+    enum class Kind { TOY, FOOD, BOX }
+    enum class Reaction { EAT, PLAY, SMELL, PUSH, LIFT, RUB, OPEN }
 
     class Def(
         val id: String,
@@ -31,7 +31,8 @@ object ItemDefs {
     val ALL: List<Def> = listOf(
         ball(), block(), dice(), balloon(), plushie(), robot(), rocket(),
         boat(), flower(), top(),
-        pizza(), sushi(), donut(), cookie(), coffee(), apple(), icecream()
+        pizza(), sushi(), donut(), cookie(), coffee(), apple(), icecream(),
+        box()
     )
 
     val byId: Map<String, Def> = ALL.associateBy { it.id }
@@ -93,8 +94,8 @@ object ItemDefs {
         line(c, cx - h * 0.5f, fy - h * 0.36f, cx + h * 0.5f, fy - h * 0.36f, s * 0.1f, 0xFFB45309.toInt())
     }
 
-    /** Игральный кубик (кости) */
-    private fun dice() = Def("dice", "Кости", Kind.TOY, Reaction.PUSH, 2.0f) { c, cx, fy, s, _ ->
+    /** Игральный кубик (кости) — берёт и рассматривает */
+    private fun dice() = Def("dice", "Кости", Kind.TOY, Reaction.LIFT, 2.0f) { c, cx, fy, s, _ ->
         val h = s * 1.6f
         roundRect(c, cx - h, fy - h, cx + h, fy - s * 0.05f, s * 0.28f, 0xFFF5F5F4.toInt())
         val d = s * 0.14f
@@ -105,8 +106,8 @@ object ItemDefs {
         circle(c, cx + h * 0.5f, fy - h * 0.25f, d, 0xFF44403C.toInt())
     }
 
-    /** Воздушный шарик — слегка плавает и покачивается */
-    private fun balloon() = Def("balloon", "Шарик", Kind.TOY, Reaction.PLAY, 1.9f) { c, cx, fy, s, t ->
+    /** Воздушный шарик — слегка плавает и покачивается; питомец поднимает его */
+    private fun balloon() = Def("balloon", "Шарик", Kind.TOY, Reaction.LIFT, 1.9f) { c, cx, fy, s, t ->
         val sway = sin(t * 1.4f) * s * 0.18f
         val bx = cx + sway
         val ry = s * 1.25f
@@ -131,8 +132,8 @@ object ItemDefs {
         c.drawPath(path2, pS)
     }
 
-    /** Мягкий мишка */
-    private fun plushie() = Def("plushie", "Мишка", Kind.TOY, Reaction.PLAY, 2.4f) { c, cx, fy, s, _ ->
+    /** Мягкий мишка — питомец его гладит */
+    private fun plushie() = Def("plushie", "Мишка", Kind.TOY, Reaction.RUB, 2.4f) { c, cx, fy, s, _ ->
         val brown = 0xFFB98A5E.toInt()
         ellipse(c, cx, fy - s * 1.0f, s * 0.95f, s * 1.0f, brown) // тело
         circle(c, cx, fy - s * 2.3f, s * 0.72f, brown)            // голова
@@ -162,8 +163,8 @@ object ItemDefs {
         line(c, cx + s * 0.85f, fy - s * 1.2f, cx + s * 1.2f, fy - s * 0.7f, s * 0.16f, body)
     }
 
-    /** Ракета */
-    private fun rocket() = Def("rocket", "Ракета", Kind.TOY, Reaction.PLAY, 2.2f) { c, cx, fy, s, _ ->
+    /** Ракета — питомец поднимает её и рассматривает */
+    private fun rocket() = Def("rocket", "Ракета", Kind.TOY, Reaction.LIFT, 2.2f) { c, cx, fy, s, _ ->
         val path = android.graphics.Path()
         val bodyTop = fy - s * 3.6f
         path.moveTo(cx, bodyTop)                                  // нос
@@ -190,8 +191,8 @@ object ItemDefs {
         circle(c, cx, fy - s * 2.4f, s * 0.18f, 0xFFBAE6FD.toInt())
     }
 
-    /** Кораблик */
-    private fun boat() = Def("boat", "Кораблик", Kind.TOY, Reaction.PLAY, 2.6f) { c, cx, fy, s, _ ->
+    /** Кораблик — питомец поднимает и рассматривает */
+    private fun boat() = Def("boat", "Кораблик", Kind.TOY, Reaction.LIFT, 2.6f) { c, cx, fy, s, _ ->
         val path = android.graphics.Path()
         path.moveTo(cx - s * 1.2f, fy - s * 1.1f)
         path.lineTo(cx + s * 1.2f, fy - s * 1.1f)
@@ -341,5 +342,26 @@ object ItemDefs {
         line(c, cx + s * 0.05f, topY - s * 0.7f, cx + s * 0.42f, topY - s * 0.2f, s * 0.06f, 0xFFB45309.toInt())
         circle(c, cx, topY - s * 0.55f, s * 0.75f, 0xFFF9A8D4.toInt())
         circle(c, cx - s * 0.25f, topY - s * 0.8f, s * 0.18f, 0x59FFFFFF.toInt())
+    }
+
+    /** Подарочная коробка — питомец открывает её и достаёт предмет */
+    private fun box() = Def("box", "Подарок", Kind.BOX, Reaction.OPEN, 2.8f) { c, cx, fy, s, _ ->
+        val bw = s * 1.15f   // половина ширины
+        val bh = s * 1.05f   // высота
+        // коробка
+        roundRect(c, cx - bw, fy - bh, cx + bw, fy - s * 0.02f, s * 0.1f, 0xFFE3A56F.toInt())
+        // лента вертикальная
+        rect.set(cx - s * 0.16f, fy - bh, cx + s * 0.16f, fy - s * 0.02f)
+        pF.color = 0xFFE05B5B.toInt()
+        c.drawRect(rect, pF)
+        // крышка (чуть шире)
+        roundRect(c, cx - bw * 1.08f, fy - bh - s * 0.3f, cx + bw * 1.08f, fy - bh + s * 0.12f, s * 0.09f, 0xFFD8945C.toInt())
+        rect.set(cx - s * 0.18f, fy - bh - s * 0.3f, cx + s * 0.18f, fy - bh + s * 0.12f)
+        pF.color = 0xFFE05B5B.toInt()
+        c.drawRect(rect, pF)
+        // бантик
+        ellipse(c, cx - s * 0.26f, fy - bh - s * 0.42f, s * 0.24f, s * 0.14f, 0xFFE05B5B.toInt())
+        ellipse(c, cx + s * 0.26f, fy - bh - s * 0.42f, s * 0.24f, s * 0.14f, 0xFFE05B5B.toInt())
+        circle(c, cx, fy - bh - s * 0.42f, s * 0.09f, 0xFFB94141.toInt())
     }
 }
