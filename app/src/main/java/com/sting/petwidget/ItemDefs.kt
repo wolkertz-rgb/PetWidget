@@ -326,10 +326,10 @@ object ItemDefs {
             pS.color = (alpha shl 24) or 0x009CA3AF
             pS.strokeWidth = s * 0.08f
             val x0 = cx - s * 0.3f + i * s * 0.6f
-            val path = android.graphics.Path()
-            path.moveTo(x0, fy - s * 2.3f)
-            path.quadTo(x0 + sin(ph) * s * 0.25f, fy - s * 2.8f, x0, fy - s * 3.3f)
-            c.drawPath(path, pS)
+            val steamPath = android.graphics.Path()
+            steamPath.moveTo(x0, fy - s * 2.3f)
+            steamPath.quadTo(x0 + sin(ph) * s * 0.25f, fy - s * 2.8f, x0, fy - s * 3.3f)
+            c.drawPath(steamPath, pS)
         }
     }
 
