@@ -48,7 +48,8 @@ class PetWidgetProvider : AppWidgetProvider() {
 
         const val ACTION_LIGHT = "com.sting.petwidget.LIGHT"
 
-        private fun lightIntent(context: Context): PendingIntent =
+        /** PendingIntent для переключения света (используется в уведомлении) */
+        fun lightIntent(context: Context): PendingIntent =
             PendingIntent.getBroadcast(
                 context, 23,
                 Intent(context, TapBridgeReceiver::class.java).setAction(ACTION_LIGHT),
@@ -57,7 +58,6 @@ class PetWidgetProvider : AppWidgetProvider() {
 
         fun applyClicks(rv: RemoteViews, context: Context) {
             rv.setOnClickPendingIntent(R.id.scene, tapIntent(context))
-            rv.setOnClickPendingIntent(R.id.bulb_tap, lightIntent(context))
         }
 
         private fun updateOne(context: Context, awm: AppWidgetManager, id: Int) {
