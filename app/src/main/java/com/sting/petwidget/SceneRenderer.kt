@@ -113,6 +113,9 @@ class SceneRenderer {
         pS.strokeWidth = unit * 0.12f
         c.drawRect(pad, pad, w - pad, h - pad, pS)
 
+        // ---- уютная лежанка (постоянный элемент комнаты)
+        drawBed(c, unit, floorY)
+
         // ---- информация о взаимодействии (held item, руки, крышка)
         val inter = readInteract(sim, itemX, floorY, r = unit * 1.55f)
 
@@ -335,19 +338,27 @@ class SceneRenderer {
         c: Canvas, sim: PetSim, cx: Float, floorY: Float, unit: Float, inter: InteractInfo
     ) {
         val r = unit * 1.55f
-        var cy = floorY - r * 0.92f
+        val onBed = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
+        val bedLift = if (onBed) unit * 0.52f else 0f
+        var cy = floorY - r * 0.92f - bedLift
         var dx = 0f
         var sx = 1f
         var sy = 1f
         var rot = 0f
         val st = sim.state
 
-        // д soft тень
-        pF.color = 0x0F000000
-        rect.set(cx - r * 1.45f, floorY - unit * 0.30f, cx + r * 1.45f, floorY + unit * 0.18f)
+        // д soft тень (в лежанке — мягче и меньше)
+        pF.color = if (onBed) 0x0A000000 else 0x0F000000
+        rect.set(
+            cx - r * (if (onBed) 1.15f else 1.45f), floorY - unit * 0.30f,
+            cx + r * (if (onBed) 1.15f else 1.45f), floorY + unit * 0.18f
+        )
         c.drawOval(rect, pF)
-        pF.color = 0x17000000
-        rect.set(cx - r * 1.0f, floorY - unit * 0.20f, cx + r * 1.0f, floorY + unit * 0.12f)
+        pF.color = if (onBed) 0x0E000000 else 0x17000000
+        rect.set(
+            cx - r * (if (onBed) 0.85f else 1.0f), floorY - unit * 0.20f,
+            cx + r * (if (onBed) 0.85f else 1.0f), floorY + unit * 0.12f
+        )
         c.drawOval(rect, pF)
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
@@ -624,6 +635,46 @@ class SceneRenderer {
     private fun floorXfor(xN: Float, unit: Float): Float {
         val pad = unit * 0.7f
         return pad + xN.coerceIn(0f, 1f) * (w - 2 * pad)
+    }
+
+    // ------------------------------------------------------------- лежанка
+
+    private fun drawBed(c: Canvas, unit: Float, floorY: Float) {
+        val bx = floorXfor(PetSim.BED_X, unit)
+
+        // мягкая тень под лежанкой
+        pF.color = 0x12000000
+        rect.set(bx - unit * 2.0f, floorY - unit * 0.16f, bx + unit * 2.0f, floorY + unit * 0.14f)
+        c.drawOval(rect, pF)
+
+        // наружный бортик (тёплый терракотовый)
+        pF.color = 0xFFD9A06B.toInt()
+        rect.set(bx - unit * 1.78f, floorY - unit * 0.95f, bx + unit * 1.78f, floorY + unit * 0.12f)
+        c.drawOval(rect, pF)
+        // блик на бортике сверху
+        pF.color = 0x36FFFFFF.toInt()
+        rect.set(bx - unit * 1.6f, floorY - unit * 0.95f, bx + unit * 1.6f, floorY - unit * 0.62f)
+        c.drawOval(rect, pF)
+        // внутренняя часть (светлая мягкая подушка)
+        pF.color = 0xFFF3DFC6.toInt()
+        rect.set(bx - unit * 1.32f, floorY - unit * 0.78f, bx + unit * 1.32f, floorY + unit * 0.02f)
+        c.drawOval(rect, pF)
+        // внутренняя мягкая тень для объёма
+        pF.color = 0x22A58A5B.toInt()
+        rect.set(bx - unit * 1.32f, floorY - unit * 0.30f, bx + unit * 1.32f, floorY + unit * 0.02f)
+        c.drawOval(rect, pF)
+
+        // стёжки на бортике (пунктирные дуги)
+        pS.color = 0x8EB7743F.toInt()
+        pS.strokeWidth = unit * 0.07f
+        val gap = unit * 0.62f
+        var i = -4
+        while (i <= 4) {
+            val sx = bx + i * gap
+            c.drawLine(sx, floorY - unit * 0.20f, sx + unit * 0.26f, floorY - unit * 0.20f, pS)
+            i++
+        }
+        pS.strokeWidth = unit * 0.12f
     }
 
     private fun smooth(p: Float): Float = p * p * (3f - 2f * p)

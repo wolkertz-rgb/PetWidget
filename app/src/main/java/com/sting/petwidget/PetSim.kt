@@ -6,16 +6,16 @@ import kotlin.random.Random
 
 /**
  * Автономная жизнь питомца-блоба.
- * Координаты нормализованы: x в 0..1 внутри комнаты, пол внизу.
+ * Х хранится нормализованно: 0..1 внутри комнаты, пол внизу.
  *
- * Непрерывность: любое состояние рисуется как функция (state, stateTime,
- * animPhase) — переходы между состояниями не содержат скачков: всё, что
- * меняет позу (кузырок переносит x у real sim.x), меняет симуляцию плавно.
+ * ВАЖНО ДЛЯ НЕПРЕРЫВНОСТИ: save()/load() сохраняют ВСЁ, что нужно rendre
+ * в текущем состоянии (реакцию, таймеры, цель), поэтому кадры после
+ * пересоздания процесса продолжаются с того же места.
  */
 class PetSim(context: Context) {
 
     enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH }
-    enum class WalkMode { NONE, RANDOM, TO_ITEM }
+    enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED }
 
     /** Предмет в комнате */
     class SpawnedItem(
@@ -24,7 +24,7 @@ class PetSim(context: Context) {
         var vx: Float,
         var ageMs: Long,
         val ttlMs: Long,
-        var confetti: Boolean = false // выскочил из подарка
+        var confetti: Boolean = false
     ) {
         val def: ItemDefs.Def get() = ItemDefs.byId[defId]!!
     }
@@ -44,11 +44,13 @@ class PetSim(context: Context) {
     var walkMode = WalkMode.NONE
     var targetItem: SpawnedItem? = null
     var reaction = ItemDefs.Reaction.PLAY
+    var sleepingInBed = false
     val items = ArrayList<SpawnedItem>()
 
     private var nextSpawnIn = 8_000L
     private var sleepAfterGap = 0L
     private var saveTimer = 0L
+    private var pendingSleepDur = 6_000L
 
     init { load() }
 
@@ -88,30 +90,55 @@ class PetSim(context: Context) {
                 state = State.SLEEP
                 stateTime = 0
                 stateDur = (sleepAfterGap + 1)
+                sleepingInBed = false
             }
             if (sleepAfterGap <= 0) stateDur = stateTime + 1
         }
 
         when (state) {
             State.WALK -> {
-                x += dir * WALK_SPEED * dtS
-                if (x < X_MIN) { x = X_MIN; if (walkMode == WalkMode.RANDOM) dir = 1 else nextAction() }
-                if (x > X_MAX) { x = X_MAX; if (walkMode == WalkMode.RANDOM) dir = -1 else nextAction() }
-                if (walkMode == WalkMode.TO_ITEM) {
-                    val ti = targetItem
-                    if (ti == null || !items.contains(ti)) {
-                        targetItem = null
-                        nextAction()
-                    } else {
-                        val dx = ti.x - x
-                        if (abs(dx) < 0.07f) {
-                            beginInteract(ti)
+                when (walkMode) {
+                    WalkMode.TO_BED -> {
+                        val dxb = BED_X - x
+                        if (abs(dxb) < 0.04f) {
+                            x = BED_X
+                            state = State.SLEEP
+                            stateTime = 0
+                            stateDur = pendingSleepDur
+                            sleepingInBed = true
                         } else {
-                            dir = if (dx > 0) 1 else -1
+                            dir = if (dxb > 0) 1 else -1
+                            x = (x + dir * WALK_SPEED * dtS).coerceIn(X_MIN, X_MAX)
+                            if (stateTime >= stateDur) {
+                                // не дошёл — засыпает прямо тут
+                                state = State.SLEEP
+                                stateTime = 0
+                                stateDur = pendingSleepDur
+                                sleepingInBed = false
+                            }
                         }
                     }
+                    else -> {
+                        x += dir * WALK_SPEED * dtS
+                        if (x < X_MIN) { x = X_MIN; if (walkMode == WalkMode.RANDOM) dir = 1 else nextAction() }
+                        if (x > X_MAX) { x = X_MAX; if (walkMode == WalkMode.RANDOM) dir = -1 else nextAction() }
+                        if (walkMode == WalkMode.TO_ITEM) {
+                            val ti = targetItem
+                            if (ti == null || !items.contains(ti)) {
+                                targetItem = null
+                                nextAction()
+                            } else {
+                                val dx = ti.x - x
+                                if (abs(dx) < 0.07f) {
+                                    beginInteract(ti)
+                                } else {
+                                    dir = if (dx > 0) 1 else -1
+                                }
+                            }
+                        }
+                        if (state == State.WALK && stateTime >= stateDur) nextAction()
+                    }
                 }
-                if (state == State.WALK && stateTime >= stateDur) nextAction()
             }
 
             State.INTERACT -> if (stateTime >= stateDur) finishInteract()
@@ -132,6 +159,7 @@ class PetSim(context: Context) {
         stateTime = 0
         targetItem = null
         walkMode = WalkMode.NONE
+        sleepingInBed = false
 
         if (sleepAfterGap > 0) { state = State.SLEEP; stateDur = 2_500; return }
 
@@ -149,7 +177,6 @@ class PetSim(context: Context) {
                 dir = if (nearest.x > x) 1 else -1
             }
 
-            // трюки
             r < 0.72f -> {
                 val rr = rng.nextFloat()
                 when {
@@ -167,7 +194,14 @@ class PetSim(context: Context) {
             }
             r < 0.90f -> { state = State.SIT; stateDur = rL(3_000, 8_000) }
             r < 0.965f -> { state = State.IDLE; stateDur = rL(2_000, 6_000) }
-            else -> { state = State.SLEEP; stateDur = rL(5_000, 16_000) }
+            else -> {
+                // сон всегда начинается с похода на лежанку
+                pendingSleepDur = rL(5_000, 16_000)
+                walkMode = WalkMode.TO_BED
+                state = State.WALK
+                stateDur = 9_000
+                dir = if (BED_X > x) 1 else -1
+            }
         }
     }
 
@@ -175,15 +209,14 @@ class PetSim(context: Context) {
         state = State.INTERACT
         stateTime = 0
         reaction = item.def.reaction
-        // 0..600 мс — подход/захват ручками, дальше — само действие
         stateDur = when (reaction) {
             ItemDefs.Reaction.EAT   -> rL(1_500, 2_500)
-            ItemDefs.Reaction.SMELL -> 2_400       // нюхает на весу
-            ItemDefs.Reaction.LIFT  -> 2_100       // поднимает и смотрит
-            ItemDefs.Reaction.RUB   -> 2_500       // гладит/трёт
+            ItemDefs.Reaction.SMELL -> 2_400
+            ItemDefs.Reaction.LIFT  -> 2_100
+            ItemDefs.Reaction.RUB   -> 2_500
             ItemDefs.Reaction.PUSH  -> 900
-            ItemDefs.Reaction.OPEN  -> 2_800       // открывает подарок
-            ItemDefs.Reaction.PLAY  -> rL(1_200, 2_000) // простая возня носом
+            ItemDefs.Reaction.OPEN  -> 2_800
+            ItemDefs.Reaction.PLAY  -> rL(1_200, 2_000)
         }
         dir = if (item.x >= x) 1 else -1
     }
@@ -192,10 +225,9 @@ class PetSim(context: Context) {
         val ti = targetItem
         if (ti != null) {
             when (reaction) {
-                ItemDefs.Reaction.EAT, ItemDefs.Reaction.SMELL -> items.remove(ti) // съел
+                ItemDefs.Reaction.EAT, ItemDefs.Reaction.SMELL -> items.remove(ti)
                 ItemDefs.Reaction.PUSH -> ti.vx = dir * rF(0.35f, 0.7f)
                 ItemDefs.Reaction.OPEN -> openGift(ti)
-                // LIFT и RUB: предмет остаётся лежать на месте
                 else -> {}
             }
         }
@@ -205,7 +237,6 @@ class PetSim(context: Context) {
         stateDur = 700
     }
 
-    /** Открыть подарок: коробка исчезает, из неё выпрыгивает случайный предмет */
     private fun openGift(box: SpawnedItem) {
         val others = items.filter { it != box }.map { it.defId }.toSet()
         val pool = ItemDefs.ALL.filter {
@@ -227,10 +258,8 @@ class PetSim(context: Context) {
         }
     }
 
-    /** Тап пользователя */
     fun tap() {
         if (state == State.SLEEP) return
-        // изредка вместо прыжка — кувырок от радости
         if (rng.nextFloat() < 0.3f && state != State.INTERACT) {
             state = State.ROLL
             stateTime = 0
@@ -244,7 +273,6 @@ class PetSim(context: Context) {
         walkMode = WalkMode.NONE
     }
 
-    /** Экран снова включился. */
     fun onResume(gapMs: Long) {
         if (gapMs > 2 * 60_000) {
             items.removeAll { it.ageMs > it.ttlMs }
@@ -256,10 +284,6 @@ class PetSim(context: Context) {
         save()
     }
 
-    /**
-     * Спавн: 78% — предмет падает с потолка,
-     * 22% — подарочная коробка (если её ещё нет).
-     */
     private fun spawnItem() {
         val haveBox = items.any { it.def.kind == ItemDefs.Kind.BOX }
         if (!haveBox && rng.nextFloat() < 0.22f) {
@@ -277,33 +301,47 @@ class PetSim(context: Context) {
         defId,
         x = rF(0.15f, 0.85f),
         vx = 0f,
-        ageMs = -1500L, // -1500..-1000 телеграф тени, -1000..-300 падение, -300..0 отскок
+        ageMs = -1500L,
         ttlMs = rL(90_000, 210_000)
     )
 
     // ---------------------------------------------------------- сохранение
 
     fun save() {
-        prefs.edit()
-            .putFloat(KEY_X, x)
-            .putInt(KEY_DIR, dir)
-            .putString(KEY_STATE, state.name)
-            .putString(KEY_MODE, walkMode.name)
-            .putFloat(KEY_PHASE, animPhase)
-            .putString(
-                KEY_ITEMS,
-                items.joinToString("|") { "${it.defId},${it.x},${it.vx},${it.ageMs},${it.ttlMs}" }
-            )
-            .apply()
+        val ed = prefs.edit()
+        ed.putFloat(KEY_X, x)
+        ed.putInt(KEY_DIR, dir)
+        ed.putString(KEY_STATE, state.name)
+        ed.putString(KEY_MODE, walkMode.name)
+        ed.putFloat(KEY_PHASE, animPhase)
+        ed.putLong(KEY_STIME, stateTime)
+        ed.putLong(KEY_SDUR, stateDur)
+        ed.putString(KEY_REACTION, reaction.name)
+        ed.putBoolean(KEY_INBED, sleepingInBed)
+        if (state == State.INTERACT && targetItem != null) {
+            ed.putString(KEY_TARGET, "${targetItem!!.defId},${targetItem!!.x}")
+        } else {
+            ed.remove(KEY_TARGET)
+        }
+        ed.putString(
+            KEY_ITEMS,
+            items.joinToString("|") { "${it.defId},${it.x},${it.vx},${it.ageMs},${it.ttlMs}" }
+        )
+        ed.apply()
     }
 
-    /** Загрузка (не сбрасывает таймеры состояния) */
     fun load() {
         x = prefs.getFloat(KEY_X, 0.5f).coerceIn(X_MIN, X_MAX)
         dir = prefs.getInt(KEY_DIR, 1)
         state = try { PetSim.State.valueOf(prefs.getString(KEY_STATE, "IDLE")!!) } catch (_: Exception) { State.IDLE }
         walkMode = try { WalkMode.valueOf(prefs.getString(KEY_MODE, "NONE")!!) } catch (_: Exception) { WalkMode.NONE }
         animPhase = prefs.getFloat(KEY_PHASE, animPhase)
+        stateTime = prefs.getLong(KEY_STIME, 0L)
+        stateDur = prefs.getLong(KEY_SDUR, 2_000L)
+        reaction = try {
+            ItemDefs.Reaction.valueOf(prefs.getString(KEY_REACTION, "PLAY")!!)
+        } catch (_: Exception) { ItemDefs.Reaction.PLAY }
+        sleepingInBed = prefs.getBoolean(KEY_INBED, false)
         targetItem = null
         items.clear()
         prefs.getString(KEY_ITEMS, null)?.takeIf { it.isNotBlank() }?.split("|")?.forEach { s ->
@@ -321,6 +359,16 @@ class PetSim(context: Context) {
                 )
             }
         }
+        // восстановить цель взаимодействия — без этого "исчезают" руки
+        if (state == State.INTERACT) {
+            val tk = prefs.getString(KEY_TARGET, null)?.split(",")
+            if (tk != null && tk.size == 2) {
+                val tx = tk[1].toFloatOrNull()
+                targetItem = items.firstOrNull {
+                    it.defId == tk[0] && tx != null && abs(it.x - tx) < 0.15f
+                }
+            }
+        }
     }
 
     companion object {
@@ -331,14 +379,18 @@ class PetSim(context: Context) {
         private const val KEY_MODE = "mode"
         private const val KEY_PHASE = "phase"
         private const val KEY_ITEMS = "items"
+        private const val KEY_STIME = "stime"
+        private const val KEY_SDUR = "sdur"
+        private const val KEY_REACTION = "reaction"
+        private const val KEY_INBED = "inbed"
+        private const val KEY_TARGET = "target"
 
         const val WALK_SPEED = 0.075f
         const val X_MIN = 0.09f
         const val X_MAX = 0.91f
+        const val BED_X = 0.80f
 
-        /** фаза взаимодействия, мс */
         const val REACH_MS = 300L
-        const val GRAB_MS = 300L
         const val HOLD_AT = 600L
         const val RELEASE_MS = 250L
     }
