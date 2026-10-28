@@ -50,6 +50,7 @@ class PetSim(context: Context) {
     private var sleepAfterGap = 0L
     private var saveTimer = 0L
     private var pendingSleepDur = 6_000L
+    private var interactShown = false   // в режиме "ходов": середину уже показали?
 
     // --- социальная жизнь
     private var msSinceWave = 45_000L            // первый wамяк через ~4 мин
@@ -162,7 +163,19 @@ class PetSim(context: Context) {
                 }
             }
 
-            State.INTERACT -> if (stateTime >= stateDur) finishInteract()
+            State.INTERACT -> {
+                if (stateTime >= stateDur) {
+                    if (dt > 1500 && !interactShown) {
+                        // большой шаг времени (режим "ходов"): показать СЕРЕДИНУ
+                        // действия в этом кадре (руки держат предмет), завершить в следующий
+                        interactShown = true
+                        stateTime = stateDur / 2
+                    } else {
+                        interactShown = false
+                        finishInteract()
+                    }
+                }
+            }
 
             else -> if (stateTime >= stateDur) nextAction()
         }
@@ -255,6 +268,7 @@ class PetSim(context: Context) {
     private fun beginInteract(item: SpawnedItem) {
         state = State.INTERACT
         stateTime = 0
+        interactShown = false
         reaction = item.def.reaction
         stateDur = when (reaction) {
             ItemDefs.Reaction.EAT   ->     rL(2_200, 3_200)  // накормили с рук!

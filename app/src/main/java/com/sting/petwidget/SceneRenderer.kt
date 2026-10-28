@@ -150,6 +150,19 @@ class SceneRenderer {
 
         // спит в кресле — подлокотники обнимают его ПОВЕРХ
         if (sleepingInChair) drawChairFront(c, unit, floorY)
+
+        // ---- ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ БЕЙДЖ (потом уберём)
+        try {
+            val err = lastPrefs?.getString("render_err", null)
+            pZ.textSize = unit * 0.52f
+            pZ.color = if (err != null) 0xFFCC3B3B.toInt() else 0x80666666.toInt()
+            pZ.textAlign = Paint.Align.LEFT
+            val line = "st=${sim.state} re=${sim.reaction} ar=${"%.2f".format(inter.armReach)} tg=${if (inter.target != null) "+" else "-"}"
+            c.drawText(line, unit * 0.3f, h - unit * 0.3f, pZ)
+            if (err != null) c.drawText("ERR: $err", unit * 0.3f, h - unit * 1.0f, pZ)
+            pZ.textAlign = Paint.Align.CENTER
+            pZ.color = 0xFF75808B.toInt()
+        } catch (_: Throwable) {}
     }
 
     // ------------------------------------------------------------- захват
