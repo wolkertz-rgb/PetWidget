@@ -150,7 +150,7 @@ class PetWidgetProvider : AppWidgetProvider() {
                 sim.save()
                 val renderer = SceneRenderer()
                 renderer.lastPrefs = prefs
-                renderer.lightOn = prefs.getBoolean("light_on", false)
+                renderer.lightOn = true
                 renderer.density = context.resources.displayMetrics.density
 
                 for (id in ids) {

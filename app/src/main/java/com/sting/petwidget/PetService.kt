@@ -150,8 +150,8 @@ class PetService : Service() {
 
             if (sizeW == 0 || sizeH == 0) recomputeSizes()
 
-            // состояние света лампочки + плотность экрана для отрисовки
-            renderer.lightOn = prefs.getBoolean("light_on", false)
+            // свет всегда горит
+            renderer.lightOn = true
             renderer.density = resources.displayMetrics.density
 
             // синхронизируемся с общим состоянием — burst/будильник и сервис
@@ -215,13 +215,6 @@ class PetService : Service() {
             .setContentText("Питомец живёт в виджете")
             .setOngoing(true)
             .setShowWhen(false)
-            .addAction(
-                Notification.Action.Builder(
-                    android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_launcher),
-                    "Свет 💡",
-                    PetWidgetProvider.lightIntent(this)
-                ).build()
-            )
         startForeground(NOTIF_ID, b.build())
     }
 

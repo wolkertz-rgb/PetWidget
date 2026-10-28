@@ -60,8 +60,8 @@ class SceneRenderer {
     /** контекст для аварийного журнала (задаётся при создании симуляции) */
     var lastPrefs: android.content.SharedPreferences? = null
 
-    /** тёплый свет включён? (переключается тапом по лампочке) */
-    var lightOn = false
+    /** тёплый свет (горит по умолчанию) */
+    var lightOn = true
 
     /** плотность экрана (px на dp) — для позиции лампочки */
     var density = 3f
