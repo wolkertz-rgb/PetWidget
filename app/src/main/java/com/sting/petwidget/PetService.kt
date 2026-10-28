@@ -60,6 +60,7 @@ class PetService : Service() {
         lastWallSaved = prefs.getLong("last_wall", 0L)
 
         sim = PetSim(this)
+        renderer.lastPrefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         screenOn = pm.isInteractive
         if (!screenOn) screenOffAt = System.currentTimeMillis()

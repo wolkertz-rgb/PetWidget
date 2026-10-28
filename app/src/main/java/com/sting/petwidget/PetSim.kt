@@ -144,10 +144,16 @@ class PetSim(context: Context) {
                                 nextAction()
                             } else {
                                 val dx = ti.x - x
-                                if (abs(dx) < 0.07f) {
+                                val dist = abs(dx)
+                                if (dist < 0.07f) {
                                     beginInteract(ti)
                                 } else {
                                     dir = if (dx > 0) 1 else -1
+                                    // ВАЖНО: шаг ограничен дистанцией — питомец не может
+                                    // "перепрыгнуть" предмет даже при большом dt (ходы)
+                                    val step = WALK_SPEED * dtS
+                                    val move = if (dist - 0.05f < step) dist - 0.05f else step
+                                    x += dir * move
                                 }
                             }
                         }
@@ -183,6 +189,15 @@ class PetSim(context: Context) {
         val r = rng.nextFloat()
 
         when {
+            // стоим прямо у предмета — иногда общаемся ещё разок (игра-игра)
+            nearest != null && abs(nearest.x - x) < 0.12f && r < 0.30f -> {
+                targetItem = nearest
+                walkMode = WalkMode.TO_ITEM
+                state = State.WALK
+                stateDur = 14_000
+                dir = if (nearest.x > x) 1 else -1
+            }
+
             // только что проснулся: потянуться, а потом пусть имя жизнь продолжается
             woke && (fresh == null || rng.nextFloat() < 0.5f) -> {
                 state = State.STRETCH

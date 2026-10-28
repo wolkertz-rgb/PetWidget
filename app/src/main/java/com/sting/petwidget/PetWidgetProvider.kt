@@ -131,6 +131,7 @@ class PetWidgetProvider : AppWidgetProvider() {
                 sim.tick(step)
                 sim.save()
                 val renderer = SceneRenderer()
+                renderer.lastPrefs = prefs
 
                 for (id in ids) {
                     val opts = awm.getAppWidgetOptions(id)

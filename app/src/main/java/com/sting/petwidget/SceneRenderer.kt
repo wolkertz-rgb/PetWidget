@@ -44,9 +44,20 @@ class SceneRenderer {
             w = newW; h = newH
         }
         val c = Canvas(bmp!!)
-        try { paintScene(c, sim) } catch (_: Throwable) { /* кадр важнее идеала */ }
+        try { paintScene(c, sim) } catch (t: Throwable) { logErr("scene", t) }
         return bmp
     }
+
+    private fun logErr(section: String, t: Throwable) {
+        android.util.Log.e("PetRender", "[$section] ${t.javaClass.simpleName}: ${t.message}", t)
+        try {
+            val sp = lastPrefs?.edit() ?: return
+            sp.putString("render_err", "$section: ${t.javaClass.simpleName}: ${t.message}").apply()
+        } catch (_: Throwable) {}
+    }
+
+    /** контекст для аварийного журнала (задаётся при создании симуляции) */
+    var lastPrefs: android.content.SharedPreferences? = null
 
     // ---------------------------------------------------------------- сцена
 
@@ -101,26 +112,31 @@ class SceneRenderer {
         // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
         drawChairBack(c, unit, floorY)
 
+        // когда питомец НЕ спит в кресле — подлокотники тоже позади него
+        val sleepingInChair = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
+        if (!sleepingInChair) drawChairFront(c, unit, floorY)
+
         val inter = readInteract(sim, itemX, r = unit * 1.55f)
 
-        // предметы
-        for (item in sim.items) {
-            if (inter.holding && item === inter.target) continue // в руках
-            drawFloorItem(c, sim, item, itemX(item.x), floorY, unit)
-        }
-        // крышка подарка
-        if (inter.lidProg > 0f && inter.target != null) drawLidPop(c, inter, unit, floorY)
-
         // питомец
-        drawPet(c, sim, itemX(sim.x), floorY, unit, inter)
+        try { drawPet(c, sim, itemX(sim.x), floorY, unit, inter) } catch (t: Throwable) { logErr("pet", t) }
+
+        // предметы ПОВЕРХ питомца (стоят перед ним)
+        for (item in sim.items) {
+            if (inter.holding && item === inter.target) continue // этот в руках
+            try { drawFloorItem(c, sim, item, itemX(item.x), floorY, unit) } catch (t: Throwable) { logErr("item", t) }
+        }
+
+        // крышка подарка
+        if (inter.lidProg > 0f && inter.target != null) try { drawLidPop(c, inter, unit, floorY) } catch (t: Throwable) { logErr("lid", t) }
 
         // предмет в руках
         if (inter.holding && inter.target != null && inter.prog > 0f) {
-            drawHeldItem(c, sim, inter, unit, floorY)
+            try { drawHeldItem(c, sim, inter, unit, floorY) } catch (t: Throwable) { logErr("held", t) }
         }
 
         // ручки
-        drawArms(c, sim, inter, unit, floorY, itemX)
+        try { drawArms(c, sim, inter, unit, floorY, itemX) } catch (t: Throwable) { logErr("arms", t) }
 
         // сердечки при приветствии
         if (sim.state == PetSim.State.WAVE) drawHearts(c, sim, itemX(sim.x), floorY, unit)
@@ -132,8 +148,8 @@ class SceneRenderer {
             }
         }
 
-        // передняя часть кресла — подлокотники ПОВЕРХ питомца (уютно)
-        drawChairFront(c, unit, floorY)
+        // спит в кресле — подлокотники обнимают его ПОВЕРХ
+        if (sleepingInChair) drawChairFront(c, unit, floorY)
     }
 
     // ------------------------------------------------------------- захват
