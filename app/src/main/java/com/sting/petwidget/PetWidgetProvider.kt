@@ -61,9 +61,13 @@ class PetWidgetProvider : AppWidgetProvider() {
         }
 
         private fun updateOne(context: Context, awm: AppWidgetManager, id: Int) {
-            val rv = RemoteViews(context.packageName, R.layout.pet_widget)
-            applyClicks(rv, context)
-            awm.updateAppWidget(id, rv)
+            try {
+                val rv = RemoteViews(context.packageName, R.layout.pet_widget)
+                applyClicks(rv, context)
+                awm.updateAppWidget(id, rv)
+            } catch (t: Throwable) {
+                android.util.Log.e("PetWidget", "updateOne $id", t)
+            }
         }
 
         private fun tapIntent(context: Context): PendingIntent =
@@ -154,8 +158,8 @@ class PetWidgetProvider : AppWidgetProvider() {
                     val d = context.resources.displayMetrics.density
                     val wDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
                     val hDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 110)
-                    val w = (wDp * d).toInt().coerceIn(80, 1600)
-                    val h = (hDp * d).toInt().coerceIn(60, 900)
+                    val w = (wDp * d).toInt().coerceIn(80, 1100)
+                    val h = (hDp * d).toInt().coerceIn(60, 640)
                     val bmp = renderer.render(sim, w, h) ?: continue
                     val rv = RemoteViews(context.packageName, R.layout.pet_widget)
                     rv.setImageViewBitmap(R.id.scene, bmp)

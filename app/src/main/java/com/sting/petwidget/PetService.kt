@@ -184,8 +184,8 @@ class PetService : Service() {
             hDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 110)
         }
         val d = resources.displayMetrics.density
-        sizeW = (wDp * d).toInt().coerceIn(80, 1600)
-        sizeH = (hDp * d).toInt().coerceIn(60, 900)
+        sizeW = (wDp * d).toInt().coerceIn(80, 1100)
+        sizeH = (hDp * d).toInt().coerceIn(60, 640)
     }
 
     private fun refreshIds() {
