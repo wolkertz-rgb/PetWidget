@@ -60,7 +60,7 @@ class PetSim(context: Context) {
     private var nextWaveEvery = rL(240_000, 360_000)
     private var nextAutoInteract = 35f           // первая самостоятельная встреча с предметом (~35 сек)
     private var nextTrickAt = 15f                // кулдаун между самостоятельными трюками (30 сек)
-    private var nextSwitchAt = 70f               // первое желание дёрнуть выключатель (~70 сек)
+    private var lastPullAt = 0f                  // ЖЁСТКОЕ ПРАВИЛО: тяга раз в 60 сек (animPhase)
     private var switchPartyLeft = 0              // «детская игра со светом» — сколько тяг осталось
     private var pendingNextPull = false
     private var pullDone = false                 // свет в текущей тяге уже переключён?
@@ -100,7 +100,8 @@ class PetSim(context: Context) {
         msSinceWave += dt
         if (msSinceWave >= nextWaveEvery &&
             state != State.SLEEP && state != State.INTERACT && state != State.PULL &&
-            state != State.ROLL && state != State.HAPPY
+            state != State.ROLL && state != State.HAPPY &&
+            walkMode != WalkMode.TO_SWITCH && !pendingNextPull
         ) {
             msSinceWave = 0
             nextWaveEvery = rL(240_000, 360_000)
@@ -109,25 +110,28 @@ class PetSim(context: Context) {
             stateDur = 2_400
         }
 
-        // ЖЕЛАНИЕ ПОИГРАТЬ СО СВЕТОМ: раз в ~2 минуты когнитивного времени
-        if (animPhase >= nextSwitchAt &&
-            state != State.SLEEP && state != State.INTERACT && state != State.PULL &&
-            state != State.WAVE && state != State.HAPPY && state != State.TICKLE &&
-            walkMode != WalkMode.TO_SWITCH
-        ) {
-            nextSwitchAt = animPhase + rF(110f, 145f)
+        // ЖЁСТКОЕ ПРАВИЛО: раз в минуту питомец ОБЯЗАН дёрнуть выключатель.
+        // Не рандом и без бегов — будит даже спящего, перебивает остальные дела.
+        // Пока он в процессе тяги/похода/серии — правило честно ждёт окончания.
+        val switchDue = animPhase - lastPullAt >= 60f
+        val switchBusy = state == State.PULL || walkMode == WalkMode.TO_SWITCH || pendingNextPull
+        if (switchDue && !switchBusy) {
+            lastPullAt = animPhase
             walkMode = WalkMode.TO_SWITCH
             state = State.WALK
             stateTime = 0
-            stateDur = 14_000
+            stateDur = 12_000
             dir = if (SWITCH_X > x) 1 else -1
+            sleepingInBed = false
+            targetItem = null
         }
 
         // ГАРАНТИРОВАННОЕ ЖЕЛАНИЕ: давно не трогал предметы и есть НЕТРОНУТЫЙ —
         // начинает взаимодействие (тот же путь, что и тап-тест — он работает всегда)
         if (animPhase >= nextAutoInteract &&
             state != State.INTERACT && state != State.SLEEP &&
-            state != State.WAVE && state != State.HAPPY
+            state != State.WAVE && state != State.HAPPY &&
+            walkMode != WalkMode.TO_SWITCH && !pendingNextPull
         ) {
             val nearest = items.filter { !it.used }.minByOrNull { abs(it.x - x) }
             if (nearest != null) {
@@ -150,8 +154,8 @@ class PetSim(context: Context) {
             }
         }
 
-        // после долгой разлуки сладко досыпает
-        if (sleepAfterGap > 0) {
+        // после долгой разлуки сладко досыпает (не посреди похода к выключателю)
+        if (sleepAfterGap > 0 && walkMode != WalkMode.TO_SWITCH && state != State.PULL) {
             sleepAfterGap -= dt
             if (state != State.SLEEP) {
                 state = State.SLEEP
@@ -437,6 +441,7 @@ class PetSim(context: Context) {
         stateTime = 0
         stateDur = PULL_DUR
         pullDone = false
+        lastPullAt = animPhase
     }
 
     private fun finishPull() {
@@ -510,7 +515,9 @@ class PetSim(context: Context) {
         items.add(spawned)
 
         // МГНОВЕННОЕ ЛЮБОПЫТСТВО: каждый новый предмет — сразу цель похода
-        if (state != State.SLEEP && state != State.INTERACT) {
+        if (walkMode != WalkMode.TO_SWITCH && state != State.SLEEP &&
+            state != State.PULL && state != State.INTERACT
+        ) {
             targetItem = spawned
             walkMode = WalkMode.TO_ITEM
             state = State.WALK
