@@ -56,6 +56,7 @@ class PetSim(context: Context) {
     // --- социальная жизнь
     private var msSinceWave = 45_000L            // первый wамяк через ~4 мин
     private var nextWaveEvery = rL(240_000, 360_000)
+    private var nextAutoInteract = 35f           // первая самостоятельная встреча с предметом (~35 сек)
 
     init { load() }
 
@@ -99,6 +100,30 @@ class PetSim(context: Context) {
             state = State.WAVE
             stateTime = 0
             stateDur = 2_400
+        }
+
+        // ГАРАНТИРОВАННОЕ ЖЕЛАНИЕ: давно не трогал предметы и рядом есть предмет —
+        // начинает взаимодействие (тот же путь, что и тап-тест — он работает всегда)
+        if (animPhase >= nextAutoInteract &&
+            state != State.INTERACT && state != State.SLEEP &&
+            state != State.WAVE && state != State.HAPPY
+        ) {
+            val nearest = items.minByOrNull { abs(it.x - x) }
+            if (nearest != null) {
+                nextAutoInteract = animPhase + rF(90f, 150f)
+                if (abs(nearest.x - x) < 0.15f) {
+                    targetItem = nearest
+                    beginInteract(nearest)
+                } else {
+                    // далекий предмет: честно идём к нему (ход дойдёт благодаря clamp)
+                    targetItem = nearest
+                    walkMode = WalkMode.TO_ITEM
+                    state = State.WALK
+                    stateTime = 0
+                    stateDur = 16_000
+                    dir = if (nearest.x > x) 1 else -1
+                }
+            }
         }
 
         // после долгой разлуки сладко досыпает
