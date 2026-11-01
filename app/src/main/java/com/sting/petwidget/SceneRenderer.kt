@@ -144,7 +144,7 @@ class SceneRenderer {
         // предметы ПОВЕРХ питомца (стоят перед ним)
         for (item in sim.items) {
             if (inter.holding && item === inter.target) continue // этот в руках
-            try { drawFloorItem(c, sim, item, itemX(item.x), floorY, unit) } catch (t: Throwable) { logErr("item", t) }
+            try { drawFloorItem(c, sim, item, inter, itemX(item.x), floorY, unit) } catch (t: Throwable) { logErr("item", t) }
         }
 
         // крышка подарка
@@ -353,7 +353,10 @@ class SceneRenderer {
 
     // ------------------------------------------------------ предмет на полу
 
-    private fun drawFloorItem(c: Canvas, sim: PetSim, item: PetSim.SpawnedItem, ix: Float, floorY: Float, unit: Float) {
+    private fun drawFloorItem(
+        c: Canvas, sim: PetSim, item: PetSim.SpawnedItem, inter: InteractInfo,
+        ix: Float, floorY: Float, unit: Float
+    ) {
         val def = item.def
         if (item.ageMs < 0) {
             val a = item.ageMs
@@ -401,12 +404,77 @@ class SceneRenderer {
         val fade = 1f - ((item.ageMs - item.ttlMs + 1500f) / 1500f).coerceIn(0f, 1f)
         if (fade <= 0f) return
         val alpha = (fade * 255).toInt()
+
+        // ---- детская повадка каждой игрушки
+        val isTarget = inter.target === item && sim.state == PetSim.State.INTERACT
+        var toyRot = 0f
+        var toyScale = 1f
+        val rolling = abs(item.vx) > 0.02f
+        when (def.id) {
+            "ball" -> if (rolling) toyRot = sim.animPhase * 240f * (if (item.vx > 0) 1f else -1f)
+            "block" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 8f
+            "top" -> if (rolling) toyRot = sim.animPhase * 260f * (if (item.vx > 0) 1f else -1f)
+            "robot" -> if (isTarget && sim.reaction == ItemDefs.Reaction.PLAY) {
+                toyRot = sin(sim.stateTime / 55f) * 4f        // вибрирует «бип-бип»
+            }
+            "plushie" -> if (isTarget && sim.reaction == ItemDefs.Reaction.RUB) {
+                toyScale = 1f + 0.06f * sin(sim.stateTime / 120f)  // мягко пружинит
+            }
+            "flower" -> if (isTarget && sim.reaction == ItemDefs.Reaction.SMELL) {
+                toyRot = sin(sim.stateTime / 150f) * 7f           // кланяется навстречу
+            }
+        }
+
         c.save()
-        c.scale(sc, sc, ix, floorY)
+        c.scale(sc * toyScale, sc * toyScale, ix, floorY)
+        c.rotate(toyRot, ix, floorY - unit * 0.9f)
         pF.alpha = alpha; pS.alpha = alpha; pZ.alpha = alpha
         def.draw(c, ix, floorY, unit, sim.animPhase)
         c.restore()
+
+        // ---- спецэффекты поверх игрушек
+        if (def.id == "robot" && isTarget && sim.reaction == ItemDefs.Reaction.PLAY) {
+            drawSpark(c, ix, floorY - unit * 3.5f, unit * 0.35f, 0xFFFFD54D.toInt(),
+                ((sin(sim.stateTime / 90f) * 0.5f + 0.5f) * 200f).toInt().coerceIn(0, 255))
+        }
+        if (def.id == "plushie" && isTarget && sim.reaction == ItemDefs.Reaction.RUB) {
+            val hp = (sin(sim.stateTime / 200f) * 0.5f + 0.5f)
+            drawMiniHeart(c, ix + unit * 1.1f, floorY - unit * (2.2f + hp * 0.4f),
+                unit * 0.16f, 0xFFF26D7E.toInt(), (hp * 200).toInt().coerceIn(0, 255))
+        }
+        if (def.id == "flower" && isTarget && sim.reaction == ItemDefs.Reaction.SMELL) {
+            drawSpark(c, ix - unit * 0.5f, floorY - unit * 3.0f, unit * 0.22f, 0xFF9FE8C4.toInt(),
+                (abs(sin(sim.stateTime / 150f)) * 190f).toInt().coerceIn(0, 255))
+            drawSpark(c, ix + unit * 0.55f, floorY - unit * 2.6f, unit * 0.18f, 0xFFFFF3B0.toInt(),
+                (abs(cos(sim.stateTime / 170f)) * 190f).toInt().coerceIn(0, 255))
+        }
         pF.alpha = 255; pS.alpha = 255; pZ.alpha = 255
+    }
+
+    /** искра-блеск: 4 лучика */
+    private fun drawSpark(c: Canvas, x: Float, y: Float, s: Float, col: Int, alpha: Int) {
+        pS.color = col
+        pS.strokeWidth = s * 0.22f
+        c.drawLine(x - s, y, x + s, y, pS)
+        c.drawLine(x, y - s, x, y + s, pS)
+        val d = s * 0.55f
+        c.drawLine(x - d, y - d, x + d, y + d, pS)
+        c.drawLine(x - d, y + d, x + d, y - d, pS)
+        pS.strokeWidth = unit * 0.16f
+    }
+
+    /** мини-сердечко (для мишки и компании) */
+    private fun drawMiniHeart(c: Canvas, cx: Float, cy: Float, s: Float, col: Int, alpha: Int) {
+        path.reset()
+        path.moveTo(cx, cy + s)
+        path.quadTo(cx - s, cy, cx - s * 0.4f, cy - s * 0.5f)
+        path.quadTo(cx, cy - s, cx, cy - s * 0.3f)
+        path.quadTo(cx, cy - s, cx + s * 0.4f, cy - s * 0.5f)
+        path.quadTo(cx + s, cy, cx, cy + s)
+        pF.color = col
+        pF.alpha = alpha
+        c.drawPath(path, pF)
+        pF.alpha = 255
     }
 
     private fun spawnDust(c: Canvas, x: Float, floorY: Float, r: Float, p: Float) {
@@ -836,6 +904,20 @@ class SceneRenderer {
             "icecream" -> { bob = sin(sim.animPhase / 180f) * unit * 0.22f; tilt = ep * 16f }
             "coffee" -> { tilt = ep * 34f }
             "sushi" -> { bob = sin(sim.animPhase * 22f) * unit * 0.07f * ep }
+            // ---- игрушки в руках (LIFT-игры)
+            "dice" -> tilt = sin(sim.animPhase * 18f) * 18f * (0.6f + 0.4f * ep)   // трясёт кости
+            "balloon" -> {                                                        // шарик рвётся в небо
+                bob = -unit * 0.45f * ep + sin(sim.animPhase * 3f) * unit * 0.12f
+                tilt = sin(sim.animPhase * 2f) * 6f
+            }
+            "rocket" -> {                                                          // пытается улететь
+                bob = -unit * 0.5f * ep
+                tilt = sin(sim.animPhase * 5f) * 4f
+            }
+            "boat" -> {                                                            // качается на волнах
+                bob = sin(sim.animPhase * 3.4f) * unit * 0.09f
+                tilt = sin(sim.animPhase * 2.6f) * 7f
+            }
         }
         val yb = y + bob
 
@@ -849,6 +931,23 @@ class SceneRenderer {
         c.restore()
 
         // ---- крошки/капли по типу еды
+        if (ti.def.id == "rocket" && inter.prog > 0.3f) {
+            // пламя ракеты — при попытке улететь
+            val fl = sin(sim.animPhase * 30f) * 0.5f + 0.5f
+            path.reset()
+            path.moveTo(x - unit * 0.30f, yb + unit * 1.0f)
+            path.quadTo(x, yb + unit * (1.6f + fl * 0.5f), x + unit * 0.30f, yb + unit * 1.0f)
+            path.close()
+            pF.color = 0xFFFFB84D.toInt()
+            pF.alpha = ((1f - inter.eatFade) * 235f).toInt().coerceIn(0, 255)
+            c.drawPath(path, pF)
+            pF.color = 0xFFFFD54D.toInt()
+            path.reset()
+            path.moveTo(x - unit * 0.16f, yb + unit * 1.0f)
+            path.quadTo(x, yb + unit * (1.35f + fl * 0.3f), x + unit * 0.16f, yb + unit * 1.0f)
+            path.close()
+            c.drawPath(path, pF)
+        }
         if (inter.eatProgress > 0.08f) {
             val crumbCol = when (ti.def.id) {
                 "pizza", "cookie" -> 0xFFC88A4A

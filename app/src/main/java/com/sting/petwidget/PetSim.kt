@@ -434,8 +434,16 @@ class PetSim(context: Context) {
 
     private fun openGift(box: SpawnedItem) {
         val others = items.filter { it != box }.map { it.defId }.toSet()
-        val pool = ItemDefs.ALL.filter {
-            it.kind != ItemDefs.Kind.BOX && it.id !in others
+        //нынутри подарка — предмет согласно весам (голоден → еда чаще)
+        var kind = pickKind()
+        var pool = ItemDefs.ALL.filter {
+            it.kind == kind && it.kind != ItemDefs.Kind.BOX && it.id !in others
+        }
+        if (pool.isEmpty()) {
+            kind = if (kind == ItemDefs.Kind.FOOD) ItemDefs.Kind.TOY else ItemDefs.Kind.FOOD
+            pool = ItemDefs.ALL.filter {
+                it.kind == kind && it.kind != ItemDefs.Kind.BOX && it.id !in others
+            }
         }
         items.remove(box)
         if (pool.isNotEmpty()) {
@@ -527,8 +535,17 @@ class PetSim(context: Context) {
         if (!haveBox && rng.nextFloat() < 0.22f) {
             spawned = newFalling("box")
         } else {
-            val present = items.map { it.defId }.toSet()
-            val pool = ItemDefs.ALL.filter { it.kind != ItemDefs.Kind.BOX && it.id !in present }
+            // взвешенный выбор типа: голоден → еда чаще; сыт → игрушки чаще
+            var kind = pickKind()
+            var pool = ItemDefs.ALL.filter {
+                it.kind == kind && items.none { i -> i.defId == it.id }
+            }
+            if (pool.isEmpty()) {
+                kind = if (kind == ItemDefs.Kind.FOOD) ItemDefs.Kind.TOY else ItemDefs.Kind.FOOD
+                pool = ItemDefs.ALL.filter {
+                    it.kind == kind && items.none { i -> i.defId == it.id }
+                }
+            }
             if (pool.isEmpty()) return
             spawned = newFalling(pool.random(rng).id)
         }
@@ -545,6 +562,15 @@ class PetSim(context: Context) {
             stateDur = 16_000
             dir = if (spawned.x > x) 1 else -1
         }
+    }
+
+    /**
+     * ВЕСЫ СПАВНА: голоден — еда появляется чаще (75/25),
+     * сыт — наоборот, игрушки чаще (75/25)
+     */
+    private fun pickKind(): ItemDefs.Kind {
+        val foodBias = if (hunger > 55f) 0.75f else 0.25f
+        return if (rng.nextFloat() < foodBias) ItemDefs.Kind.FOOD else ItemDefs.Kind.TOY
     }
 
     private fun newFalling(defId: String): SpawnedItem = SpawnedItem(
