@@ -23,7 +23,8 @@ class PetSim(context: Context) {
         var vx: Float,
         var ageMs: Long,
         val ttlMs: Long,
-        var confetti: Boolean = false
+        var confetti: Boolean = false,
+        var used: Boolean = false // питомец уже поиграл с ним — интерес пропал
     ) {
         val def: ItemDefs.Def get() = ItemDefs.byId[defId]!!
     }
@@ -103,13 +104,13 @@ class PetSim(context: Context) {
             stateDur = 2_400
         }
 
-        // ГАРАНТИРОВАННОЕ ЖЕЛАНИЕ: давно не трогал предметы и рядом есть предмет —
+        // ГАРАНТИРОВАННОЕ ЖЕЛАНИЕ: давно не трогал предметы и есть НЕТРОНУТЫЙ —
         // начинает взаимодействие (тот же путь, что и тап-тест — он работает всегда)
         if (animPhase >= nextAutoInteract &&
             state != State.INTERACT && state != State.SLEEP &&
             state != State.WAVE && state != State.HAPPY
         ) {
-            val nearest = items.minByOrNull { abs(it.x - x) }
+            val nearest = items.filter { !it.used }.minByOrNull { abs(it.x - x) }
             if (nearest != null) {
                 nextAutoInteract = animPhase + rF(90f, 150f)
                 if (abs(nearest.x - x) < 0.15f) {
@@ -124,6 +125,9 @@ class PetSim(context: Context) {
                     stateDur = 16_000
                     dir = if (nearest.x > x) 1 else -1
                 }
+            } else {
+                // нетронутых предметов нет — интерес утих, ждём нового
+                nextAutoInteract = animPhase + rF(60f, 120f)
             }
         }
 
@@ -239,27 +243,18 @@ class PetSim(context: Context) {
 
         if (sleepAfterGap > 0) { state = State.SLEEP; stateDur = 2_500; return }
 
-        val nearest = items.minByOrNull { abs(it.x - x) }
-        val fresh = items.firstOrNull { it.ageMs in 0L..12_000L }
+        val nearest = items.filter { !it.used }.minByOrNull { abs(it.x - x) }
+        val fresh = nearest?.takeIf { it.ageMs in 0L..12_000L }
         val r = rng.nextFloat()
 
         when {
-            // стоим прямо у предмета — иногда общаемся ещё разок (игра-игра)
-            nearest != null && abs(nearest.x - x) < 0.12f && r < 0.30f -> {
-                targetItem = nearest
-                walkMode = WalkMode.TO_ITEM
-                state = State.WALK
-                stateDur = 14_000
-                dir = if (nearest.x > x) 1 else -1
-            }
-
             // только что проснулся: потянуться, а потом пусть имя жизнь продолжается
-            woke && (fresh == null || rng.nextFloat() < 0.5f) -> {
+            woke && (nearest == null || rng.nextFloat() < 0.5f) -> {
                 state = State.STRETCH
                 stateDur = 1_600
             }
 
-            // ЛЮБОПЫТСТВО: свежий предмет исследуется почти всегда
+            // ЛЮБОПЫТСТВО к НОВОМУ предмету (сила — только пока он нетронутый)
             fresh != null && rng.nextFloat() < 0.85f -> {
                 targetItem = fresh
                 walkMode = WalkMode.TO_ITEM
@@ -268,8 +263,8 @@ class PetSim(context: Context) {
                 dir = if (fresh.x > x) 1 else -1
             }
 
-            // обычное любопытство к предмету
-            nearest != null && r < 0.68f -> {
+            // обычное любопытство: только к нетронутым предметам
+            nearest != null && r < 0.62f -> {
                 targetItem = nearest
                 walkMode = WalkMode.TO_ITEM
                 state = State.WALK
@@ -277,24 +272,25 @@ class PetSim(context: Context) {
                 dir = if (nearest.x > x) 1 else -1
             }
 
-            // трюки
-            r < 0.76f -> {
+            // РЕДКИЕ выходки-трюки (основная жизнь — прогулки)
+            r < 0.70f -> {
                 val rr = rng.nextFloat()
                 when {
-                    rr < 0.30f -> { state = State.ROLL; stateDur = 1_300 }
-                    rr < 0.58f -> { state = State.SWAY; stateDur = 2_100 }
-                    rr < 0.84f -> { state = State.LOOK; stateDur = 1_600 }
+                    rr < 0.25f -> { state = State.ROLL; stateDur = 1_300 }
+                    rr < 0.50f -> { state = State.SWAY; stateDur = 2_100 }
+                    rr < 0.80f -> { state = State.LOOK; stateDur = 1_600 }
                     else       -> { state = State.STRETCH; stateDur = 1_500 }
                 }
             }
 
-            r < 0.84f -> {
+            // гуляет заметно больше
+            r < 0.88f -> {
                 walkMode = WalkMode.RANDOM
                 state = State.WALK
-                stateDur = rL(2_500, 7_000)
+                stateDur = rL(4_000, 9_000)
                 dir = if (rng.nextBoolean()) 1 else -1
             }
-            r < 0.92f -> { state = State.SIT; stateDur = rL(3_000, 8_000) }
+            r < 0.945f -> { state = State.SIT; stateDur = rL(3_000, 8_000) }
             r < 0.97f -> { state = State.IDLE; stateDur = rL(2_000, 5_000) }
             else -> {
                 // сон всегда начинается с похода к своему креслу
@@ -339,6 +335,8 @@ class PetSim(context: Context) {
                 ItemDefs.Reaction.OPEN -> openGift(ti)
                 else -> {}
             }
+            // ОДНА ВСТРЕЧА — ОДНУ ВЫСТАВКУ: после контакта интерес исчезает
+            if (items.contains(ti)) ti.used = true
         }
         targetItem = null
         state = State.HAPPY
@@ -450,7 +448,7 @@ class PetSim(context: Context) {
         }
         ed.putString(
             KEY_ITEMS,
-            items.joinToString("|") { "${it.defId},${it.x},${it.vx},${it.ageMs},${it.ttlMs}" }
+            items.joinToString("|") { "${it.defId},${it.x},${it.vx},${it.ageMs},${it.ttlMs},${if (it.used) 1 else 0}" }
         )
         ed.apply()
     }
@@ -471,7 +469,7 @@ class PetSim(context: Context) {
         items.clear()
         prefs.getString(KEY_ITEMS, null)?.takeIf { it.isNotBlank() }?.split("|")?.forEach { s ->
             val p = s.split(",")
-            if (p.size == 5) {
+            if (p.size == 5 || p.size == 6) {
                 val d = ItemDefs.byId[p[0]] ?: return@forEach
                 items.add(
                     SpawnedItem(
@@ -479,7 +477,9 @@ class PetSim(context: Context) {
                         p[1].toFloatOrNull() ?: 0.5f,
                         p[2].toFloatOrNull() ?: 0f,
                         p[3].toLongOrNull() ?: 0L,
-                        p[4].toLongOrNull() ?: 120_000L
+                        p[4].toLongOrNull() ?: 120_000L,
+                        false,
+                        p.size == 6 && p[5] == "1"
                     )
                 )
             }
