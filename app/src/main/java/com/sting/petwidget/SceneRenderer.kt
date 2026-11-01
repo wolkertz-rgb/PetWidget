@@ -253,9 +253,9 @@ class SceneRenderer {
         var target: PetSim.SpawnedItem? = null
         var prog = 0f          // 0..1 — плавный ход "от пола к рукам"
         var armReach = 0f      // насколько вылезли руки
-        var fromX = 0f         // px предмета на полу
-        var toX = 0f           // px возле питомца
-        var liftPx = 0f        // подъём (смスク отрицательный)
+        var fromX = 0f         // px предмета на полу (для крышки)
+        var holdX = 0f         // ТОЧКА ХВАТА у питомца: предмет всегда здесь
+        var liftPx = 0f        // подъём
         var lidProg = 0f
         var rubPhase = 0f
         var eatFade = 0f       // 0..1 — съедание (затухание предмета)
@@ -279,7 +279,9 @@ class SceneRenderer {
         info.armReach = (smooth((t.toFloat() / 380f).coerceIn(0f, 1f)) * rel).coerceIn(0f, 1f)
 
         info.fromX = itemX(ti.x)
-        info.toX = itemX((sim.x + sim.dir * 0.48f).coerceIn(0.12f, 0.88f))
+        // ТОЧКА ХВАТА: всегда прямо перед питомцем — предмет "приклеен" к рукам
+        val cx = itemX(sim.x)
+        info.holdX = cx + sim.dir * r * 1.35f
 
         when (sim.reaction) {
             ItemDefs.Reaction.SMELL -> { info.holding = true; info.liftPx = -r * 1.72f }
@@ -642,7 +644,7 @@ class SceneRenderer {
     private fun drawHeldItem(c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float) {
         val ti = inter.target ?: return
         val prog = inter.prog
-        val x = inter.fromX + (inter.toX - inter.fromX) * prog
+        val x = inter.holdX                                   // всегда у рук
         val y = floorY + inter.liftPx * prog
         c.save()
         c.rotate(sin(sim.animPhase * 3f) * 4f * prog, x, y)
@@ -719,30 +721,30 @@ class SceneRenderer {
                 val ay = cy + r * 0.18f
 
                 when (sim.reaction) {
-                    // держит предмет двумя руками (в воздухе)
+                    // держит предмет двумя руками (в воздухе) — у точки хвата
                     ItemDefs.Reaction.SMELL, ItemDefs.Reaction.LIFT, ItemDefs.Reaction.EAT -> {
-                        val hx = inter.fromX + (inter.toX - inter.fromX) * inter.prog
                         val hy = floorY + inter.liftPx * inter.prog
-                        arm(axL, ay, hx - unit * 0.3f, hy + unit * 0.22f, false)
-                        arm(axR, ay, hx + unit * 0.3f, hy + unit * 0.22f, false)
+                        arm(axL, ay, inter.holdX - unit * 0.3f, hy + unit * 0.22f, false)
+                        arm(axR, ay, inter.holdX + unit * 0.3f, hy + unit * 0.22f, false)
                     }
-                    // гладит: ручки кружат над предметом
+                    // гладит: ручки кружат над предметом у себя перед мордой
                     ItemDefs.Reaction.RUB -> {
                         val a1 = inter.rubPhase
                         val a2 = inter.rubPhase + PI.toFloat()
-                        arm(axL, ay, inter.fromX + cos(a1) * unit * 0.42f, floorY - unit * 0.55f + sin(a1) * unit * 0.18f, false)
-                        arm(axR, ay, inter.fromX + cos(a2) * unit * 0.42f, floorY - unit * 0.55f + sin(a2) * unit * 0.18f, false)
+                        val ccx = cx + sim.dir * r * 1.15f
+                        arm(axL, ay, ccx + cos(a1) * unit * 0.42f, floorY - unit * 0.55f + sin(a1) * unit * 0.18f, false)
+                        arm(axR, ay, ccx + cos(a2) * unit * 0.42f, floorY - unit * 0.55f + sin(a2) * unit * 0.18f, false)
                     }
-                    // открывает крышку
+                    // открывает крышку перед собой
                     ItemDefs.Reaction.OPEN -> {
                         val lift = inter.lidProg
-                        arm(axL, ay, inter.fromX - unit * 0.5f, floorY - unit * 1.35f - unit * 1.3f * lift, false)
-                        arm(axR, ay, inter.fromX + unit * 0.5f, floorY - unit * 1.35f - unit * 1.3f * lift, false)
+                        arm(axL, ay, cx + sim.dir * r * 1.05f, floorY - unit * 1.55f - unit * 1.15f * lift, false)
+                        arm(axR, ay, cx + sim.dir * r * 1.05f, floorY - unit * 1.55f - unit * 1.15f * lift, false)
                     }
-                    // упирается обеими и толкает
+                    // упирается обеими и толкает перед собой
                     else -> {
-                        arm(axL, ay, inter.fromX - unit * 0.25f, floorY - unit * 0.42f, false)
-                        arm(axR, ay, inter.fromX + unit * 0.25f, floorY - unit * 0.42f, false)
+                        arm(axL, ay, cx + sim.dir * r * 1.3f, floorY - unit * 0.42f, false)
+                        arm(axR, ay, cx + sim.dir * r * 1.3f, floorY - unit * 0.42f, false)
                     }
                 }
             }
