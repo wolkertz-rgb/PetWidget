@@ -457,10 +457,8 @@ class PetSim(context: Context) {
             stateTime = 0
             stateDur = 650
         } else {
-            // финал: довольный смешок; если свет остался выключен — придёт включать скоро
-            if (!prefs.getBoolean("light_on", true)) {
-                nextSwitchAt = animPhase + 25f
-            }
+            // финал: довольный смешок. Свет вернётся сам — тяга по жёсткому
+            // правилу случится опять в течение минуты
             pendingNextPull = false
             state = State.TICKLE
             stateTime = 0
