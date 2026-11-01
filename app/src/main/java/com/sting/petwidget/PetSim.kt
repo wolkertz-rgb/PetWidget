@@ -439,7 +439,11 @@ class PetSim(context: Context) {
         ed.putLong(KEY_SDUR, stateDur)
         ed.putString(KEY_REACTION, reaction.name)
         ed.putBoolean(KEY_INBED, sleepingInBed)
-        if (state == State.INTERACT && targetItem != null) {
+        // ЦЕЛЬ ХРАНИТСЯ НЕ ТОЛЬКО ДЛЯ INTERACT — иначе поход к предмету
+        // теряет цель при пересоздании симуляции (амнезия ходьбы)
+        if (targetItem != null &&
+            (state == State.INTERACT || (state == State.WALK && walkMode == WalkMode.TO_ITEM))
+        ) {
             ed.putString(KEY_TARGET, "${targetItem!!.defId},${targetItem!!.x}")
         } else {
             ed.remove(KEY_TARGET)
@@ -480,7 +484,8 @@ class PetSim(context: Context) {
                 )
             }
         }
-        if (state == State.INTERACT) {
+        // восстановить цель: для взаимодействия И для похода к предмету
+        if (state == State.INTERACT || (state == State.WALK && walkMode == WalkMode.TO_ITEM)) {
             val tk = prefs.getString(KEY_TARGET, null)?.split(",")
             if (tk != null && tk.size == 2) {
                 val tx = tk[1].toFloatOrNull()
