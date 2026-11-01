@@ -59,6 +59,7 @@ class PetSim(context: Context) {
     private var msSinceWave = 45_000L            // первый wамяк через ~4 мин
     private var nextWaveEvery = rL(240_000, 360_000)
     private var nextAutoInteract = 35f           // первая самостоятельная встреча с предметом (~35 сек)
+    private var nextTrickAt = 15f                // кулдаун между самостоятельными трюками (30 сек)
 
     init { load() }
 
@@ -272,8 +273,9 @@ class PetSim(context: Context) {
                 dir = if (nearest.x > x) 1 else -1
             }
 
-            // РЕДКИЕ выходки-трюки (основная жизнь — прогулки)
-            r < 0.70f -> {
+            // РЕДКИЕ выходки-трюки: не чаще, чем раз в 30 секунд
+            r < 0.70f && animPhase >= nextTrickAt -> {
+                nextTrickAt = animPhase + 30f
                 val rr = rng.nextFloat()
                 when {
                     rr < 0.25f -> { state = State.ROLL; stateDur = 1_300 }
@@ -283,7 +285,7 @@ class PetSim(context: Context) {
                 }
             }
 
-            // гуляет заметно больше
+            // в кулдауне трюков — просто гуляет заметно больше
             r < 0.88f -> {
                 walkMode = WalkMode.RANDOM
                 state = State.WALK
