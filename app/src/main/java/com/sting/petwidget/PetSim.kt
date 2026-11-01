@@ -45,6 +45,7 @@ class PetSim(context: Context) {
     var reaction = ItemDefs.Reaction.PLAY
     var sleepingInBed = false
     val items = ArrayList<SpawnedItem>()
+    var tickCount = 0L           // для диагностики (бейдж)
 
     private var nextSpawnIn = 6_000L             // первый предмет comes скорее
     private var sleepAfterGap = 0L
@@ -61,6 +62,7 @@ class PetSim(context: Context) {
     // ------------------------------------------------------------------ тик
 
     fun tick(dtRaw: Long) {
+        tickCount++
         val dt = dtRaw.coerceIn(100, 60_000)
         val dtS = dt / 1000f
         animPhase += dtS
@@ -86,7 +88,6 @@ class PetSim(context: Context) {
             nextSpawnIn = rL(14_000, 55_000)
             if (items.isEmpty() && state != State.SLEEP) spawnItem()
         }
-
         // "Я ВАС ВИЖУ!" — махание владельцу раз в ~5 минут вежливости
         msSinceWave += dt
         if (msSinceWave >= nextWaveEvery &&
@@ -190,6 +191,16 @@ class PetSim(context: Context) {
     }
 
     // -------------------------------------------------------------- решения
+
+    /** Принудительный тест взаимодействия по тапу: берём ближайший предмет.
+     *  Возвращает true, если предмет был и реакция запущена. */
+    fun tapInteract(): Boolean {
+        val nearest = items.minByOrNull { abs(it.x - x) } ?: return false
+        beginInteract(nearest)
+        // предмет может быть далеко — не важно: руки тянутся туда, куда задает fromX
+        targetItem = nearest
+        return true
+    }
 
     private fun nextAction() {
         val prev = state
@@ -365,15 +376,26 @@ class PetSim(context: Context) {
 
     private fun spawnItem() {
         val haveBox = items.any { it.def.kind == ItemDefs.Kind.BOX }
+        val spawned: SpawnedItem
         if (!haveBox && rng.nextFloat() < 0.22f) {
-            items.add(newFalling("box"))
-            return
+            spawned = newFalling("box")
+        } else {
+            val present = items.map { it.defId }.toSet()
+            val pool = ItemDefs.ALL.filter { it.kind != ItemDefs.Kind.BOX && it.id !in present }
+            if (pool.isEmpty()) return
+            spawned = newFalling(pool.random(rng).id)
         }
-        val present = items.map { it.defId }.toSet()
-        val pool = ItemDefs.ALL.filter { it.kind != ItemDefs.Kind.BOX && it.id !in present }
-        if (pool.isEmpty()) return
-        val def = pool.random(rng)
-        items.add(newFalling(def.id))
+        items.add(spawned)
+
+        // МГНОВЕННОЕ ЛЮБОПЫТСТВО: каждый новый предмет — сразу цель похода
+        if (state != State.SLEEP && state != State.INTERACT) {
+            targetItem = spawned
+            walkMode = WalkMode.TO_ITEM
+            state = State.WALK
+            stateTime = 0
+            stateDur = 16_000
+            dir = if (spawned.x > x) 1 else -1
+        }
     }
 
     private fun newFalling(defId: String): SpawnedItem = SpawnedItem(
