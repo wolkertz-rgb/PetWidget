@@ -135,9 +135,6 @@ class PetSim(context: Context) {
                         }
                     }
                     else -> {
-                        x += dir * WALK_SPEED * dtS
-                        if (x < X_MIN) { x = X_MIN; if (walkMode == WalkMode.RANDOM) dir = 1 else nextAction() }
-                        if (x > X_MAX) { x = X_MAX; if (walkMode == WalkMode.RANDOM) dir = -1 else nextAction() }
                         if (walkMode == WalkMode.TO_ITEM) {
                             val ti = targetItem
                             if (ti == null || !items.contains(ti)) {
@@ -147,18 +144,26 @@ class PetSim(context: Context) {
                                 val dx = ti.x - x
                                 val dist = abs(dx)
                                 if (dist < 0.07f) {
+                                    // ДОШЁЛ — начинается взаимодействие
                                     beginInteract(ti)
                                 } else {
                                     dir = if (dx > 0) 1 else -1
-                                    // ВАЖНО: шаг ограничен дистанцией — питомец не может
-                                    // "перепрыгнуть" предмет даже при большом dt (ходы)
+                                    // шаг строго ограничен дистанцией: питомец
+                                    // НЕ может перепрыгнуть предмет ни при каком dt
                                     val step = WALK_SPEED * dtS
                                     val move = if (dist - 0.05f < step) dist - 0.05f else step
-                                    x += dir * move
+                                    x = (x + dir * move).coerceIn(X_MIN, X_MAX)
                                 }
+                                // цель важнее таймера: цель не отменяется по времени,
+                                // пока питомец реально ни дойдёт
                             }
+                        } else {
+                            // случайная прогулка: мягкий отскок от стен
+                            x += dir * WALK_SPEED * dtS
+                            if (x < X_MIN) { x = X_MIN; dir = 1 }
+                            if (x > X_MAX) { x = X_MAX; dir = -1 }
                         }
-                        if (state == State.WALK && stateTime >= stateDur) nextAction()
+                        if (state == State.WALK && stateTime >= stateDur && walkMode != WalkMode.TO_ITEM) nextAction()
                     }
                 }
             }
