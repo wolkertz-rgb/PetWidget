@@ -613,6 +613,14 @@ class SceneRenderer {
         return cy
     }
 
+    /** пол по последней позе (для плавных переходов), [sx, sy, rot, dx] */
+    private var lastPose = floatArrayOf(1f, 1f, 0f, 0f)
+    private var lastPosePhase = -1f
+    private var lastStName = ""
+    private var facePuff = 0f
+
+    private fun lerp(a: Float, b: Float, k: Float): Float = a + (b - a) * k
+
     private fun drawPet(
         c: Canvas, sim: PetSim, cx: Float, floorY: Float, unit: Float, inter: InteractInfo
     ) {
@@ -623,7 +631,29 @@ class SceneRenderer {
         var sx = 1f
         var sy = 1f
         var rot = 0f
+        var headTilt = 0f
         val st = sim.state
+
+        // ---- ПЛАВНЫЕ ПЕРЕХОДЫ: поза тянется к новой, никаких телепортов
+        if (lastPosePhase < 0f) {
+            lastPrefs?.getString("pet_pose", "1,1,0,0,0")?.let { s ->
+                val pArr = s.split(",").mapNotNull { it.toFloatOrNull() }
+                if (pArr.size == 5) {
+                    lastPose = floatArrayOf(pArr[0], pArr[1], pArr[2], pArr[3])
+                    lastPosePhase = sim.animPhase - 0.05f
+                }
+            }
+            if (lastPosePhase < 0f) lastPosePhase = sim.animPhase
+        }
+        val dtAnim = (sim.animPhase - lastPosePhase).coerceIn(0f, 3f)
+        val k = (dtAnim * 9f).coerceIn(0.18f, 1f)
+
+        // смена действия = мягкая «вспышка-облако» вместо резкого скачка лица
+        if (lastStName != st.name) {
+            facePuff = 1f
+            lastStName = st.name
+        }
+        facePuff = (facePuff - dtAnim * 6f).coerceIn(0f, 1f)
 
         // тень (в кресле чуть меньше)
         pF.color = if (onBed) 0x0A000000 else 0x0F000000
@@ -646,23 +676,33 @@ class SceneRenderer {
             }
             PetSim.State.INTERACT -> sx = 1f + 0.05f * sin(sim.stateTime / 50f)
             PetSim.State.ROLL -> {
-                rot = smooth(p) * 2f * PI.toFloat() * sim.dir
-                sx = 1f + 0.12f * sin((p * PI).toFloat())
-                sy = 1f - 0.10f * sin((p * PI).toFloat())
+                // антиципация: приседает (0..0.14) → кувырок → приземление с отскоком
+                if (p < 0.14f) {
+                    sy = 1f - 0.16f * smooth(p / 0.14f)
+                } else if (p < 0.86f) {
+                    val rp = smooth((p - 0.14f) / 0.72f)
+                    rot = rp * 2f * PI.toFloat() * sim.dir
+                    cy -= sin((rp * PI).toFloat()) * r * 0.5f
+                } else {
+                    sy = 1f - 0.14f * sin((smooth((p - 0.86f) / 0.14f) * PI).toFloat())
+                }
             }
             PetSim.State.SWAY -> {
-                val osc = sin(p * PI.toFloat() * 3f)
-                rot = osc * 0.36f
-                dx = osc * unit * 0.9f
+                val osc = sin(p * PI.toFloat() * 4f)   // два полных покачивания
+                rot = osc * 0.30f
+                dx = osc * unit * 1.1f
+            }
+            PetSim.State.LOOK -> {
+                headTilt = sin(p * PI.toFloat() * 1.2f) * 0.10f
             }
             PetSim.State.WAVE -> {
                 sx = 1f + 0.04f * sin(sim.stateTime / 240f)
                 sy = 1f + 0.03f * sin(sim.stateTime / 240f)
             }
             PetSim.State.SMUG -> {
-                // хитро наклоняется и чуть надувается
+                // хитро наклоняется и чуть надувается (плавный въезд)
                 sx = 1f + 0.05f * sin(sim.stateTime / 300f)
-                dx = unit * 0.15f * sim.dir
+                dx = unit * 0.15f * sim.dir * smooth((sim.stateTime / 300f).coerceIn(0f, 1f))
             }
             PetSim.State.BLUSH -> {
                 // стесняется: слегка съёживается
@@ -690,9 +730,27 @@ class SceneRenderer {
             }
         }
 
+        // ---- сглаживание: поза тянется к целевой (кратчайшая дуга по углу)
+        val tl = lastPose
+        dx = tl[3] + (dx - tl[3]) * k
+        sx = lerp(tl[0], sx, k)
+        sy = lerp(tl[1], sy, k)
+        val TWO_PI = (2.0 * PI).toFloat()
+        var dRot = rot - tl[2]
+        dRot = ((dRot % TWO_PI) + TWO_PI) % TWO_PI
+        if (dRot > PI.toFloat()) dRot -= TWO_PI
+        rot = tl[2] + dRot * k
+        lastPose = floatArrayOf(sx, sy, rot, dx)
+        lastPosePhase = sim.animPhase
+        try {
+            lastPrefs?.edit()?.putString(
+                "pet_pose", "${sx},${sy},${rot},${dx},${sim.animPhase}"
+            )?.apply()
+        } catch (_: Throwable) {}
+
         val px = cx + dx
         c.save()
-        c.rotate(rot * 57.2958f, px, cy)
+        c.rotate(rot * 57.2958f + headTilt * 40f, px, cy)
 
         // антеннка с шариком (покачивается) — рисуется до тела, торчит из макушки
         val antBob = sin(sim.animPhase * 2.2f) * unit * 0.12f
@@ -727,14 +785,8 @@ class SceneRenderer {
         rect.set(px - r * sx - unit * 0.07f, cy - r * sy - unit * 0.07f, px + r * sx + unit * 0.07f, cy + r * sy + unit * 0.07f)
         c.drawOval(rect, pS)
 
-        // «пятки-няшки»: когда стоит/гуляет — видны маленькие ножки
-        if (st != PetSim.State.SLEEP && st != PetSim.State.PULL) {
-            pF.color = th("pet_feet", 0xFF54A383.toInt())
-            rect.set(px - r * 0.62f, cy + r * sy * 0.90f, px - r * 0.28f, cy + r * sy * 1.04f)
-            c.drawOval(rect, pF)
-            rect.set(px + r * 0.28f, cy + r * sy * 0.90f, px + r * 0.62f, cy + r * sy * 1.04f)
-            c.drawOval(rect, pF)
-        }
+        // «пятки-няшки» убраны по решению: чистый силуэт выглядит круче
+
 
         // двойной блик (стеклянность)
         pF.color = 0x59FFFFFF.toInt()
@@ -791,19 +843,30 @@ class SceneRenderer {
                 }
                 pZ.alpha = 255
             }
-            stretching || waving || st == PetSim.State.SQUEEZE || st == PetSim.State.TICKLE -> {
-                // счастливые дужки-глаза
+            stretching || waving || st == PetSim.State.SQUEEZE || st == PetSim.State.TICKLE || st == PetSim.State.HAPPY -> {
+                // РАДОСТЬ: дужки-глаза — читается мгновенно
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
-                rect.set(px - eyeDx - r * 0.16f, eyeY - r * 0.12f, px - eyeDx + r * 0.16f, eyeY + r * 0.06f)
+                rect.set(px - eyeDx - r * 0.17f, eyeY - r * 0.14f, px - eyeDx + r * 0.17f, eyeY + r * 0.07f)
                 c.drawArc(rect, 200f, 140f, false, pS)
-                rect.set(px + eyeDx - r * 0.16f, eyeY - r * 0.12f, px + eyeDx + r * 0.16f, eyeY + r * 0.06f)
+                rect.set(px + eyeDx - r * 0.17f, eyeY - r * 0.14f, px + eyeDx + r * 0.17f, eyeY + r * 0.07f)
                 c.drawArc(rect, 200f, 140f, false, pS)
+                if (st == PetSim.State.TICKLE) {
+                    // слеза смеха — золотая искорка
+                    drawSpark(c, px + eyeDx + r * 0.16f, eyeY - r * 0.14f, unit * 0.14f, 0xFFFFD54D.toInt(), 200)
+                } else if (st == PetSim.State.HAPPY) {
+                    // pockets сердечки создаются в drawHearts — здесь только глаза
+                }
             }
             st == PetSim.State.BLUSH -> {
-                // застенчиво смотрит вниз
+                // СТЕСНЯЕТСЯ: глазки-полоски + украдкой смотрит вбок
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
                 c.drawLine(px - eyeDx - r * 0.14f, eyeY + r * 0.02f, px - eyeDx + r * 0.14f, eyeY + r * 0.02f, pS)
                 c.drawLine(px + eyeDx - r * 0.14f, eyeY + r * 0.02f, px + eyeDx + r * 0.14f, eyeY + r * 0.02f, pS)
+                pF.color = 0xFF2E3B34.toInt()
+                pF.alpha = 130
+                c.drawCircle(px - eyeDx - sim.dir * r * 0.06f, eyeY + r * 0.02f, r * 0.07f, pF)
+                c.drawCircle(px + eyeDx - sim.dir * r * 0.06f, eyeY + r * 0.02f, r * 0.07f, pF)
+                pF.alpha = 255
             }
             blinking && st != PetSim.State.ROLL -> {
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
@@ -839,6 +902,29 @@ class SceneRenderer {
         // рот
         val mouthY = eyeY + r * sy * 0.36f
         pS.strokeWidth = unit * 0.16f
+        // хитрец-прищур (поверх глаз) + голодные бровки
+        when {
+            st == PetSim.State.SMUG -> {
+                pF.color = th("pet_mid", 0xFF6FBE97.toInt())
+                pF.alpha = 235
+                rect.set(px - eyeDx - r * 0.09f, eyeY - r * 0.20f, px - eyeDx + r * 0.09f, eyeY - r * 0.02f)
+                c.drawRect(rect, pF)
+                rect.set(px + eyeDx - r * 0.09f, eyeY - r * 0.20f, px + eyeDx + r * 0.09f, eyeY - r * 0.02f)
+                c.drawRect(rect, pF)
+                pF.alpha = 255
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.11f
+                c.drawLine(px + eyeDx - r * 0.08f, eyeY - r * 0.34f, px + eyeDx + r * 0.14f, eyeY - r * 0.50f, pS)
+                pS.strokeWidth = unit * 0.16f
+            }
+            sim.hunger > 70f && !sleeping && !stretching && !waving -> {
+                // голоден: бровки «домиком»
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.10f; pS.alpha = 185
+                c.drawLine(px - eyeDx - r * 0.15f, eyeY - r * 0.44f, px - eyeDx - r * 0.02f, eyeY - r * 0.31f, pS)
+                c.drawLine(px + eyeDx + r * 0.15f, eyeY - r * 0.44f, px + eyeDx + r * 0.02f, eyeY - r * 0.31f, pS)
+                pS.alpha = 255; pS.strokeWidth = unit * 0.16f
+            }
+            else -> {}
+        }
         when {
             sleeping -> { /* нарисовано */ }
             waving -> {
@@ -950,6 +1036,18 @@ class SceneRenderer {
                     c.drawLine(px - r * 0.13f, mouthY, px + r * 0.13f, mouthY, pS)
                 }
             }
+        }
+
+        // «пуф-облако» при смене действия: мягкий мультипликационный переход
+        if (facePuff > 0.02f) {
+            val puff = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = RadialGradient(
+                    px, eyeY - r * sy * 0.10f, r * 1.35f,
+                    intArrayOf(((0x26 * facePuff).toInt() shl 24) or 0x00FFFFFF, 0x00FFFFFF),
+                    null, Shader.TileMode.CLAMP
+                )
+            }
+            c.drawCircle(px, eyeY - r * sy * 0.05f, r * 1.3f, puff)
         }
         c.restore()
     }
@@ -1089,6 +1187,11 @@ class SceneRenderer {
             path.reset()
             path.moveTo(ax, ay)
             path.quadTo(mx, my, hx, hy)
+            // мягкое свечение под рукой
+            pS.color = 0x2E9ADDB8.toInt()
+            pS.strokeWidth = unit * 0.40f
+            c.drawPath(path, pS)
+            // основная рука
             pS.color = armColor
             pS.strokeWidth = unit * 0.22f
             c.drawPath(path, pS)
