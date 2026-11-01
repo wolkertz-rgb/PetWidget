@@ -73,6 +73,15 @@ class SceneRenderer {
     /** плотность экрана (px на dp) — для позиции лампочки */
     var density = 3f
 
+    /** читатель темы: значения можно переопределить из «ателье» (prefs) */
+    private fun th(key: String, def: Int): Int {
+        return try {
+            lastPrefs?.getInt(key, def) ?: def
+        } catch (_: Throwable) {
+            def
+        }
+    }
+
     // ---------------------------------------------------------------- сцена
 
     private fun paintScene(c: Canvas, sim: PetSim) {
@@ -81,9 +90,9 @@ class SceneRenderer {
         val floorY = h - h * 0.115f
         val itemX: (Float) -> Float = { pad + it.coerceIn(0f, 1f) * (w - 2 * pad) }
 
-        // фон
+        // фон (тема-токены)
         val bg = Paint().apply {
-            shader = LinearGradient(0f, pad, 0f, floorY, 0xFFF2F2EF.toInt(), 0xFFE8E8E4.toInt(), Shader.TileMode.CLAMP)
+            shader = LinearGradient(0f, pad, 0f, floorY, th("room_bg_top", 0xFFF2F2EF.toInt()), th("room_bg_bottom", 0xFFE8E8E4.toInt()), Shader.TileMode.CLAMP)
         }
         c.drawRect(0f, 0f, w.toFloat(), floorY + 1f, bg)
         c.drawRect(0f, floorY, w.toFloat(), h.toFloat(), bg)
@@ -105,11 +114,35 @@ class SceneRenderer {
         val ceil = Paint().apply { shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, w.toFloat(), pad * 1.6f, ceil)
 
-        // пол + плинтус
-        val floor = Paint().apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), 0xFFE1E1DC.toInt(), 0xFFD3D3CE.toInt(), Shader.TileMode.CLAMP) }
+        // обои-зерно: деликатная точечная сетка на стене
+        pF.color = 0xFF555550.toInt()
+        pF.alpha = 14
+        val grainStep = unit * 1.5f
+        var gy = pad + grainStep
+        while (gy < floorY - unit * 2.1f) {
+            var gx = pad + grainStep
+            val shift = if ((gy / grainStep).toInt() % 2 == 1) grainStep / 2f else 0f
+            while (gx < w - pad) {
+                c.drawCircle(gx + shift, gy, unit * 0.05f, pF)
+                gx += grainStep
+            }
+            gy += grainStep
+        }
+        pF.alpha = 255
+
+        // панель нижней части стены + линия кромки
+        pF.color = th("room_panel", 0xFFE5E5E0.toInt())
+        rect.set(pad, floorY - unit * 2.0f, w - pad, floorY - unit * 0.2f)
+        c.drawRect(rect, pF)
+        pS.color = 0x2ECFCFC9.toInt()
+        pS.strokeWidth = unit * 0.08f
+        c.drawLine(pad, floorY - unit * 2.0f, w - pad, floorY - unit * 2.0f, pS)
+
+        // пол + плинтус (тема-токены)
+        val floor = Paint().apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFE1E1DC.toInt()), th("floor_bottom", 0xFFD3D3CE.toInt()), Shader.TileMode.CLAMP) }
         rect.set(pad, floorY, w - pad, h - pad)
         c.drawRect(rect, floor)
-        pF.color = 0xFFDCDCD6.toInt()
+        pF.color = th("room_skirt", 0xFFDCDCD6.toInt())
         rect.set(pad, floorY - unit * 0.22f, w - pad, floorY)
         c.drawRect(rect, pF)
         pS.color = 0xFFB9B9B2.toInt()
@@ -177,6 +210,25 @@ class SceneRenderer {
         // лампу и шнур видно и в темноте (питомцу нужно видеть, куда тянуть)
         drawBulb(c, unit, floorY)
         drawPullCord(c, sim, unit, floorY)
+
+        // god-rays: живые лучи из лампы (только при включенном свете)
+        if (lightNow()) {
+            val rayBx = w / 2f
+            val rayBy = 26f * density
+            val len = w * 1.15f
+            val drift = sin(sim.animPhase * 0.2f) * 0.25f
+            for (i in 0..1) {
+                val dir = (if (i == 0) -0.55f else 0.55f) + drift
+                val spread = 0.24f
+                path.reset()
+                path.moveTo(rayBx, rayBy)
+                path.lineTo(rayBx + sin(dir - spread) * len, rayBy + cos(dir - spread) * len)
+                path.lineTo(rayBx + sin(dir + spread) * len, rayBy + cos(dir + spread) * len)
+                path.close()
+                pF.color = 0x12FFD98E.toInt()
+                c.drawPath(path, pF)
+            }
+        }
 
         // ---- ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ БЕЙДЖ (потом уберём)
         try {
@@ -655,11 +707,11 @@ class SceneRenderer {
         pS.strokeWidth = unit * 0.06f
         c.drawCircle(antTopX, antTopY, unit * 0.14f, pS)
 
-        // тело: свежая палитра (мята → шалфей → тёмный низ)
+        // тело: палитра из темы (мята → шалфей → тёмный низ по умолчанию)
         val body = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(
                 px - r * 0.4f, cy - r * sy, px + r * 0.2f, cy + r * sy,
-                intArrayOf(0xFFA8E6C3.toInt(), 0xFF6FBE97.toInt(), 0xFF4FA379.toInt()),
+                intArrayOf(th("pet_top", 0xFFA8E6C3.toInt()), th("pet_mid", 0xFF6FBE97.toInt()), th("pet_bottom", 0xFF4FA379.toInt())),
                 null, Shader.TileMode.CLAMP
             )
         }
@@ -668,6 +720,21 @@ class SceneRenderer {
         pS.color = 0x7A35684E.toInt()
         pS.strokeWidth = unit * 0.11f
         c.drawOval(rect, pS)
+
+        // обводка-кромка слоя света (rim-light)
+        pS.color = 0x30FFFFFF.toInt()
+        pS.strokeWidth = unit * 0.07f
+        rect.set(px - r * sx - unit * 0.07f, cy - r * sy - unit * 0.07f, px + r * sx + unit * 0.07f, cy + r * sy + unit * 0.07f)
+        c.drawOval(rect, pS)
+
+        // «пятки-няшки»: когда стоит/гуляет — видны маленькие ножки
+        if (!sleeping && st != PetSim.State.PULL) {
+            pF.color = th("pet_feet", 0xFF54A383.toInt())
+            rect.set(px - r * 0.62f, cy + r * sy * 0.90f, px - r * 0.28f, cy + r * sy * 1.04f)
+            c.drawOval(rect, pF)
+            rect.set(px + r * 0.28f, cy + r * sy * 0.90f, px + r * 0.62f, cy + r * sy * 1.04f)
+            c.drawOval(rect, pF)
+        }
 
         // двойной блик (стеклянность)
         pF.color = 0x59FFFFFF.toInt()
@@ -678,7 +745,7 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         // животик
-        pF.color = 0xFFBDEBCF.toInt()
+        pF.color = th("pet_belly", 0xFFBDEBCF.toInt())
         rect.set(px - r * 0.55f * sx, cy + r * sy * 0.02f, px + r * 0.55f * sx, cy + r * sy * 0.84f)
         c.drawOval(rect, pF)
 
@@ -755,7 +822,8 @@ class SceneRenderer {
         }
 
         // щёчки (при BLUSH — крупные и яркие)
-        pF.color = if (st == PetSim.State.BLUSH) 0xB4F17A85.toInt() else 0x52F3A9A0.toInt()
+        val blushBase = th("pet_blush", 0xFFF3A9A0.toInt())
+        pF.color = if (st == PetSim.State.BLUSH) (0xB4 shl 24) or (blushBase and 0x00FFFFFF) else (0x52 shl 24) or (blushBase and 0x00FFFFFF)
         val blushGrow = if (st == PetSim.State.BLUSH) 1.6f else 1f
         rect.set(
             px - eyeDx - r * 0.44f * blushGrow, eyeY + r * 0.12f,
@@ -1163,7 +1231,7 @@ class SceneRenderer {
         // спинка с кожаным градиентом
         val back = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(bx - unit, floorY - unit * 3.0f, bx + unit * 0.6f, floorY - unit * 0.5f,
-                0xFFAB7B44.toInt(), 0xFF6D4523.toInt(), Shader.TileMode.CLAMP)
+                th("chair_back1", 0xFFAB7B44.toInt()), th("chair_back2", 0xFF6D4523.toInt()), Shader.TileMode.CLAMP)
         }
         rect.set(bx - unit * 1.05f, floorY - unit * 3.0f, bx + unit * 1.05f, floorY - unit * 0.4f)
         c.drawRoundRect(rect, unit * 0.52f, unit * 0.52f, back)
@@ -1176,7 +1244,7 @@ class SceneRenderer {
         // сиденье-подушка
         val seat = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(0f, floorY - unit * 0.95f, 0f, floorY,
-                0xFFC08A57.toInt(), 0xFF94613A.toInt(), Shader.TileMode.CLAMP)
+                th("chair_seat1", 0xFFC08A57.toInt()), th("chair_seat2", 0xFF94613A.toInt()), Shader.TileMode.CLAMP)
         }
         rect.set(bx - unit * 1.35f, floorY - unit * 0.95f, bx + unit * 1.35f, floorY - unit * 0.05f)
         c.drawRoundRect(rect, unit * 0.4f, unit * 0.4f, seat)
@@ -1191,7 +1259,7 @@ class SceneRenderer {
 
         val roll = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(0f, floorY - unit * 2.0f, 0f, floorY,
-                0xFFB98350.toInt(), 0xFF8A5A2E.toInt(), Shader.TileMode.CLAMP)
+                th("chair_roll1", 0xFFB98350.toInt()), th("chair_roll2", 0xFF8A5A2E.toInt()), Shader.TileMode.CLAMP)
         }
         // подлокотники (передний план)
         rect.set(bx - unit * 1.75f, floorY - unit * 1.85f, bx - unit * 1.05f, floorY - unit * 0.05f)
