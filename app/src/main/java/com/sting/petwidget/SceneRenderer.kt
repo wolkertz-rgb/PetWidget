@@ -728,7 +728,7 @@ class SceneRenderer {
         c.drawOval(rect, pS)
 
         // «пятки-няшки»: когда стоит/гуляет — видны маленькие ножки
-        if (!sleeping && st != PetSim.State.PULL) {
+        if (st != PetSim.State.SLEEP && st != PetSim.State.PULL) {
             pF.color = th("pet_feet", 0xFF54A383.toInt())
             rect.set(px - r * 0.62f, cy + r * sy * 0.90f, px - r * 0.28f, cy + r * sy * 1.04f)
             c.drawOval(rect, pF)
