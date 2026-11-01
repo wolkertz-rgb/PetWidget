@@ -251,10 +251,17 @@ class SceneRenderer {
         val bx = w / 2f
         val by = 26f * density
         if (!lightOn) {
-            // ТЕМНАЯ КОМНАТА: глубокий синеватый полумрак, силуэты едва видны
-            c.drawColor(0xBE131C2C.toInt())
+            // ПОЛУМРАК: сцена читается, но без освещения (верх темнее, низ светлее)
+            val dark = Paint().apply {
+                shader = LinearGradient(
+                    0f, 0f, 0f, h.toFloat(),
+                    0xC0202838.toInt(), 0x66202838.toInt(),
+                    Shader.TileMode.CLAMP
+                )
+            }
+            c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), dark)
             // лунный отсвет на полу под лампочкой (намёк)
-            pF.color = 0x141A2A4A.toInt()
+            pF.color = 0x14202C48.toInt()
             rect.set(bx - w * 0.22f, floorY - unit * 0.3f, bx + w * 0.22f, floorY + unit * 0.6f)
             c.drawOval(rect, pF)
             return

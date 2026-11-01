@@ -150,7 +150,7 @@ class PetWidgetProvider : AppWidgetProvider() {
                 sim.save()
                 val renderer = SceneRenderer()
                 renderer.lastPrefs = prefs
-                renderer.lightOn = true
+                renderer.lightOn = prefs.getBoolean("light_on", true)   // ХОДОВОЙ режим тоже слушает лампу
                 renderer.density = context.resources.displayMetrics.density
 
                 for (id in ids) {
