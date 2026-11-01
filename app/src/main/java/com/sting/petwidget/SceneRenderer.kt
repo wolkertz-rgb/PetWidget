@@ -645,8 +645,7 @@ class SceneRenderer {
         val x = inter.fromX + (inter.toX - inter.fromX) * prog
         val y = floorY + inter.liftPx * prog
         c.save()
-        c.translate(x, y)
-        c.rotate(sin(sim.animPhase * 3f) * 4f * prog)
+        c.rotate(sin(sim.animPhase * 3f) * 4f * prog, x, y)
         val alpha = ((1f - inter.eatFade) * 255f).toInt().coerceIn(0, 255)
         pF.alpha = alpha; pS.alpha = alpha; pZ.alpha = alpha
         ti.def.draw(c, x, y, unit, sim.animPhase)
@@ -668,7 +667,18 @@ class SceneRenderer {
         val palmColor = 0xFF9ADDB8.toInt()
         val grip = unit * 0.24f
 
-        fun arm(ax: Float, ay: Float, hx: Float, hy: Float, up: Boolean) {
+        fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean) {
+            // руки не резиновые до бесконечности: максимум ~2 радиуса тела
+            var hx = hxRaw
+            var hy = hyRaw
+            val vx = hx - cx
+            val vy = hy - cy
+            val d = kotlin.math.sqrt(vx * vx + vy * vy)
+            val maxD = r * 2.15f
+            if (d > maxD) {
+                hx = cx + vx / d * maxD
+                hy = cy + vy / d * maxD
+            }
             val mx = (ax + hx) / 2f
             val my = (ay + hy) / 2f + (if (up) -unit * 0.30f else unit * 0.45f)
             path.reset()
