@@ -307,6 +307,8 @@ class SceneRenderer {
         var lidProg = 0f
         var rubPhase = 0f
         var eatFade = 0f       // 0..1 — съедание (затухание предмета)
+        var eatProgress = 0f   // 0..1 — сколько уже "съедено" (	Schema поедания)
+        var holdYExtra = 0f    // индивидуальный "боб" предмета (лижет, хрустит)
     }
 
     private fun readInteract(sim: PetSim, itemX: (Float) -> Float, r: Float): InteractInfo {
@@ -338,6 +340,8 @@ class SceneRenderer {
                 info.holding = true
                 info.liftPx = -r * 1.15f
                 info.eatFade = ((t - (dur - 400f)).toFloat() / 400f).coerceIn(0f, 1f)
+                // прогресс поедания от захвата до конца-минус-финал
+                info.eatProgress = ((t - 600f) / (dur - 1000f).coerceAtLeast(1f)).coerceIn(0f, 1f)
             }
             ItemDefs.Reaction.OPEN  -> {
                 info.lidProg = ((t - (dur - 800f)).toFloat() / 800f).coerceIn(0f, 1f)
@@ -552,6 +556,11 @@ class SceneRenderer {
                 cy -= abs(sin(sim.stateTime / 120f)) * r * 0.9f
                 sx = 1f + 0.08f * sin(sim.stateTime / 60f)
             }
+            PetSim.State.HUNGRY -> {
+                // хнычет и потирает животик: лёгкая дрожь
+                sx = 1f + 0.04f * sin(sim.stateTime / 90f)
+                sy = 1f - 0.03f * sin(sim.stateTime / 90f)
+            }
             else -> {
                 sx = 1f + 0.02f * sin(sim.animPhase * 1.5f)
                 sy = 1f - 0.015f * sin(sim.animPhase * 1.5f)
@@ -750,6 +759,33 @@ class SceneRenderer {
                     c.drawArc(rect, 15f, 150f, false, pS)
                 }
             }
+            st == PetSim.State.HUNGRY -> {
+                // голодная жалоба
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f
+                // грустные глаза с вверх бегающей слезинкой
+                c.drawLine(px - eyeDx - r * 0.13f, eyeY + r * 0.02f, px - eyeDx + r * 0.13f, eyeY + r * 0.02f, pS)
+                c.drawLine(px + eyeDx - r * 0.13f, eyeY + r * 0.02f, px + eyeDx + r * 0.13f, eyeY + r * 0.02f, pS)
+                val tearP = (sim.stateTime % 900f) / 900f
+                pF.color = 0xFF7EB7F2.toInt()
+                pF.alpha = ((1f - tearP) * 180f).toInt().coerceIn(0, 255)
+                c.drawCircle(px - eyeDx - r * 0.18f, eyeY + r * 0.10f + tearP * r * 0.5f, unit * 0.07f, pF)
+                pF.alpha = 255
+                // волнистый ротик «жалуется»
+                rect.set(px - r * 0.18f, mouthY - r * 0.04f, px + r * 0.18f, mouthY + r * 0.08f)
+                c.drawArc(rect, 200f, 140f, false, pS)
+                // живо-бурчащий "буль" у животика
+                pS.color = 0x80D98C5A.toInt()
+                pS.strokeWidth = unit * 0.07f
+                val bx2 = px - sim.dir * r * 0.75f
+                val byy = cy + r * sy * 0.25f
+                for (i in 0..1) {
+                    val ph2 = sim.stateTime / 260f + i * 1.8f
+                    val zz = sin(ph2 * 8f) * unit * 0.16f
+                    val zy2 = byy + sin(ph2) * unit * 0.1f
+                    c.drawLine(bx2 - unit * 0.3f, zy2, bx2 + unit * 0.3f, zy2 + zz * 0.6f, pS)
+                }
+                pS.strokeWidth = unit * 0.16f
+            }
             happy && (sim.reaction == ItemDefs.Reaction.EAT || sim.reaction == ItemDefs.Reaction.SMELL) && st == PetSim.State.INTERACT -> {
                 pF.color = 0xFF2E3B34.toInt()
                 c.drawCircle(px, mouthY + r * 0.02f, r * 0.11f, pF)
@@ -767,7 +803,13 @@ class SceneRenderer {
             }
             else -> {
                 pS.color = 0xFF2E3B34.toInt()
-                c.drawLine(px - r * 0.13f, mouthY, px + r * 0.13f, mouthY, pS)
+                if (sim.hunger > 70f) {
+                    // сильно голоден — спокойная грустинка вместо точки-рта
+                    rect.set(px - r * 0.13f, mouthY - r * 0.05f, px + r * 0.13f, mouthY + r * 0.06f)
+                    c.drawArc(rect, 195f, 150f, false, pS)
+                } else {
+                    c.drawLine(px - r * 0.13f, mouthY, px + r * 0.13f, mouthY, pS)
+                }
             }
         }
         c.restore()
@@ -780,13 +822,70 @@ class SceneRenderer {
         val prog = inter.prog
         val x = inter.holdX                                   // всегда у рук
         val y = floorY + inter.liftPx * prog
+
+        // ---- Индивидуальность еды: масштаб/наклон/боб/крошки по типу
+        val ep = inter.eatProgress
+        var sc = 1f
+        var tilt = 0f
+        var bob = 0f
+        when (ti.def.id) {
+            "pizza" -> { sc = 1f - 0.32f * ep; bob = sin(sim.animPhase * 20f) * unit * 0.05f * ep }
+            "cookie" -> { sc = 1f - 0.38f * ep; bob = sin(sim.animPhase * 26f) * unit * 0.10f * ep }
+            "donut" -> { sc = 1f - 0.30f * ep; tilt = ep * 160f }
+            "apple" -> { sc = 1f - 0.55f * ep; tilt = ep * 12f }
+            "icecream" -> { bob = sin(sim.animPhase / 180f) * unit * 0.22f; tilt = ep * 16f }
+            "coffee" -> { tilt = ep * 34f }
+            "sushi" -> { bob = sin(sim.animPhase * 22f) * unit * 0.07f * ep }
+        }
+        val yb = y + bob
+
         c.save()
-        c.rotate(sin(sim.animPhase * 3f) * 4f * prog, x, y)
+        c.rotate(sin(sim.animPhase * 3f) * 4f * prog, x, yb)
+        c.rotate(tilt, x, yb)
+        c.scale(sc, sc, x, yb)
         val alpha = ((1f - inter.eatFade) * 255f).toInt().coerceIn(0, 255)
         pF.alpha = alpha; pS.alpha = alpha; pZ.alpha = alpha
-        ti.def.draw(c, x, y, unit, sim.animPhase)
+        ti.def.draw(c, x, yb, unit, sim.animPhase)
         c.restore()
+
+        // ---- крошки/капли по типу еды
+        if (inter.eatProgress > 0.08f) {
+            val crumbCol = when (ti.def.id) {
+                "pizza", "cookie" -> 0xFFC88A4A
+                "donut" -> 0xFFF6A8C0
+                "apple" -> 0xFFF3F1E4
+                "icecream" -> 0xFFFDE9F1
+                "sushi" -> 0xFFF4F8FB
+                else -> 0xFF9CA3AF
+            }
+            drawCrumbs(c, x, yb + inter.liftPx * 0.2f, unit, inter.eatProgress, crumbCol.toInt())
+        }
+        if (ti.def.id == "coffee" && inter.eatProgress > 0.05f) {
+            // глотки: капли бегут к морде
+            for (i in 0..2) {
+                val dp = (inter.eatProgress * 3f - i * 0.33f).coerceIn(0f, 1f)
+                if (dp <= 0f) continue
+                pF.color = 0xFFB98B5A.toInt()
+                pF.alpha = (dp * 200).toInt().coerceIn(0, 255)
+                c.drawCircle(x + unit * 0.1f * i, yb - unit * (0.2f + dp * 0.5f), unit * 0.05f, pF)
+            }
+            pF.alpha = 255
+        }
         pF.alpha = 255; pS.alpha = 255; pZ.alpha = 255
+        inter.holdYExtra = bob
+    }
+
+    /** живые крошки у рта */
+    private fun drawCrumbs(c: Canvas, x: Float, y: Float, unit: Float, ep: Float, col: Int) {
+        for (i in 0..4) {
+            val ang = i * 1.9f + ep * 4f
+            val dx = cos(ang) * unit * (0.25f + 0.55f * ep)
+            val dy = abs(sin(ang)) * unit * 0.45f + ep * unit * 0.55f
+            pF.color = col
+            pF.alpha = ((1f - ep * 0.8f) * 210).toInt().coerceIn(0, 255)
+            c.drawCircle(x + dx, y + dy, unit * 0.06f, pF)
+        }
+        pF.alpha = 255
     }
 
     // --------------------------------------------------------------- руки
@@ -863,7 +962,7 @@ class SceneRenderer {
                 when (sim.reaction) {
                     // держит предмет двумя руками (в воздухе) — у точки хвата
                     ItemDefs.Reaction.SMELL, ItemDefs.Reaction.LIFT, ItemDefs.Reaction.EAT -> {
-                        val hy = floorY + inter.liftPx * inter.prog
+                        val hy = floorY + inter.liftPx * inter.prog + inter.holdYExtra
                         arm(axL, ay, inter.holdX - unit * 0.3f, hy + unit * 0.22f, false)
                         arm(axR, ay, inter.holdX + unit * 0.3f, hy + unit * 0.22f, false)
                     }

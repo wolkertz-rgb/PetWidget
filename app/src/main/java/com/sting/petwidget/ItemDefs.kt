@@ -270,8 +270,8 @@ object ItemDefs {
         circle(c, cx + s * 0.45f, fy - s * 1.0f, s * 0.17f, 0xFFDC2626.toInt())
     }
 
-    /** Суши */
-    private fun sushi() = Def("sushi", "Суши", Kind.FOOD, Reaction.SMELL, 2.2f) { c, cx, fy, s, _ ->
+    /** Суши — питомец берёт и ест по кусочку */
+    private fun sushi() = Def("sushi", "Суши", Kind.FOOD, Reaction.EAT, 2.2f) { c, cx, fy, s, _ ->
         ellipse(c, cx, fy - s * 0.65f, s * 1.05f, s * 0.6f, 0xFFF8FAFC.toInt())
         ellipse(c, cx, fy - s * 1.3f, s * 1.0f, s * 0.35f, 0xFF1E293B.toInt())
         ellipse(c, cx, fy - s * 1.3f, s * 1.0f, s * 0.35f, 0xFF1E293B.toInt())
@@ -305,8 +305,8 @@ object ItemDefs {
         circle(c, cx + s * 0.5f, fy - s * 1.1f, s * 0.11f, 0xFF5C3A21.toInt())
     }
 
-    /** Кофе с сердечком на кружке */
-    private fun coffee() = Def("coffee", "Кофе", Kind.FOOD, Reaction.SMELL, 2.0f) { c, cx, fy, s, t ->
+    /** Кофе с сердечком на кружке — питомец пьёт */
+    private fun coffee() = Def("coffee", "Кофе", Kind.FOOD, Reaction.EAT, 2.0f) { c, cx, fy, s, t ->
         roundRect(c, cx - s * 0.9f, fy - s * 1.8f, cx + s * 0.9f, fy - s * 0.05f, s * 0.25f, 0xFFFFF7EC.toInt())
         ellipse(c, cx, fy - s * 1.8f, s * 0.9f, s * 0.22f, 0xFF78350F.toInt())
         ellipse(c, cx, fy - s * 1.8f, s * 0.6f, s * 0.13f, 0xFFB45309.toInt())

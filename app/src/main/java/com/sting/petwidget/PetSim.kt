@@ -13,7 +13,7 @@ import kotlin.random.Random
  */
 class PetSim(context: Context) {
 
-    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL }
+    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY }
     enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED, TO_SWITCH }
 
     /** Предмет в комнате */
@@ -46,6 +46,7 @@ class PetSim(context: Context) {
     var reaction = ItemDefs.Reaction.PLAY
     var sleepingInBed = false
     var petStyle = 0              // вариант реакции на поглаживание
+    var hunger = 30f              // 0..100: растёт со временем, снимается едой
     val items = ArrayList<SpawnedItem>()
     var tickCount = 0L           // для диагностики (бейдж)
 
@@ -64,6 +65,7 @@ class PetSim(context: Context) {
     private var switchPartyLeft = 0              // «детская игра со светом» — сколько тяг осталось
     private var pendingNextPull = false
     private var pullDone = false                 // свет в текущей тяге уже переключён?
+    private var nextHungryAt = 90f               // таймер «голодной побудки»
 
     init { load() }
 
@@ -128,14 +130,19 @@ class PetSim(context: Context) {
 
         // ГАРАНТИРОВАННОЕ ЖЕЛАНИЕ: давно не трогал предметы и есть НЕТРОНУТЫЙ —
         // начинает взаимодействие (тот же путь, что и тап-тест — он работает всегда)
+        // голоден сильнее меры — еды в приоритете и ждать недолго
         if (animPhase >= nextAutoInteract &&
             state != State.INTERACT && state != State.SLEEP &&
             state != State.WAVE && state != State.HAPPY &&
             walkMode != WalkMode.TO_SWITCH && !pendingNextPull
         ) {
-            val nearest = items.filter { !it.used }.minByOrNull { abs(it.x - x) }
+            val unused = items.filter { !it.used }
+            val candidates = if (hunger > 55f) {
+                (unused.filter { it.def.kind == ItemDefs.Kind.FOOD } + unused).distinctBy { it.x }
+            } else unused
+            val nearest = candidates.minByOrNull { abs(it.x - x) }
             if (nearest != null) {
-                nextAutoInteract = animPhase + rF(90f, 150f)
+                nextAutoInteract = animPhase + if (hunger > 55f) rF(45f, 75f) else rF(90f, 150f)
                 if (abs(nearest.x - x) < 0.15f) {
                     targetItem = nearest
                     beginInteract(nearest)
@@ -152,6 +159,19 @@ class PetSim(context: Context) {
                 // нетронутых предметов нет — интерес утих, ждём нового
                 nextAutoInteract = animPhase + rF(60f, 120f)
             }
+        }
+
+        // ГОЛОД: растёт со временем жизни на экране
+        hunger = (hunger + dt * 100f / HUNGER_FULL_MS).coerceIn(0f, 100f)
+        // если голоден сильнее меры и еды в комнате нет — голодная побудка-жест
+        if (hunger > HUNGER_LEVEL && animPhase >= nextHungryAt &&
+            (state == State.IDLE || state == State.SIT ||
+                (state == State.WALK && walkMode == WalkMode.RANDOM))
+        ) {
+            nextHungryAt = animPhase + 45f
+            state = State.HUNGRY
+            stateTime = 0
+            stateDur = 2_800
         }
 
         // после долгой разлуки сладко досыпает (не посреди похода к выключателю)
@@ -392,6 +412,8 @@ class PetSim(context: Context) {
             when (reaction) {
                 ItemDefs.Reaction.EAT, ItemDefs.Reaction.SMELL -> {
                     items.remove(ti)
+                    // поел — голод отступает
+                    hunger = (hunger - HUNGER_EAT_RELIEF).coerceAtLeast(0f)
                     // поел — вскоре помашет владельцу "спасибо"
                     if (rng.nextFloat() < 0.35f) {
                         msSinceWave = nextWaveEvery - 900L
@@ -547,6 +569,7 @@ class PetSim(context: Context) {
         ed.putString(KEY_REACTION, reaction.name)
         ed.putBoolean(KEY_INBED, sleepingInBed)
         ed.putBoolean(KEY_PULLDONE, pullDone)
+        ed.putFloat(KEY_HUNGER, hunger)
         // ЦЕЛЬ ХРАНИТСЯ НЕ ТОЛЬКО ДЛЯ INTERACT — иначе поход к предмету
         // теряет цель при пересоздании симуляции (амнезия ходьбы)
         if (targetItem != null &&
@@ -576,6 +599,7 @@ class PetSim(context: Context) {
         } catch (_: Exception) { ItemDefs.Reaction.PLAY }
         sleepingInBed = prefs.getBoolean(KEY_INBED, false)
         pullDone = prefs.getBoolean(KEY_PULLDONE, false)
+        hunger = prefs.getFloat(KEY_HUNGER, 30f).coerceIn(0f, 100f)
         targetItem = null
         items.clear()
         prefs.getString(KEY_ITEMS, null)?.takeIf { it.isNotBlank() }?.split("|")?.forEach { s ->
@@ -630,6 +654,12 @@ class PetSim(context: Context) {
 
         const val PULL_TOGGLE_MS = 700L     // момент в тяге, когда свет щёлкает
         const val PULL_DUR = 1400L          // полная длительность тяги
+
+        private const val KEY_HUNGER = "hunger"
+
+        const val HUNGER_FULL_MS = 600_000L // голод растёт до 100 за ~10 минут жизни
+        const val HUNGER_LEVEL = 75f        // порог, при котором морда грустит
+        const val HUNGER_EAT_RELIEF = 65f   // сколько снимает одна еда
 
         const val HOLD_AT = 600L     // сколько мс тянуться/брать
         const val RELEASE_MS = 250L  // плавно убрать руки
