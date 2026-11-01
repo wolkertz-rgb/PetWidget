@@ -13,7 +13,7 @@ import kotlin.random.Random
  */
 class PetSim(context: Context) {
 
-    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE }
+    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE }
     enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED }
 
     /** Предмет в комнате */
@@ -44,6 +44,7 @@ class PetSim(context: Context) {
     var targetItem: SpawnedItem? = null
     var reaction = ItemDefs.Reaction.PLAY
     var sleepingInBed = false
+    var petStyle = 0              // вариант реакции на поглаживание
     val items = ArrayList<SpawnedItem>()
     var tickCount = 0L           // для диагностики (бейдж)
 
@@ -366,26 +367,20 @@ class PetSim(context: Context) {
         }
     }
 
+    /** Тап по питомцу = ПОГЛАЖИВАНИЕ: случайная реакция */
     fun tap() {
         if (state == State.SLEEP) return
-        val r = rng.nextFloat()
-        stateState(r)
-    }
-
-    private fun stateState(r: Float) {
-        when {
-            r < 0.25f && state != State.INTERACT -> { state = State.WAVE; stateTime = 0; stateDur = 2_400 }
-            r < 0.55f && state != State.INTERACT -> { state = State.ROLL; stateTime = 0; stateDur = 1_300 }
-            r < 0.80f && state != State.INTERACT -> { state = State.SWAY; stateTime = 0; stateDur = 2_100 }
-            else -> {
-                state = State.HAPPY
-                stateTime = 0
-                stateDur = 900
-            }
-        }
+        petStyle = rng.nextInt(5)
         targetItem = null
         walkMode = WalkMode.NONE
-        sleepingInBed = false
+        stateTime = 0
+        when (petStyle) {
+            0 -> { state = State.HAPPY;  stateDur = 1_000 }  // обрадовался + сердечки
+            1 -> { state = State.SMUG;   stateDur = 1_500 }  // ухмыльнулся
+            2 -> { state = State.BLUSH;  stateDur = 1_600 }  // покраснел
+            3 -> { state = State.SQUEEZE; stateDur = 1_300 } // зажмурился от удовольствия
+            else -> { state = State.TICKLE; stateDur = 1_300 } // подпрыгнул от щекотки
+        }
     }
 
     fun onResume(gapMs: Long) {

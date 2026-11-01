@@ -15,15 +15,14 @@ class TapBridgeReceiver : BroadcastReceiver() {
                 PetWidgetProvider.burst(context, frames = 2, everyMs = 80)
             }
             else -> {
-                // тап по виджету = ТЕСТ РУК: если есть предмет — мгновенно взаимодействуем
+                // тап по виджету = ПОГЛАЖИВАНИЕ: случайная милая реакция
                 try {
                     val sim = PetSim(context)
-                    val started = sim.tapInteract()
-                    if (!started) sim.tap()   // предметов нет — обычная радость
+                    sim.tap()
                     sim.save()
                 } catch (_: Throwable) {}
                 PetWidgetProvider.tryStartService(context)
-                PetWidgetProvider.burst(context, frames = 24)
+                PetWidgetProvider.burst(context, frames = 22)
             }
         }
     }

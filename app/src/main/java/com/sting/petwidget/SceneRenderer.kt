@@ -479,6 +479,26 @@ class SceneRenderer {
                 sx = 1f + 0.04f * sin(sim.stateTime / 240f)
                 sy = 1f + 0.03f * sin(sim.stateTime / 240f)
             }
+            PetSim.State.SMUG -> {
+                // хитро наклоняется и чуть надувается
+                sx = 1f + 0.05f * sin(sim.stateTime / 300f)
+                dx = unit * 0.15f * sim.dir
+            }
+            PetSim.State.BLUSH -> {
+                // стесняется: слегка съёживается
+                sx = 1f + 0.04f * sin(sim.stateTime / 250f)
+                sy = 1f - 0.04f * sin(sim.stateTime / 250f)
+            }
+            PetSim.State.SQUEEZE -> {
+                // блаженное сжатие-расжатие
+                sx = 1f - 0.07f * sin(sim.stateTime / 130f)
+                sy = 1f + 0.07f * sin(sim.stateTime / 130f)
+            }
+            PetSim.State.TICKLE -> {
+                // пружинистые подпрыгивания от щекотки
+                cy -= abs(sin(sim.stateTime / 120f)) * r * 0.9f
+                sx = 1f + 0.08f * sin(sim.stateTime / 60f)
+            }
             else -> {
                 sx = 1f + 0.02f * sin(sim.animPhase * 1.5f)
                 sy = 1f - 0.015f * sin(sim.animPhase * 1.5f)
@@ -571,13 +591,19 @@ class SceneRenderer {
                 }
                 pZ.alpha = 255
             }
-            stretching || waving -> {
+            stretching || waving || st == PetSim.State.SQUEEZE || st == PetSim.State.TICKLE -> {
                 // счастливые дужки-глаза
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
                 rect.set(px - eyeDx - r * 0.16f, eyeY - r * 0.12f, px - eyeDx + r * 0.16f, eyeY + r * 0.06f)
                 c.drawArc(rect, 200f, 140f, false, pS)
                 rect.set(px + eyeDx - r * 0.16f, eyeY - r * 0.12f, px + eyeDx + r * 0.16f, eyeY + r * 0.06f)
                 c.drawArc(rect, 200f, 140f, false, pS)
+            }
+            st == PetSim.State.BLUSH -> {
+                // застенчиво смотрит вниз
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
+                c.drawLine(px - eyeDx - r * 0.14f, eyeY + r * 0.02f, px - eyeDx + r * 0.14f, eyeY + r * 0.02f, pS)
+                c.drawLine(px + eyeDx - r * 0.14f, eyeY + r * 0.02f, px + eyeDx + r * 0.14f, eyeY + r * 0.02f, pS)
             }
             blinking && st != PetSim.State.ROLL -> {
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
@@ -595,11 +621,18 @@ class SceneRenderer {
             }
         }
 
-        // щёчки
-        pF.color = 0x52F3A9A0.toInt()
-        rect.set(px - eyeDx - r * 0.44f, eyeY + r * 0.12f, px - eyeDx - r * 0.15f, eyeY + r * 0.32f)
+        // щёчки (при BLUSH — крупные и яркие)
+        pF.color = if (st == PetSim.State.BLUSH) 0xB4F17A85.toInt() else 0x52F3A9A0.toInt()
+        val blushGrow = if (st == PetSim.State.BLUSH) 1.6f else 1f
+        rect.set(
+            px - eyeDx - r * 0.44f * blushGrow, eyeY + r * 0.12f,
+            px - eyeDx - r * 0.15f * blushGrow - r * (blushGrow - 1f) * 0.4f, eyeY + r * 0.32f * blushGrow
+        )
         c.drawOval(rect, pF)
-        rect.set(px + eyeDx + r * 0.15f, eyeY + r * 0.12f, px + eyeDx + r * 0.44f, eyeY + r * 0.32f)
+        rect.set(
+            px + eyeDx + r * 0.15f * blushGrow, eyeY + r * 0.12f,
+            px + eyeDx + r * 0.44f * blushGrow, eyeY + r * 0.32f * blushGrow
+        )
         c.drawOval(rect, pF)
 
         // рот
@@ -615,6 +648,34 @@ class SceneRenderer {
                 pF.color = 0xFFE58C8C.toInt()
                 rect.set(px - r * 0.10f, mouthY + r * 0.02f, px + r * 0.10f, mouthY + r * 0.10f)
                 c.drawOval(rect, pF) // язычок
+            }
+            st == PetSim.State.SMUG -> {
+                // хитрая ухмылка: дуга со смещением
+                pS.color = 0xFF2E3B34.toInt()
+                c.save()
+                c.rotate(sim.dir * 8f, px, mouthY)
+                rect.set(px - r * 0.20f, mouthY - r * 0.16f, px + r * 0.24f, mouthY + r * 0.06f)
+                c.drawArc(rect, 10f, 145f, false, pS)
+                c.restore()
+                // приподнятая бровка
+                c.drawLine(px + eyeDx - r * 0.1f, eyeY - r * 0.45f, px + eyeDx + r * 0.16f, eyeY - r * 0.55f, pS)
+            }
+            st == PetSim.State.BLUSH -> {
+                // маленькая довольная улыбочка
+                pS.color = 0xFF2E3B34.toInt()
+                rect.set(px - r * 0.16f, mouthY - r * 0.12f, px + r * 0.16f, mouthY + r * 0.05f)
+                c.drawArc(rect, 20f, 140f, false, pS)
+            }
+            st == PetSim.State.SQUEEZE -> {
+                // блаженный "ооо"
+                pF.color = 0xFF2E3B34.toInt()
+                c.drawCircle(px, mouthY + r * 0.02f, r * 0.09f, pF)
+            }
+            st == PetSim.State.TICKLE -> {
+                // хохочет от щекотки
+                pF.color = 0xFF2E3B34.toInt()
+                rect.set(px - r * 0.22f, mouthY - r * 0.22f, px + r * 0.22f, mouthY + r * 0.08f)
+                c.drawArc(rect, 0f, 180f, true, pF)
             }
             happy && (sim.reaction == ItemDefs.Reaction.EAT || sim.reaction == ItemDefs.Reaction.SMELL) && st == PetSim.State.INTERACT -> {
                 pF.color = 0xFF2E3B34.toInt()
@@ -752,8 +813,16 @@ class SceneRenderer {
         }
     }
 
-    // сердечки при волне
+    // сердечки при волне и при радости от поглаживания
     private fun drawHearts(c: Canvas, sim: PetSim, cx: Float, floorY: Float, unit: Float) {
+        val show = sim.state == PetSim.State.WAVE ||
+            (sim.state == PetSim.State.HAPPY && sim.petStyle == 0)
+        if (!show) return
+        if (sim.state == PetSim.State.WAVE) drawHeartsWave(c, sim, cx, floorY, unit)
+        else drawHeartsPet(c, sim, cx, floorY, unit)
+    }
+
+    private fun drawHeartsWave(c: Canvas, sim: PetSim, cx: Float, floorY: Float, unit: Float) {
         val r = unit * 1.55f
         val cy = petCy(sim, floorY, unit, r)
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
@@ -772,6 +841,30 @@ class SceneRenderer {
             path.quadTo(hx, hy - s, hx, hy - s * 0.3f)
             path.quadTo(hx, hy - s, hx + s * 0.4f, hy - s * 0.5f)
             path.quadTo(hx + s, hy, hx, hy + s)
+            c.drawPath(path, pF)
+        }
+        pF.alpha = 255
+    }
+
+    /** сердечки после поглаживания — столбик над головой */
+    private fun drawHeartsPet(c: Canvas, sim: PetSim, cx: Float, floorY: Float, unit: Float) {
+        val r = unit * 1.55f
+        val cy = petCy(sim, floorY, unit, r)
+        val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
+        for (i in 0..1) {
+            val hp = p * 1.6f - i * 0.5f
+            if (hp <= 0f || hp >= 1f) continue
+            pF.color = 0xFFF26D7E.toInt()
+            pF.alpha = ((1f - hp) * 230f).toInt().coerceIn(0, 255)
+            val hxx = cx + sin(hp * 6f) * unit * 0.2f
+            val hyy = cy - r * 1.8f - hp * unit * 1.4f
+            val s = unit * (0.20f - hp * 0.06f)
+            path.reset()
+            path.moveTo(hxx, hyy + s)
+            path.quadTo(hxx - s, hyy, hxx - s * 0.4f, hyy - s * 0.5f)
+            path.quadTo(hxx, hyy - s, hxx, hyy - s * 0.3f)
+            path.quadTo(hxx, hyy - s, hxx + s * 0.4f, hyy - s * 0.5f)
+            path.quadTo(hxx + s, hyy, hxx, hyy + s)
             c.drawPath(path, pF)
         }
         pF.alpha = 255
