@@ -122,6 +122,9 @@ class SceneRenderer {
         // лампочка на шнурке (зона тапа — отдельный View сверху по центру)
         drawBulb(c, unit, floorY)
 
+        // шнур-выключатель с бусиной
+        drawPullCord(c, sim, unit, floorY)
+
         // когда питомец НЕ спит в кресле — подлокотники тоже позади него
         val sleepingInChair = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
         if (!sleepingInChair) drawChairFront(c, unit, floorY)
@@ -164,6 +167,10 @@ class SceneRenderer {
         // свет лампочки: тьма или тёплое сияние — поверх всей сцены
         applyLightOverlay(c, unit, floorY)
 
+        // лампу и шнур видно и в темноте (питомцу нужно видеть, куда тянуть)
+        drawBulb(c, unit, floorY)
+        drawPullCord(c, sim, unit, floorY)
+
         // ---- ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ БЕЙДЖ (потом уберём)
         try {
             val err = lastPrefs?.getString("render_err", null)
@@ -180,8 +187,7 @@ class SceneRenderer {
 
     // ------------------------------------------------------- свет и лампа
 
-    private fun drawBulb(c: Canvas, unit: Float, floorY: Float) {
-        val bx = w / 2f
+    private fun drawBulb(c: Canvas, unit: Float, floorY: Float) {        val bx = w / 2f
         val by = 26f * density          // фиксируем в dp, чтобы совпадало с зоной тапа
         val glass = unit * 0.62f
 
@@ -211,6 +217,34 @@ class SceneRenderer {
         // блик
         pF.color = 0x66FFFFFF.toInt()
         c.drawCircle(bx - glass * 0.35f, by - glass * 0.35f, glass * 0.22f, pF)
+    }
+
+    /** координаты кончика шнура-выключателя (с учётом тяги) */
+    private fun pullCordPos(sim: PetSim, unit: Float, floorY: Float): Pair<Float, Float> {
+        val sx = floorXfor(PetSim.SWITCH_X, unit)
+        var pullOffset = 0f
+        if (sim.state == PetSim.State.PULL) {
+            val t = sim.stateTime
+            pullOffset = when {
+                t < 700L -> -unit * 0.85f * smooth(t.toFloat() / 700f)
+                t < 1000L -> -unit * 0.85f
+                else -> -unit * 0.85f * (1f - smooth(((t - 1000f) / 400f).coerceIn(0f, 1f)))
+            }
+        }
+        val sway = sin(sim.animPhase * 2.2f) * unit * 0.15f
+        return sx to (floorY - unit * 4.1f + pullOffset + sway)
+    }
+
+    private fun drawPullCord(c: Canvas, sim: PetSim, unit: Float, floorY: Float) {
+        val (sx, tipY) = pullCordPos(sim, unit, floorY)
+        pS.color = 0xFF8C8C86.toInt()
+        pS.strokeWidth = unit * 0.09f
+        c.drawLine(sx, 0f, sx, tipY, pS)
+        // бусина-хвостик, за которую дёргают
+        pF.color = if (lightOn) 0xFFD8B368.toInt() else 0xFF948A78.toInt()
+        c.drawCircle(sx, tipY, unit * 0.18f, pF)
+        pF.color = 0x49FFFFFF.toInt()
+        c.drawCircle(sx - unit * 0.05f, tipY - unit * 0.05f, unit * 0.07f, pF)
     }
 
     private fun applyLightOverlay(c: Canvas, unit: Float, floorY: Float) {
@@ -429,6 +463,11 @@ class SceneRenderer {
         }
         if (sim.state == PetSim.State.WAVE) {
             cy -= abs(sin(sim.stateTime / 280f)) * r * 0.12f
+        }
+        if (sim.state == PetSim.State.PULL) {
+            // подпрыгивает, чтобы схватить шнур
+            val jp = (sim.stateTime.toFloat() / 500f).coerceIn(0f, 1f)
+            cy -= sin((jp * PI).toFloat()) * r * 0.85f
         }
         return cy
     }
@@ -677,6 +716,26 @@ class SceneRenderer {
                 rect.set(px - r * 0.22f, mouthY - r * 0.22f, px + r * 0.22f, mouthY + r * 0.08f)
                 c.drawArc(rect, 0f, 180f, true, pF)
             }
+            st == PetSim.State.PULL -> {
+                if (sim.stateTime < PetSim.PULL_TOGGLE_MS) {
+                    // сосредоточенная гримаса: полуприкрытые глаза
+                    pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f
+                    c.drawLine(px - eyeDx - r * 0.12f, eyeY - r * 0.02f, px - eyeDx + r * 0.12f, eyeY - r * 0.02f, pS)
+                    c.drawLine(px + eyeDx - r * 0.12f, eyeY - r * 0.02f, px + eyeDx + r * 0.12f, eyeY - r * 0.02f, pS)
+                    pS.color = 0xFF2E3B34.toInt()
+                    c.drawLine(px - r * 0.10f, mouthY, px + r * 0.10f, mouthY, pS)
+                } else {
+                    // щёлк! — довольный
+                    pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
+                    rect.set(px - eyeDx - r * 0.16f, eyeY - r * 0.12f, px - eyeDx + r * 0.16f, eyeY + r * 0.06f)
+                    c.drawArc(rect, 200f, 140f, false, pS)
+                    rect.set(px + eyeDx - r * 0.16f, eyeY - r * 0.12f, px + eyeDx + r * 0.16f, eyeY + r * 0.06f)
+                    c.drawArc(rect, 200f, 140f, false, pS)
+                    pS.color = 0xFF2E3B34.toInt()
+                    rect.set(px - r * 0.24f, mouthY - r * 0.18f, px + r * 0.24f, mouthY + r * 0.06f)
+                    c.drawArc(rect, 15f, 150f, false, pS)
+                }
+            }
             happy && (sim.reaction == ItemDefs.Reaction.EAT || sim.reaction == ItemDefs.Reaction.SMELL) && st == PetSim.State.INTERACT -> {
                 pF.color = 0xFF2E3B34.toInt()
                 c.drawCircle(px, mouthY + r * 0.02f, r * 0.11f, pF)
@@ -772,6 +831,12 @@ class SceneRenderer {
                     cx + r * 1.1f + sw, cy - r * 1.9f - unit * 0.2f * reach,
                     true
                 )
+            }
+
+            PetSim.State.PULL -> {
+                // рука держит бусину шнура
+                val (tipX, tipY) = pullCordPos(sim, unit, floorY)
+                arm(cx + r * 0.35f, cy - r * 0.30f, tipX, tipY + unit * 0.1f, true)
             }
 
             PetSim.State.INTERACT -> {

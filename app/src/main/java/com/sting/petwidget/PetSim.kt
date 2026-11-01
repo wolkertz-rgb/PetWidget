@@ -13,8 +13,8 @@ import kotlin.random.Random
  */
 class PetSim(context: Context) {
 
-    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE }
-    enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED }
+    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL }
+    enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED, TO_SWITCH }
 
     /** Предмет в комнате */
     class SpawnedItem(
@@ -60,6 +60,10 @@ class PetSim(context: Context) {
     private var nextWaveEvery = rL(240_000, 360_000)
     private var nextAutoInteract = 35f           // первая самостоятельная встреча с предметом (~35 сек)
     private var nextTrickAt = 15f                // кулдаун между самостоятельными трюками (30 сек)
+    private var nextSwitchAt = 70f               // первое желание дёрнуть выключатель (~70 сек)
+    private var switchPartyLeft = 0              // «детская игра со светом» — сколько тяг осталось
+    private var pendingNextPull = false
+    private var pullDone = false                 // свет в текущей тяге уже переключён?
 
     init { load() }
 
@@ -90,12 +94,12 @@ class PetSim(context: Context) {
         nextSpawnIn -= dt
         if (nextSpawnIn <= 0) {
             nextSpawnIn = rL(14_000, 55_000)
-            if (items.isEmpty() && state != State.SLEEP) spawnItem()
+            if (items.isEmpty() && state != State.SLEEP && state != State.PULL && state != State.WAVE) spawnItem()
         }
         // "Я ВАС ВИЖУ!" — махание владельцу раз в ~5 минут вежливости
         msSinceWave += dt
         if (msSinceWave >= nextWaveEvery &&
-            state != State.SLEEP && state != State.INTERACT &&
+            state != State.SLEEP && state != State.INTERACT && state != State.PULL &&
             state != State.ROLL && state != State.HAPPY
         ) {
             msSinceWave = 0
@@ -103,6 +107,20 @@ class PetSim(context: Context) {
             state = State.WAVE
             stateTime = 0
             stateDur = 2_400
+        }
+
+        // ЖЕЛАНИЕ ПОИГРАТЬ СО СВЕТОМ: раз в ~2 минуты когнитивного времени
+        if (animPhase >= nextSwitchAt &&
+            state != State.SLEEP && state != State.INTERACT && state != State.PULL &&
+            state != State.WAVE && state != State.HAPPY && state != State.TICKLE &&
+            walkMode != WalkMode.TO_SWITCH
+        ) {
+            nextSwitchAt = animPhase + rF(110f, 145f)
+            walkMode = WalkMode.TO_SWITCH
+            state = State.WALK
+            stateTime = 0
+            stateDur = 14_000
+            dir = if (SWITCH_X > x) 1 else -1
         }
 
         // ГАРАНТИРОВАННОЕ ЖЕЛАНИЕ: давно не трогал предметы и есть НЕТРОНУТЫЙ —
@@ -189,6 +207,23 @@ class PetSim(context: Context) {
                                 // цель важнее таймера: цель не отменяется по времени,
                                 // пока питомец реально ни дойдёт
                             }
+                        } else if (walkMode == WalkMode.TO_SWITCH) {
+                            val dxs = SWITCH_X - x
+                            if (abs(dxs) < 0.05f) {
+                                x = SWITCH_X
+                                beginPull()
+                            } else {
+                                dir = if (dxs > 0) 1 else -1
+                                val step = WALK_SPEED * dtS
+                                val move = if (abs(dxs) - 0.04f < step) abs(dxs) - 0.04f else step
+                                x = (x + dir * move).coerceIn(X_MIN, X_MAX)
+                                if (stateTime >= stateDur) {
+                                    // не дошёл — отложим это на потом
+                                    state = State.IDLE
+                                    stateTime = 0
+                                    stateDur = 2_000
+                                }
+                            }
                         } else {
                             // случайная прогулка: мягкий отскок от стен
                             x += dir * WALK_SPEED * dtS
@@ -214,7 +249,32 @@ class PetSim(context: Context) {
                 }
             }
 
-            else -> if (stateTime >= stateDur) nextAction()
+            State.PULL -> {
+                // щелчок света в середине тяги
+                if (!pullDone && stateTime >= PULL_TOGGLE_MS) {
+                    pullDone = true
+                    toggleLight()
+                }
+                if (stateTime >= stateDur) {
+                    if (dt > 1500 && !interactShown) {
+                        // ход-режим: показать момент тяги в кадре
+                        interactShown = true
+                        stateTime = PULL_TOGGLE_MS + 60
+                    } else {
+                        interactShown = false
+                        finishPull()
+                    }
+                }
+            }
+
+            else -> if (stateTime >= stateDur) {
+                if (pendingNextPull && state == State.HAPPY) {
+                    pendingNextPull = false
+                    beginPull()
+                } else {
+                    nextAction()
+                }
+            }
         }
 
         saveTimer += dt
@@ -367,6 +427,48 @@ class PetSim(context: Context) {
         }
     }
 
+    /** Начало тяги за шнур: питомец встал под выключатель */
+    fun beginPull() {
+        x = SWITCH_X
+        dir = 1
+        walkMode = WalkMode.NONE
+        targetItem = null
+        state = State.PULL
+        stateTime = 0
+        stateDur = PULL_DUR
+        pullDone = false
+    }
+
+    private fun finishPull() {
+        // «детская игра»: иногда после тяги — серия весёлых включений-выключений
+        if (switchPartyLeft == 0 && !pendingNextPull && rng.nextFloat() < 0.30f) {
+            switchPartyLeft = (2..4).random(rng)
+        }
+        if (switchPartyLeft > 0) {
+            switchPartyLeft--
+            pendingNextPull = true
+            petStyle = 0
+            state = State.HAPPY
+            stateTime = 0
+            stateDur = 650
+        } else {
+            // финал: довольный смешок; если свет остался выключен — придёт включать скоро
+            if (!prefs.getBoolean("light_on", true)) {
+                nextSwitchAt = animPhase + 25f
+            }
+            pendingNextPull = false
+            state = State.TICKLE
+            stateTime = 0
+            stateDur = 1_200
+        }
+    }
+
+    private fun toggleLight() {
+        prefs.edit()
+            .putBoolean("light_on", !prefs.getBoolean("light_on", true))
+            .apply()
+    }
+
     /** Тап по питомцу = ПОГЛАЖИВАНИЕ: случайная реакция */
     fun tap() {
         if (state == State.SLEEP) return
@@ -439,6 +541,7 @@ class PetSim(context: Context) {
         ed.putLong(KEY_SDUR, stateDur)
         ed.putString(KEY_REACTION, reaction.name)
         ed.putBoolean(KEY_INBED, sleepingInBed)
+        ed.putBoolean(KEY_PULLDONE, pullDone)
         // ЦЕЛЬ ХРАНИТСЯ НЕ ТОЛЬКО ДЛЯ INTERACT — иначе поход к предмету
         // теряет цель при пересоздании симуляции (амнезия ходьбы)
         if (targetItem != null &&
@@ -467,6 +570,7 @@ class PetSim(context: Context) {
             ItemDefs.Reaction.valueOf(prefs.getString(KEY_REACTION, "PLAY")!!)
         } catch (_: Exception) { ItemDefs.Reaction.PLAY }
         sleepingInBed = prefs.getBoolean(KEY_INBED, false)
+        pullDone = prefs.getBoolean(KEY_PULLDONE, false)
         targetItem = null
         items.clear()
         prefs.getString(KEY_ITEMS, null)?.takeIf { it.isNotBlank() }?.split("|")?.forEach { s ->
@@ -510,12 +614,17 @@ class PetSim(context: Context) {
         private const val KEY_SDUR = "sdur"
         private const val KEY_REACTION = "reaction"
         private const val KEY_INBED = "inbed"
+        private const val KEY_PULLDONE = "pulldone"
         private const val KEY_TARGET = "target"
 
         const val WALK_SPEED = 0.075f
         const val X_MIN = 0.09f
         const val X_MAX = 0.91f
         const val BED_X = 0.80f
+        const val SWITCH_X = 0.40f          // где висит шнур выключателя
+
+        const val PULL_TOGGLE_MS = 700L     // момент в тяге, когда свет щёлкает
+        const val PULL_DUR = 1400L          // полная длительность тяги
 
         const val HOLD_AT = 600L     // сколько мс тянуться/брать
         const val RELEASE_MS = 250L  // плавно убрать руки
