@@ -150,8 +150,7 @@ class PetService : Service() {
 
             if (sizeW == 0 || sizeH == 0) recomputeSizes()
 
-            // свет всегда горит
-            renderer.lightOn = true
+            // свет читается рендером прямо из настроек — порядок кадра не важен
             renderer.density = resources.displayMetrics.density
 
             // синхронизируемся с общим состоянием — burst/будильник и сервис

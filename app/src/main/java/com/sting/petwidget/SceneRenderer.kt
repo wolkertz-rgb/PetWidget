@@ -60,8 +60,15 @@ class SceneRenderer {
     /** контекст для аварийного журнала (задаётся при создании симуляции) */
     var lastPrefs: android.content.SharedPreferences? = null
 
-    /** тёплый свет (горит по умолчанию) */
-    var lightOn = true
+    /** АКТУАЛЬНОЕ состояние света — читается прямо при рисовании,
+     *  чтобы щелчок тумблера внутри тика не терялся ("single source of truth") */
+    private fun lightNow(): Boolean {
+        return try {
+            lastPrefs?.getBoolean("light_on", true) ?: true
+        } catch (_: Throwable) {
+            true
+        }
+    }
 
     /** плотность экрана (px на dp) — для позиции лампочки */
     var density = 3f
@@ -202,15 +209,15 @@ class SceneRenderer {
         c.drawRoundRect(rect, unit * 0.06f, unit * 0.06f, pF)
 
         // колба
-        pF.color = if (lightOn) 0xFFFFE9A8.toInt() else 0xFFDCD8CA.toInt()
+        pF.color = if (lightNow()) 0xFFFFE9A8.toInt() else 0xFFDCD8CA.toInt()
         c.drawCircle(bx, by, glass, pF)
         // контур колбы (виден и в темноте — чтобы найти тапом)
-        pS.color = if (lightOn) 0x66C9A54A.toInt() else 0x5A6B6B66.toInt()
+        pS.color = if (lightNow()) 0x66C9A54A.toInt() else 0x5A6B6B66.toInt()
         pS.strokeWidth = unit * 0.1f
         c.drawCircle(bx, by, glass, pS)
 
         // нить накала
-        pS.color = if (lightOn) 0xFFFFB84D.toInt() else 0xFF8E8E82.toInt()
+        pS.color = if (lightNow()) 0xFFFFB84D.toInt() else 0xFF8E8E82.toInt()
         pS.strokeWidth = unit * 0.09f
         c.drawCircle(bx, by + glass * 0.12f, unit * 0.17f, pS)
 
@@ -241,7 +248,7 @@ class SceneRenderer {
         pS.strokeWidth = unit * 0.09f
         c.drawLine(sx, 0f, sx, tipY, pS)
         // бусина-хвостик, за которую дёргают
-        pF.color = if (lightOn) 0xFFD8B368.toInt() else 0xFF948A78.toInt()
+        pF.color = if (lightNow()) 0xFFD8B368.toInt() else 0xFF948A78.toInt()
         c.drawCircle(sx, tipY, unit * 0.18f, pF)
         pF.color = 0x49FFFFFF.toInt()
         c.drawCircle(sx - unit * 0.05f, tipY - unit * 0.05f, unit * 0.07f, pF)
@@ -250,7 +257,7 @@ class SceneRenderer {
     private fun applyLightOverlay(c: Canvas, unit: Float, floorY: Float) {
         val bx = w / 2f
         val by = 26f * density
-        if (!lightOn) {
+        if (!lightNow()) {
             // ПОЛУМРАК: сцена читается, но без освещения (верх темнее, низ светлее)
             val dark = Paint().apply {
                 shader = LinearGradient(
