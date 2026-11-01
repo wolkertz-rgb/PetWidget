@@ -460,7 +460,6 @@ class SceneRenderer {
         val d = s * 0.55f
         c.drawLine(x - d, y - d, x + d, y + d, pS)
         c.drawLine(x - d, y + d, x + d, y - d, pS)
-        pS.strokeWidth = unit * 0.16f
     }
 
     /** мини-сердечко (для мишки и компании) */
