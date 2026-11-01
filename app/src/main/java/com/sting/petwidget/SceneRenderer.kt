@@ -335,7 +335,11 @@ class SceneRenderer {
 
         when (sim.reaction) {
             ItemDefs.Reaction.SMELL -> { info.holding = true; info.liftPx = -r * 1.72f }
-            ItemDefs.Reaction.LIFT  -> { info.holding = true; info.liftPx = -r * 1.05f }
+            ItemDefs.Reaction.LIFT  -> {
+                info.holding = true; info.liftPx = -r * 1.05f
+                // прогресс «в руках» — по нему живут игрушечные трюки
+                info.eatProgress = ((t - 600f) / (dur - 1000f).coerceAtLeast(1f)).coerceIn(0f, 1f)
+            }
             ItemDefs.Reaction.EAT   -> {
                 info.holding = true
                 info.liftPx = -r * 1.15f

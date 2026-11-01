@@ -78,15 +78,18 @@ class PetSim(context: Context) {
         animPhase += dtS
         stateTime += dt
 
-        // физика предметов
+        // физика предметов: НОГОВОЙ-совместимая — шаг и трение ограничены,
+        // иначе за один тик предмет телепортировался и скорость умирала мгновенно
         val it = items.iterator()
         while (it.hasNext()) {
             val i = it.next()
             i.ageMs += dt
             if (i.ageMs > i.ttlMs) { it.remove(); continue }
             if (i.ageMs >= 0 && abs(i.vx) > 0.01f) {
-                i.x += i.vx * dtS
-                i.vx *= (1f - 1.6f * dtS).coerceIn(0f, 0.99f)
+                val moveS = (dt / 1000f).coerceAtMost(0.55f)   // шаг ≤ 0.55 комнаты за тик
+                val decayS = (dt / 1000f).coerceAtMost(0.5f)   // трение как в ~0.5с кадре
+                i.x += i.vx * moveS
+                i.vx *= (1f - 1.6f * decayS).coerceIn(0f, 0.99f)
                 if (i.x < 0.07f) { i.x = 0.07f; i.vx = -i.vx * 0.5f }
                 if (i.x > 0.93f) { i.x = 0.93f; i.vx = -i.vx * 0.5f }
             }
