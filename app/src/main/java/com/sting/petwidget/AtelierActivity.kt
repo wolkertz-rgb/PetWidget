@@ -36,13 +36,13 @@ class AtelierActivity : Activity() {
     private var themeBuffer: Map<String, Int> = ThemePresets.MINT
 
     /** живой маленький мир для превью */
-    private inner class PreviewView(context: Context) : View(context) {
+    private inner class PreviewView(private val context: Context) : View(context) {
         private val renderer = SceneRenderer()
         private val sim = PetSim(context)
         private var bmp: Bitmap? = null
 
         fun refresh() {
-            renderer.lastPrefs = ctx.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
+            renderer.lastPrefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
             renderer.density = resources.displayMetrics.density
             if (width < 20 || height < 20) {
                 invalidate()
