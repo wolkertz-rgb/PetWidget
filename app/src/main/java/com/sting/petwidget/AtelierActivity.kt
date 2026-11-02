@@ -440,5 +440,8 @@ class AtelierActivity : Activity() {
         return wrap
     }
 
+    private fun weights(w: Float): LinearLayout.LayoutParams =
+        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, w)
+
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 }
