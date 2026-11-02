@@ -57,6 +57,7 @@ class AtelierActivity : Activity() {
         private val renderer = SceneRenderer()
         private val sim = PetSim(context)
         private var bmp: Bitmap? = null
+        private var lastTick = 0L
 
         fun refresh() {
             renderer.lastPrefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
@@ -65,10 +66,14 @@ class AtelierActivity : Activity() {
                 invalidate()
                 return
             }
-            sim.tick(140)
+            // 1X скорость: dt = реальное время между кадрами (4 кадра/сек, без ускорений)
+            val now = android.os.SystemClock.uptimeMillis()
+            val dt = if (lastTick == 0L) 240L else (now - lastTick).coerceIn(120L, 400L)
+            lastTick = now
+            sim.tick(dt)
             bmp = renderer.render(sim, width, height)
             invalidate()
-            postDelayed({ if (isShown) refresh() }, 140)
+            postDelayed({ if (isShown) refresh() }, 240)
         }
 
         override fun onDraw(canvas: Canvas) {
@@ -252,7 +257,7 @@ class AtelierActivity : Activity() {
         val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(10), 0, dp(2)) }
         btnRow.addView(actionButton("Применить", 0xFF7FC9A6.toInt()) {
             themeBuffer?.let { ThemePresets.apply(this, it) }
-            PetWidgetProvider.burst(this, frames = 3, everyMs = 70)
+            PetWidgetProvider.burst(this, frames = 1, everyMs = 60)
             Toast.makeText(this, "Готово! Питомец переоделся 🎨", Toast.LENGTH_SHORT).show()
         }, weights(1.6f))
         btnRow.addView(gapW(dp(8)))
@@ -260,7 +265,7 @@ class AtelierActivity : Activity() {
             ThemePresets.reset(this)
             themeBuffer = ThemePresets.MINT
             previewView.refresh()
-            PetWidgetProvider.burst(this, frames = 3, everyMs = 70)
+            PetWidgetProvider.burst(this, frames = 1, everyMs = 60)
             Toast.makeText(this, "Вернули мятную 🌿", Toast.LENGTH_SHORT).show()
         }, weights(1f))
         themeCard.addView(btnRow)
@@ -312,10 +317,18 @@ class AtelierActivity : Activity() {
     private fun getThemePrefs(): android.content.SharedPreferences =
         getSharedPreferences("pet_state", Context.MODE_PRIVATE)
 
-    /** мгновенное применение косметики: превью + виджет на столе */
+    /** мгновенное применение косметики: превью + ОДИН дебаунс-обновление виджета */
+    private val uiTick = android.os.Handler(android.os.Looper.getMainLooper())
+    private var widgetRefreshPending = false
+
     private fun refreshAll() {
         previewView.refresh()
-        PetWidgetProvider.burst(this, frames = 2, everyMs = 60)
+        if (widgetRefreshPending) return
+        widgetRefreshPending = true
+        uiTick.postDelayed({
+            widgetRefreshPending = false
+            PetWidgetProvider.burst(this, frames = 1, everyMs = 60)
+        }, 400)
     }
 
     /** выбрать цвет-токен и применить */

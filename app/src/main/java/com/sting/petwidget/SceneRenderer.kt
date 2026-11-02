@@ -217,22 +217,25 @@ class SceneRenderer {
         drawBulb(c, unit, floorY)
         drawPullCord(c, sim, unit, floorY)
 
-        // god-rays: живые лучи из лампы (только при включенном свете)
+        // god-rays: мягкие размытые световые конусы из лампы (без жёстких краёв)
         if (lightNow()) {
             val rayBx = w / 2f
             val rayBy = 26f * density
-            val len = w * 1.15f
-            val drift = sin(sim.animPhase * 0.2f) * 0.25f
-            for (i in 0..1) {
-                val dir = (if (i == 0) -0.55f else 0.55f) + drift
-                val spread = 0.24f
-                path.reset()
-                path.moveTo(rayBx, rayBy)
-                path.lineTo(rayBx + sin(dir - spread) * len, rayBy + cos(dir - spread) * len)
-                path.lineTo(rayBx + sin(dir + spread) * len, rayBy + cos(dir + spread) * len)
-                path.close()
-                pF.color = 0x12FFD98E.toInt()
-                c.drawPath(path, pF)
+            val drift = sin(sim.animPhase * 0.15f) * 8f
+            val beamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = RadialGradient(
+                    0f, 0f, w * 0.55f,
+                    intArrayOf(0x30FFD98E.toInt(), 0x00FFD98E.toInt()),
+                    null, Shader.TileMode.CLAMP
+                )
+            }
+            for (dirDeg in floatArrayOf(-30f, 30f)) {
+                c.save()
+                c.translate(rayBx, rayBy)
+                c.rotate(dirDeg + drift)
+                c.scale(0.42f, 1.5f)
+                c.drawCircle(0f, w * 0.38f, w * 0.5f, beamPaint)
+                c.restore()
             }
         }
     }
@@ -880,11 +883,11 @@ class SceneRenderer {
             else -> { /* без антенны */ }
         }
 
-        // тело: палитра из темы (мята → шалфей → тёмный низ по умолчанию)
+        // тело: палитра из темы (двухцветный градиент топ→низ, серединка выводится автоматически)
         val body = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(
                 px - r * 0.4f, cy - r * sy, px + r * 0.2f, cy + r * sy,
-                intArrayOf(th("pet_top", 0xFFA8E6C3.toInt()), th("pet_mid", 0xFF6FBE97.toInt()), th("pet_bottom", 0xFF4FA379.toInt())),
+                intArrayOf(th("pet_top", 0xFFA8E6C3.toInt()), th("pet_bottom", 0xFF4FA379.toInt())),
                 null, Shader.TileMode.CLAMP
             )
         }
@@ -984,9 +987,22 @@ class SceneRenderer {
                 pF.alpha = 255
             }
             blinking && st != PetSim.State.ROLL -> {
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
-                c.drawLine(px - eyeDx - r * 0.15f, eyeY, px - eyeDx + r * 0.15f, eyeY, pS)
-                c.drawLine(px + eyeDx - r * 0.15f, eyeY, px + eyeDx + r * 0.15f, eyeY, pS)
+                // моргание: мягкое «закрывание» — зрачок сжимается по вертикали
+                // и вариант глаза сохраняется (кастом не подменяется)
+                val er = r * 0.24f
+                val eyeCol = th("look_eyecolor", 0xFF22333B.toInt())
+                val blinkP = 1f - (sim.animPhase % 0.14f) / 0.14f   // 1→0 внутри фазы
+                val ry = er * 0.9f * (0.2f + 0.8f * blinkP)
+                circleAt(c, px - eyeDx, eyeY, er, eyeCol)
+                circleAt(c, px + eyeDx, eyeY, er, eyeCol)
+                pF.color = 0xFFFFFFFF.toInt()
+                rect.set(px - eyeDx - er * 0.4f, eyeY - ry * 0.4f, px - eyeDx + er * 0.4f, eyeY + ry * 0.4f)
+                c.drawOval(rect, pF)
+                rect.set(px + eyeDx - er * 0.4f, eyeY - ry * 0.4f, px + eyeDx + er * 0.4f, eyeY + ry * 0.4f)
+                c.drawOval(rect, pF)
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.12f
+                c.drawLine(px - eyeDx - er, eyeY, px - eyeDx + er, eyeY, pS)
+                c.drawLine(px + eyeDx - er, eyeY, px + eyeDx + er, eyeY, pS)
             }
             else -> {
                 val er = r * 0.24f
@@ -1002,14 +1018,28 @@ class SceneRenderer {
                         circleAt(c, px + eyeDx + lookX * er * 0.9f, eyeY + er * 0.3f, er * 0.14f, 0x50FFFFFF.toInt())
                     }
                     "sleepy" -> {
-                        // сонные: полузакрытые веки
-                        circleAt(c, px - eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol)
-                        circleAt(c, px + eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol)
-                        pF.color = th("pet_mid", 0xFF6FBE97.toInt())
-                        rect.set(px - eyeDx - er, eyeY - er * 1.1f, px - eyeDx + er, eyeY + er * 0.05f)
-                        c.drawRect(rect, pF)
-                        rect.set(px + eyeDx - er, eyeY - er * 1.1f, px + eyeDx + er, eyeY + er * 0.05f)
-                        c.drawRect(rect, pF)
+                        // сонные: полузакрытые веки — «крышка» цветом тела (не прямоугольник!)
+                        val eyeCol2 = eyeCol
+                        c.save()
+                        rect.set(px - eyeDx - er - 1f, eyeY + er * 0.25f - er * 0.8f, px - eyeDx + er + 1f, eyeY + er * 0.25f + er * 0.8f)
+                        c.clipPath(android.graphics.Path().apply {
+                            addOval(rect, android.graphics.Path.Direction.CW)
+                        })
+                        circleAt(c, px - eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol2)
+                        c.restore()
+                        c.save()
+                        rect.set(px + eyeDx - er - 1f, eyeY + er * 0.25f - er * 0.8f, px + eyeDx + er + 1f, eyeY + er * 0.25f + er * 0.8f)
+                        c.clipPath(android.graphics.Path().apply {
+                            addOval(rect, android.graphics.Path.Direction.CW)
+                        })
+                        circleAt(c, px + eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol2)
+                        c.restore()
+                        // веко: полукруг цвета тела, сглаженный по краям
+                        pF.color = th("pet_body_lid", th("pet_top", 0xFFA8E6C3.toInt()))
+                        rect.set(px - eyeDx - er - unit * 0.06f, eyeY - er * 1.15f, px - eyeDx + er + unit * 0.06f, eyeY + er * 0.02f)
+                        c.drawOval(rect, pF)
+                        rect.set(px + eyeDx - er - unit * 0.06f, eyeY - er * 1.15f, px + eyeDx + er + unit * 0.06f, eyeY + er * 0.02f)
+                        c.drawOval(rect, pF)
                         pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.08f
                         c.drawLine(px - eyeDx - er, eyeY, px - eyeDx + er, eyeY, pS)
                         c.drawLine(px + eyeDx - er, eyeY, px + eyeDx + er, eyeY, pS)
@@ -1045,11 +1075,11 @@ class SceneRenderer {
             "stripes" -> {
                 pF.color = blushCol
                 for (i in 0..1) {
-                    val off = i * r * 0.16f
-                    rect.set(cheekLX - r * 0.3f + off, cheekY - r * 0.14f * grow, cheekLX - r * 0.3f + off + r * 0.09f, cheekY + r * 0.14f * grow)
-                    c.drawRect(rect, pF)
-                    rect.set(cheekRX + r * 0.05f + off, cheekY - r * 0.14f * grow, cheekRX + r * 0.05f + off + r * 0.09f, cheekY + r * 0.14f * grow)
-                    c.drawRect(rect, pF)
+                    val off = i * r * 0.18f
+                    rect.set(cheekLX - r * 0.28f + off, cheekY - r * 0.15f * grow, cheekLX - r * 0.28f + off + r * 0.1f, cheekY + r * 0.15f * grow)
+                    c.drawRoundRect(rect, r * 0.05f, r * 0.05f, pF)
+                    rect.set(cheekRX + r * 0.08f + off, cheekY - r * 0.15f * grow, cheekRX + r * 0.08f + off + r * 0.1f, cheekY + r * 0.15f * grow)
+                    c.drawRoundRect(rect, r * 0.05f, r * 0.05f, pF)
                 }
             }
             "hearts" -> {
@@ -1072,15 +1102,15 @@ class SceneRenderer {
         // хитрец-прищур (поверх глаз) + голодные бровки
         when {
             st == PetSim.State.SMUG -> {
-                pF.color = th("pet_mid", 0xFF6FBE97.toInt())
-                pF.alpha = 235
-                rect.set(px - eyeDx - r * 0.09f, eyeY - r * 0.20f, px - eyeDx + r * 0.09f, eyeY - r * 0.02f)
-                c.drawRect(rect, pF)
-                rect.set(px + eyeDx - r * 0.09f, eyeY - r * 0.20f, px + eyeDx + r * 0.09f, eyeY - r * 0.02f)
-                c.drawRect(rect, pF)
-                pF.alpha = 255
+                // прищур хитреца: полукруглые «веки» цвета тела (не прямоугольники!)
+                pF.color = th("pet_top", 0xFFA8E6C3.toInt())
+                rect.set(px - eyeDx - r * 0.1f, eyeY - r * 0.26f, px - eyeDx + r * 0.1f, eyeY - r * 0.08f)
+                c.drawOval(rect, pF)
+                rect.set(px + eyeDx - r * 0.1f, eyeY - r * 0.26f, px + eyeDx + r * 0.1f, eyeY - r * 0.08f)
+                c.drawOval(rect, pF)
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.11f
-                c.drawLine(px + eyeDx - r * 0.08f, eyeY - r * 0.34f, px + eyeDx + r * 0.14f, eyeY - r * 0.50f, pS)
+                c.drawLine(px - eyeDx - r * 0.16f, eyeY - r * 0.07f, px - eyeDx + r * 0.16f, eyeY - r * 0.07f, pS)
+                c.drawLine(px + eyeDx - r * 0.16f, eyeY - r * 0.07f, px + eyeDx + r * 0.16f, eyeY - r * 0.07f, pS)
                 pS.strokeWidth = unit * 0.16f
             }
             sim.hunger > 70f && !sleeping && !stretching && !waving -> {
