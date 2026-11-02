@@ -163,48 +163,79 @@ class AtelierActivity : Activity() {
         // ------------------------------------------------ ПИТОМЕЦ
         val petCard = sectionCard("🦠 Питомец")
         petCard.addView(label("🎨 Цвет тела — верх"))
-        petCard.addView(swatchRow(listOf(0xFFA8E6C3, 0xFF9ADDC8, 0xFFB4EBCF, 0xFF8EE0C4, 0xFF63CFA3, 0xFFF58C8C, 0xFFF7B27A, 0xFFB8A6F5)))
+        petCard.addView(swatchRow(listOf(0xFFA8E6C3, 0xFF9ADDC8, 0xFFB4EBCF, 0xFF8EE0C4, 0xFF63CFA3, 0xFFF58C8C, 0xFFF7B27A, 0xFFB8A6F5)) { col ->
+            putColor("pet_top", col)
+        })
         petCard.addView(label("🎨 Цвет тела — низ"))
-        petCard.addView(swatchRow(listOf(0xFF4FA379, 0xFF5FAE88, 0xFF3F9E77, 0xFF2C93A0, 0xFFB94E4E, 0xFFD97E4E, 0xFF7B62C4, 0xFF5E6B75)))
+        petCard.addView(swatchRow(listOf(0xFF4FA379, 0xFF5FAE88, 0xFF3F9E77, 0xFF2C93A0, 0xFFB94E4E, 0xFFD97E4E, 0xFF7B62C4, 0xFF5E6B75)) { col ->
+            putColor("pet_bottom", col)
+        })
         petCard.addView(label("🎨 Животик"))
-        petCard.addView(swatchRow(listOf(0xFFBDEBCF, 0xFFD3F4F0, 0xFFFFE9DC, 0xFFFFF0D6, 0xFFF7F9F7, 0xFFF1E4E7)))
+        petCard.addView(swatchRow(listOf(0xFFBDEBCF, 0xFFD3F4F0, 0xFFFFE9DC, 0xFFFFF0D6, 0xFFF7F9F7, 0xFFF1E4E7)) { col ->
+            putColor("pet_belly", col)
+        })
         petCard.addView(label("😊 Улыбка"))
-        petCard.addView(chipRow(listOf("Широкая", "Ямочки", "Один зубик", "Скромная")))
+        petCard.addView(chipRow(listOf("Широкая", "Ямочки", "Один зубик", "Скромная")) { i ->
+            putLook("look_mouth", when (i) { 0 -> "wide"; 1 -> "dimples"; 2 -> "tooth"; else -> "small" })
+        })
         petCard.addView(label("😳 Румяшки"))
-        petCard.addView(chipRow(listOf("Кружки", "Полоски", "Сердечки")))
-        petCard.addView(swatchRow(listOf(0xFFF3A9A0, 0xFFF17A85, 0xFFF5B791, 0xFFE5687B)))
+        petCard.addView(chipRow(listOf("Кружки", "Полоски", "Сердечки")) { i ->
+            putLook("look_blush", when (i) { 0 -> "circles"; 1 -> "stripes"; else -> "hearts" })
+        })
+        petCard.addView(swatchRow(listOf(0xFFF3A9A0, 0xFFF17A85, 0xFFF5B791, 0xFFE5687B)) { col ->
+            putColor("pet_blush", col)
+        })
         petCard.addView(label("👀 Глаза"))
-        petCard.addView(chipRow(listOf("Классика", "Блеск+", "Сонные", "Круглые")))
-        petCard.addView(swatchRow(listOf(0xFF22333B, 0xFF2B2233, 0xFF20455F, 0xFF3B2233)))
-        petCard.addView(label("👄 Рот — форма"))
-        petCard.addView(chipRow(listOf("Улыбка", "Открытый", "Нейтральный", "«Оо»")))
+        petCard.addView(chipRow(listOf("Классика", "Блеск+", "Сонные", "Круглые")) { i ->
+            putLook("look_eyes", when (i) { 0 -> "classic"; 1 -> "shine"; 2 -> "sleepy"; else -> "round" })
+        })
+        petCard.addView(swatchRow(listOf(0xFF22333B, 0xFF2B2233, 0xFF20455F, 0xFF3B2233)) { col ->
+            putColor("look_eyecolor", col)
+        })
+        petCard.addView(label("👄 Рот — форма при радости"))
+        petCard.addView(chipRow(listOf("Улыбка", "Открытый", "Нейтральный", "«Оо»")) { i ->
+            putLook("look_grin", when (i) { 0 -> "smile"; 1 -> "open"; 2 -> "neutral"; else -> "ooh" })
+        })
         petCard.addView(sliderBlock(
             "Тонкая подстройка цвета тела",
             listOf(0xFF2E3B34, 0xFF6FBE97, 0xFFF4F4F4),
             listOf("Тень", "Основа", "Свет")
         ))
         petCard.addView(label("📡 Антенна"))
-        petCard.addView(chipRow(listOf("Шарик", "Цветочек", "Нить", "Ничего")))
-        petCard.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFF60A5FA, 0xFF7FC9A6)))
+        petCard.addView(chipRow(listOf("Шарик", "Цветочек", "Нить", "Ничего")) { i ->
+            putLook("look_antenna", when (i) { 0 -> "ball"; 1 -> "flower"; 2 -> "string"; else -> "none" })
+        })
+        petCard.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFF60A5FA, 0xFF7FC9A6)) { col ->
+            putColor("look_ante", col)
+        })
         screen.addView(petCard)
         screen.addView(gap(12))
 
         // ------------------------------------------------ КОМНАТА
         val roomCard = sectionCard("🏠 Комната")
         roomCard.addView(label("🎨 Обои — цвет"))
-        roomCard.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFEFF7F3, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF151A2A, 0xFF232840)))
+        roomCard.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFEFF7F3, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF151A2A, 0xFF232840)) { col ->
+            putColor("room_bg_top", col, mirror = "room_bg_bottom", mirrorShade = 0.94f)
+        })
         roomCard.addView(label("🧩 Узор обоев"))
         roomCard.addView(chipRow(listOf("Нет", "Точки", "Полоски", "Зигзаг", "Клетка", "Звёзды")) { i ->
-            prefs.edit().putInt("wall_pattern", i).apply()
-            previewView.refresh()
-            PetWidgetProvider.burst(this, frames = 3, everyMs = 70)
+            getThemePrefs().edit().putInt("wall_pattern", i).apply()
+            refreshAll()
         })
         roomCard.addView(label("🎨 Пол"))
-        roomCard.addView(swatchRow(listOf(0xFFE1E1DC, 0xFFEAD9CC, 0xFFCFE7E6, 0xFFD8E3D0, 0xFF232840, 0xFF3C3428)))
+        roomCard.addView(swatchRow(listOf(0xFFE1E1DC, 0xFFEAD9CC, 0xFFCFE7E6, 0xFFD8E3D0, 0xFF232840, 0xFF3C3428)) { col ->
+            putColor("floor_top", col, mirror = "floor_bottom", mirrorShade = 0.95f)
+        })
         roomCard.addView(label("🎨 Плинтус и панель"))
-        roomCard.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFC8E2E0, 0xFFD6E1C2, 0xFF2A2F4A)))
+        roomCard.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFC8E2E0, 0xFFD6E1C2, 0xFF2A2F4A)) { col ->
+            putColor("room_skirt", col, mirror = "room_panel", mirrorShade = 0.97f)
+        })
         roomCard.addView(label("🛋 Кресло"))
-        roomCard.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFF94A3B8, 0xFF2C5875, 0xFF7B62C4, 0xFFB45309)))
+        roomCard.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFF94A3B8, 0xFF2C5875, 0xFF7B62C4, 0xFFB45309)) { col ->
+            putColor("chair_back1", col, mirror = "chair_back2", mirrorShade = 0.7f)
+            putColor("chair_seat1", shade(col, 1.08f), mirror = "chair_seat2", mirrorShade = 0.72f)
+            putColor("chair_roll1", shade(col, 1.05f), mirror = "chair_roll2", mirrorShade = 0.7f)
+        })
         screen.addView(roomCard)
         screen.addView(gap(12))
 
@@ -277,6 +308,37 @@ class AtelierActivity : Activity() {
     }
 
     // ================================================= примитивы
+
+    private fun getThemePrefs(): android.content.SharedPreferences =
+        getSharedPreferences("pet_state", Context.MODE_PRIVATE)
+
+    /** мгновенное применение косметики: превью + виджет на столе */
+    private fun refreshAll() {
+        previewView.refresh()
+        PetWidgetProvider.burst(this, frames = 2, everyMs = 60)
+    }
+
+    /** выбрать цвет-токен и применить */
+    private fun putColor(key: String, col: Int, mirror: String? = null, mirrorShade: Float = 0.92f) {
+        getThemePrefs().edit()
+            .putInt(key, col)
+            .apply()
+        mirror?.let { getThemePrefs().edit().putInt(it, shade(col, mirrorShade)).apply() }
+        refreshAll()
+    }
+
+    private fun putLook(key: String, value: String) {
+        getThemePrefs().edit().putString(key, value).apply()
+        refreshAll()
+    }
+
+    /** затемнить/осветлить цвет (f>1 — светлее) */
+    private fun shade(col: Int, f: Float): Int {
+        val r = (Color.red(col) * f).toInt().coerceIn(0, 255)
+        val g = (Color.green(col) * f).toInt().coerceIn(0, 255)
+        val b = (Color.blue(col) * f).toInt().coerceIn(0, 255)
+        return Color.rgb(r, g, b)
+    }
 
     private val MATCH = LinearLayout.LayoutParams.MATCH_PARENT
     private val WRAP = LinearLayout.LayoutParams.WRAP_CONTENT
@@ -358,7 +420,7 @@ class AtelierActivity : Activity() {
     }
 
     /** ряд цветовых свотчей с выбором (визуальный). Хексы 8-значные приходят как Long */
-    private fun swatchRow(colors: List<Long>): HorizontalScrollView {
+    private fun swatchRow(colors: List<Long>, onPick: ((Int) -> Unit)? = null): HorizontalScrollView {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -379,6 +441,7 @@ class AtelierActivity : Activity() {
                     (c2.background as GradientDrawable).setStroke(dp(3), Color.TRANSPARENT)
                 }
                 (v.background as GradientDrawable).setStroke(dp(3), 0xFF7FC9A6.toInt())
+                onPick?.invoke(col)
             }
             circles.add(v)
             row.addView(v)

@@ -66,6 +66,15 @@ class SceneRenderer {
         }
     }
 
+    /** строковый кастом-токен внешности (варианты форм) */
+    private fun look(key: String, def: String): String {
+        return try {
+            lastPrefs?.getString(key, def) ?: def
+        } catch (_: Throwable) {
+            def
+        }
+    }
+
     /** плотность экрана (px на dp) — для позиции лампочки */
     var density = 3f
 
@@ -831,18 +840,45 @@ class SceneRenderer {
         c.save()
         c.rotate(rot * 57.2958f + headTilt * 40f, px, cy)
 
-        // антеннка с шариком (покачивается) — рисуется до тела, торчит из макушки
-        val antBob = sin(sim.animPhase * 2.2f) * unit * 0.12f
-        val antTopX = px + r * 0.1f + antBob * 0.5f
-        val antTopY = cy - r * sy - unit * 0.55f + antBob
-        pS.color = 0xFF4E8F6E.toInt()
-        pS.strokeWidth = unit * 0.1f
-        c.drawLine(px + r * 0.02f, cy - r * sy * 0.92f, antTopX, antTopY, pS)
-        pF.color = 0xFFF4C95D.toInt()
-        c.drawCircle(antTopX, antTopY, unit * 0.14f, pF)
-        pS.color = 0x66B98A2B.toInt()
-        pS.strokeWidth = unit * 0.06f
-        c.drawCircle(antTopX, antTopY, unit * 0.14f, pS)
+        // антеннка: варианты по кастомизации (шарик / цветочек / нить / ничего)
+        when (look("look_antenna", "ball")) {
+            "ball" -> {
+                val antBob = sin(sim.animPhase * 2.2f) * unit * 0.12f
+                val antTopX = px + r * 0.1f + antBob * 0.5f
+                val antTopY = cy - r * sy - unit * 0.55f + antBob
+                pS.color = 0xFF4E8F6E.toInt()
+                pS.strokeWidth = unit * 0.1f
+                c.drawLine(px + r * 0.02f, cy - r * sy * 0.92f, antTopX, antTopY, pS)
+                pF.color = th("look_ante", 0xFFF4C95D.toInt())
+                c.drawCircle(antTopX, antTopY, unit * 0.14f, pF)
+                pS.color = 0x66B98A2B.toInt()
+                pS.strokeWidth = unit * 0.06f
+                c.drawCircle(antTopX, antTopY, unit * 0.14f, pS)
+            }
+            "flower" -> {
+                val antTopX = px + r * 0.12f
+                val antTopY = cy - r * sy - unit * 0.5f
+                pS.color = 0xFF4E8F6E.toInt()
+                pS.strokeWidth = unit * 0.1f
+                c.drawLine(px + r * 0.02f, cy - r * sy * 0.92f, antTopX, antTopY, pS)
+                for (i in 0..4) {
+                    val ang = i * 1.257f + (sim.animPhase * 0.6f)
+                    circleAt(c, antTopX + cos(ang) * unit * 0.14f, antTopY + sin(ang) * unit * 0.14f,
+                        unit * 0.1f, th("look_ante", 0xFFF472B6.toInt()))
+                }
+                pF.color = 0xFFFDE047.toInt()
+                c.drawCircle(antTopX, antTopY, unit * 0.09f, pF)
+            }
+            "string" -> {
+                val antTipY = cy - r * sy - unit * 0.75f + sin(sim.animPhase * 2.5f) * unit * 0.06f
+                pS.color = 0xFF4E8F6E.toInt()
+                pS.strokeWidth = unit * 0.07f
+                c.drawLine(px + r * 0.02f, cy - r * sy * 0.92f, px + r * 0.06f, antTipY, pS)
+                pF.color = 0xFF7C9B85.toInt()
+                c.drawCircle(px + r * 0.06f, antTipY, unit * 0.06f, pF)
+            }
+            else -> { /* без антенны */ }
+        }
 
         // тело: палитра из темы (мята → шалфей → тёмный низ по умолчанию)
         val body = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -954,29 +990,81 @@ class SceneRenderer {
             }
             else -> {
                 val er = r * 0.24f
-                circleAt(c, px - eyeDx, eyeY, er, 0xFF22333B.toInt())
-                circleAt(c, px + eyeDx, eyeY, er, 0xFF22333B.toInt())
-                circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.28f, er * 0.42f, 0xFFFFFFFF.toInt())
-                circleAt(c, px + eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
-                circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
-                circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
+                val eyeCol = th("look_eyecolor", 0xFF22333B.toInt())
+                when (look("look_eyes", "classic")) {
+                    "shine" -> {
+                        // большой блеск: глаз-блик + хвостик-искра
+                        circleAt(c, px - eyeDx, eyeY, er, eyeCol)
+                        circleAt(c, px + eyeDx, eyeY, er, eyeCol)
+                        circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.3f, er * 0.52f, 0xFFFFFFFF.toInt())
+                        circleAt(c, px + eyeDx + lookX * er, eyeY + lookY * er - er * 0.3f, er * 0.52f, 0xFFFFFFFF.toInt())
+                        circleAt(c, px - eyeDx + lookX * er * 0.9f, eyeY + er * 0.3f, er * 0.14f, 0x50FFFFFF.toInt())
+                        circleAt(c, px + eyeDx + lookX * er * 0.9f, eyeY + er * 0.3f, er * 0.14f, 0x50FFFFFF.toInt())
+                    }
+                    "sleepy" -> {
+                        // сонные: полузакрытые веки
+                        circleAt(c, px - eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol)
+                        circleAt(c, px + eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol)
+                        pF.color = th("pet_mid", 0xFF6FBE97.toInt())
+                        rect.set(px - eyeDx - er, eyeY - er * 1.1f, px - eyeDx + er, eyeY + er * 0.05f)
+                        c.drawRect(rect, pF)
+                        rect.set(px + eyeDx - er, eyeY - er * 1.1f, px + eyeDx + er, eyeY + er * 0.05f)
+                        c.drawRect(rect, pF)
+                        pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.08f
+                        c.drawLine(px - eyeDx - er, eyeY, px - eyeDx + er, eyeY, pS)
+                        c.drawLine(px + eyeDx - er, eyeY, px + eyeDx + er, eyeY, pS)
+                    }
+                    "round" -> {
+                        // круглые: умиротворённые
+                        circleAt(c, px - eyeDx, eyeY, er * 1.08f, eyeCol)
+                        circleAt(c, px + eyeDx, eyeY, er * 1.08f, eyeCol)
+                        circleAt(c, px - eyeDx + lookX * er, eyeY - er * 0.22f, er * 0.3f, 0xFFFFFFFF.toInt())
+                        circleAt(c, px + eyeDx + lookX * er, eyeY - er * 0.22f, er * 0.3f, 0xFFFFFFFF.toInt())
+                    }
+                    else -> {
+                        circleAt(c, px - eyeDx, eyeY, er, eyeCol)
+                        circleAt(c, px + eyeDx, eyeY, er, eyeCol)
+                        circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.28f, er * 0.42f, 0xFFFFFFFF.toInt())
+                        circleAt(c, px + eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
+                        circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
+                        circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
+                    }
+                }
             }
         }
 
-        // щёчки (при BLUSH — крупные и яркие)
+        // щёчки: формы по кастомизации
         val blushBase = th("pet_blush", 0xFFF3A9A0.toInt())
-        pF.color = if (st == PetSim.State.BLUSH) (0xB4 shl 24) or (blushBase and 0x00FFFFFF) else (0x52 shl 24) or (blushBase and 0x00FFFFFF)
-        val blushGrow = if (st == PetSim.State.BLUSH) 1.6f else 1f
-        rect.set(
-            px - eyeDx - r * 0.44f * blushGrow, eyeY + r * 0.12f,
-            px - eyeDx - r * 0.15f * blushGrow - r * (blushGrow - 1f) * 0.4f, eyeY + r * 0.32f * blushGrow
-        )
-        c.drawOval(rect, pF)
-        rect.set(
-            px + eyeDx + r * 0.15f * blushGrow, eyeY + r * 0.12f,
-            px + eyeDx + r * 0.44f * blushGrow, eyeY + r * 0.32f * blushGrow
-        )
-        c.drawOval(rect, pF)
+        val blushCol = if (st == PetSim.State.BLUSH) (0xB4 shl 24) or (blushBase and 0x00FFFFFF)
+                       else (0x52 shl 24) or (blushBase and 0x00FFFFFF)
+        val cheekY = eyeY + r * 0.24f
+        val cheekLX = px - eyeDx - r * 0.3f
+        val cheekRX = px + eyeDx + r * 0.3f
+        val grow = if (st == PetSim.State.BLUSH) 1.35f else 1f
+        when (look("look_blush", "circles")) {
+            "stripes" -> {
+                pF.color = blushCol
+                for (i in 0..1) {
+                    val off = i * r * 0.16f
+                    rect.set(cheekLX - r * 0.3f + off, cheekY - r * 0.14f * grow, cheekLX - r * 0.3f + off + r * 0.09f, cheekY + r * 0.14f * grow)
+                    c.drawRect(rect, pF)
+                    rect.set(cheekRX + r * 0.05f + off, cheekY - r * 0.14f * grow, cheekRX + r * 0.05f + off + r * 0.09f, cheekY + r * 0.14f * grow)
+                    c.drawRect(rect, pF)
+                }
+            }
+            "hearts" -> {
+                pF.color = blushCol
+                drawMiniHeart(c, cheekLX, cheekY + r * 0.04f, r * 0.17f * grow, blushCol and 0x00FFFFFF, (blushCol ushr 24))
+                drawMiniHeart(c, cheekRX, cheekY + r * 0.04f, r * 0.17f * grow, blushCol and 0x00FFFFFF, (blushCol ushr 24))
+            }
+            else -> {
+                pF.color = blushCol
+                rect.set(cheekLX - r * 0.13f * grow, cheekY - r * 0.08f * grow, cheekLX + r * 0.13f * grow, cheekY + r * 0.12f * grow)
+                c.drawOval(rect, pF)
+                rect.set(cheekRX - r * 0.13f * grow, cheekY - r * 0.08f * grow, cheekRX + r * 0.13f * grow, cheekY + r * 0.12f * grow)
+                c.drawOval(rect, pF)
+            }
+        }
 
         // рот
         val mouthY = eyeY + r * sy * 0.36f
@@ -1101,9 +1189,29 @@ class SceneRenderer {
                 }
             }
             happy -> {
+                // форма «счастливого» рта — по кастомизации
                 pS.color = 0xFF2E3B34.toInt()
-                rect.set(px - r * 0.28f, mouthY - r * 0.20f, px + r * 0.28f, mouthY + r * 0.08f)
-                c.drawArc(rect, 15f, 150f, false, pS)
+                when (look("look_grin", "smile")) {
+                    "open" -> {
+                        pF.color = 0xFF2E3B34.toInt()
+                        rect.set(px - r * 0.26f, mouthY - r * 0.24f, px + r * 0.26f, mouthY + r * 0.10f)
+                        c.drawArc(rect, 0f, 180f, true, pF)
+                        pF.color = 0xFFE58C8C.toInt()
+                        rect.set(px - r * 0.10f, mouthY + r * 0.02f, px + r * 0.10f, mouthY + r * 0.10f)
+                        c.drawOval(rect, pF)
+                    }
+                    "neutral" -> {
+                        c.drawLine(px - r * 0.14f, mouthY + r * 0.02f, px + r * 0.14f, mouthY + r * 0.02f, pS)
+                    }
+                    "ooh" -> {
+                        pF.color = 0xFF2E3B34.toInt()
+                        c.drawCircle(px, mouthY + r * 0.02f, r * 0.1f, pF)
+                    }
+                    else -> {
+                        rect.set(px - r * 0.28f, mouthY - r * 0.20f, px + r * 0.28f, mouthY + r * 0.08f)
+                        c.drawArc(rect, 15f, 150f, false, pS)
+                    }
+                }
             }
             else -> {
                 pS.color = 0xFF2E3B34.toInt()
@@ -1111,8 +1219,30 @@ class SceneRenderer {
                     // сильно голоден — спокойная грустинка вместо точки-рта
                     rect.set(px - r * 0.13f, mouthY - r * 0.05f, px + r * 0.13f, mouthY + r * 0.06f)
                     c.drawArc(rect, 195f, 150f, false, pS)
-                } else {
-                    c.drawLine(px - r * 0.13f, mouthY, px + r * 0.13f, mouthY, pS)
+                } else when (look("look_mouth", "smile")) {
+                    "wide" -> {
+                        rect.set(px - r * 0.20f, mouthY - r * 0.16f, px + r * 0.20f, mouthY + r * 0.06f)
+                        c.drawArc(rect, 25f, 130f, false, pS)
+                    }
+                    "dimples" -> {
+                        rect.set(px - r * 0.16f, mouthY - r * 0.12f, px + r * 0.16f, mouthY + r * 0.05f)
+                        c.drawArc(rect, 25f, 130f, false, pS)
+                        pF.color = 0xFF2E3B34.toInt()
+                        c.drawCircle(px - r * 0.24f, mouthY - r * 0.02f, unit * 0.04f, pF)
+                        c.drawCircle(px + r * 0.24f, mouthY - r * 0.02f, unit * 0.04f, pF)
+                    }
+                    "tooth" -> {
+                        rect.set(px - r * 0.18f, mouthY - r * 0.14f, px + r * 0.18f, mouthY + r * 0.05f)
+                        c.drawArc(rect, 15f, 150f, false, pS)
+                        pF.color = 0xFFFFFFFF.toInt()
+                        rect.set(px - unit * 0.04f, mouthY - r * 0.02f, px + unit * 0.04f, mouthY + r * 0.05f)
+                        c.drawRect(rect, pF)
+                    }
+                    "small" -> {
+                        rect.set(px - r * 0.12f, mouthY - r * 0.08f, px + r * 0.12f, mouthY + r * 0.03f)
+                        c.drawArc(rect, 30f, 120f, false, pS)
+                    }
+                    else -> c.drawLine(px - r * 0.13f, mouthY, px + r * 0.13f, mouthY, pS)
                 }
             }
         }
