@@ -49,8 +49,6 @@ object ItemDefs {
     private val rect = RectF()
     private val path = Path()
 
-    private fun fill(c: Canvas, col: Int) { pF.color = col; c.drawOval(rect, pF) }
-
     private fun circle(c: Canvas, cx: Float, cy: Float, r: Float, col: Int) {
         pF.color = col
         c.drawCircle(cx, cy, r, pF)
@@ -246,7 +244,6 @@ object ItemDefs {
         val rot = sin(t * 5.0f)
         line(c, cx + rot * s * 0.15f, fy - s * 2.6f, cx, fy - s * 0.15f, s * 0.14f, 0xFF7C3AED.toInt())
         ellipse(c, cx, fy - s * 1.75f, s * 0.85f, s * 0.5f, 0xFFA78BFA.toInt())
-        ellipse(c, cx, fy - s * 1.75f, s * 0.85f, s * 0.5f, 0xFFA78BFA.toInt())
         ellipse(c, cx, fy - s * 1.5f, s * 0.5f, s * 0.3f, 0xFF7C3AED.toInt())
         circle(c, cx, fy - s * 2.75f, s * 0.16f, 0xFFFDE047.toInt())
     }
@@ -273,7 +270,6 @@ object ItemDefs {
     /** Суши — питомец берёт и ест по кусочку */
     private fun sushi() = Def("sushi", "Суши", Kind.FOOD, Reaction.EAT, 2.2f) { c, cx, fy, s, _ ->
         ellipse(c, cx, fy - s * 0.65f, s * 1.05f, s * 0.6f, 0xFFF8FAFC.toInt())
-        ellipse(c, cx, fy - s * 1.3f, s * 1.0f, s * 0.35f, 0xFF1E293B.toInt())
         ellipse(c, cx, fy - s * 1.3f, s * 1.0f, s * 0.35f, 0xFF1E293B.toInt())
         circle(c, cx, fy - s * 1.25f, s * 0.14f, 0xFFFB923C.toInt())
     }

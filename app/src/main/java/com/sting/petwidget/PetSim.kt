@@ -310,16 +310,6 @@ class PetSim(context: Context) {
 
     // -------------------------------------------------------------- решения
 
-    /** Принудительный тест взаимодействия по тапу: берём ближайший предмет.
-     *  Возвращает true, если предмет был и реакция запущена. */
-    fun tapInteract(): Boolean {
-        val nearest = items.minByOrNull { abs(it.x - x) } ?: return false
-        beginInteract(nearest)
-        // предмет может быть далеко — не важно: руки тянутся туда, куда задает fromX
-        targetItem = nearest
-        return true
-    }
-
     private fun nextAction() {
         val prev = state
         val woke = prev == State.SLEEP && sleepAfterGap <= 0
@@ -673,6 +663,7 @@ class PetSim(context: Context) {
         private const val KEY_REACTION = "reaction"
         private const val KEY_INBED = "inbed"
         private const val KEY_PULLDONE = "pulldone"
+        private const val KEY_HUNGER = "hunger"
         private const val KEY_TARGET = "target"
 
         const val WALK_SPEED = 0.075f
@@ -683,8 +674,6 @@ class PetSim(context: Context) {
 
         const val PULL_TOGGLE_MS = 700L     // момент в тяге, когда свет щёлкает
         const val PULL_DUR = 1400L          // полная длительность тяги
-
-        private const val KEY_HUNGER = "hunger"
 
         const val HUNGER_FULL_MS = 600_000L // голод растёт до 100 за ~10 минут жизни
         const val HUNGER_LEVEL = 75f        // порог, при котором морда грустит

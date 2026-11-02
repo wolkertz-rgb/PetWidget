@@ -32,7 +32,6 @@ class PetService : Service() {
     private var ids: IntArray = IntArray(0)
 
     private var screenOn = false
-    private var screenOffAt = 0L      // реальное время в момент погасания экрана
     private var lastFrameAt = 0L      // SystemClock.elapsedRealtime предыдущего кадра
     private var lastWallSaved = 0L    // реальное время последнего тика (для пропусков)
     private var sizeW = 0
@@ -63,7 +62,6 @@ class PetService : Service() {
         renderer.lastPrefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         screenOn = pm.isInteractive
-        if (!screenOn) screenOffAt = System.currentTimeMillis()
 
         // процесс мог пересоздаться, пока телефон был выключен — применим пропуск времени
         val startupGap = if (lastWallSaved > 0)
@@ -130,7 +128,6 @@ class PetService : Service() {
             handler.removeCallbacks(frameRunnable)
             handler.post(frameRunnable)
         } else {
-            screenOffAt = System.currentTimeMillis()
             handler.removeCallbacks(frameRunnable)
             sim.save()
         }

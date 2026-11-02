@@ -51,10 +51,6 @@ class SceneRenderer {
 
     private fun logErr(section: String, t: Throwable) {
         android.util.Log.e("PetRender", "[$section] ${t.javaClass.simpleName}: ${t.message}", t)
-        try {
-            val sp = lastPrefs?.edit() ?: return
-            sp.putString("render_err", "$section: ${t.javaClass.simpleName}: ${t.message}").apply()
-        } catch (_: Throwable) {}
     }
 
     /** контекст для аварийного журнала (задаётся при создании симуляции) */
@@ -229,19 +225,6 @@ class SceneRenderer {
                 c.drawPath(path, pF)
             }
         }
-
-        // ---- ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ БЕЙДЖ (потом уберём)
-        try {
-            val err = lastPrefs?.getString("render_err", null)
-            pZ.textSize = unit * 0.52f
-            pZ.color = if (err != null) 0xFFCC3B3B.toInt() else 0x80666666.toInt()
-            pZ.textAlign = Paint.Align.LEFT
-            val line = "st=${sim.state} re=${sim.reaction} ar=${"%.2f".format(inter.armReach)} tg=${if (inter.target != null) "+" else "-"} i=${sim.items.size} t=${sim.tickCount % 10000}"
-            c.drawText(line, unit * 0.3f, h - unit * 0.3f, pZ)
-            if (err != null) c.drawText("ERR: $err", unit * 0.3f, h - unit * 1.0f, pZ)
-            pZ.textAlign = Paint.Align.CENTER
-            pZ.color = 0xFF75808B.toInt()
-        } catch (_: Throwable) {}
     }
 
     // ------------------------------------------------------- свет и лампа
