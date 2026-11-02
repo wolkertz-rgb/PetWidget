@@ -19,6 +19,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
@@ -349,9 +350,9 @@ class AtelierActivity : Activity() {
     private fun hScroll(v: View): HorizontalScrollView {
         val h = HorizontalScrollView(this)
         h.isHorizontalScrollBarEnabled = false
-        h.addView(v, HorizontalScrollView.LayoutParams(
-            HorizontalScrollView.LayoutParams.WRAP_CONTENT,
-            HorizontalScrollView.LayoutParams.WRAP_CONTENT
+        h.addView(v, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
         ))
         return h
     }
@@ -386,7 +387,7 @@ class AtelierActivity : Activity() {
     }
 
     /** чип + опциональный живой выбор (пишет значение в prefs и обновляет виджет) */
-    private fun chipRow(options: List<String>, onPick: ((Int) -> Unit)? = null): LinearLayout {
+    private fun chipRow(options: List<String>, onPick: ((Int) -> Unit)? = null): HorizontalScrollView {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val chips = ArrayList<TextView>()
         options.forEachIndexed { i, opt ->
