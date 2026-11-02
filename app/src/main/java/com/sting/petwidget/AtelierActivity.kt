@@ -33,6 +33,23 @@ class AtelierActivity : Activity() {
 
     private lateinit var previewView: PreviewView
     private var themeBuffer: Map<String, Int> = ThemePresets.MINT
+    private var cachedFont: Typeface? = null
+
+    /** округлый фирменный шрифт (Rubik, кириллица) */
+    private fun font(): Typeface? {
+        if (cachedFont == null) {
+            cachedFont = try { resources.getFont(R.font.rubik) } catch (_: Throwable) { null }
+        }
+        return cachedFont
+    }
+
+    private fun styleFont(t: TextView, bold: Boolean = false) {
+        font()?.let { t.typeface = if (bold) Typeface.create(it, Typeface.BOLD) else it }
+    }
+
+    private fun styleButton(b: Button) {
+        font()?.let { b.typeface = Typeface.create(it, Typeface.BOLD) }
+    }
 
     /** живой маленький мир для превью */
     private inner class PreviewView(private val context: Context) : View(context) {
@@ -136,7 +153,7 @@ class AtelierActivity : Activity() {
         }
         previewHolder.addView(previewView)
         previewCard.addView(previewHolder)
-        screen.addView(sectionWrap(previewCard))
+        screen.addView(previewCard)
         screen.addView(gap(12))
 
         // ------------------------------------------------ ПИТОМЕЦ
@@ -161,7 +178,7 @@ class AtelierActivity : Activity() {
         petCard.addView(label("📡 Антенна"))
         petCard.addView(chipRow(listOf("Шарик", "Цветочек", "Нить", "Ничего")))
         petCard.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFF60A5FA, 0xFF7FC9A6)))
-        screen.addView(sectionWrap(petCard))
+        screen.addView(petCard)
         screen.addView(gap(12))
 
         // ------------------------------------------------ КОМНАТА
@@ -169,14 +186,18 @@ class AtelierActivity : Activity() {
         roomCard.addView(label("🎨 Обои — цвет"))
         roomCard.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFEFF7F3, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF151A2A, 0xFF232840)))
         roomCard.addView(label("🧩 Узор обоев"))
-        roomCard.addView(chipRow(listOf("Нет", "Точки", "Полоски", "Зигзаг", "Клетка", "Звёзды")))
+        roomCard.addView(chipRow(listOf("Нет", "Точки", "Полоски", "Зигзаг", "Клетка", "Звёзды")) { i ->
+            prefs.edit().putInt("wall_pattern", i).apply()
+            previewView.refresh()
+            PetWidgetProvider.burst(this, frames = 3, everyMs = 70)
+        })
         roomCard.addView(label("🎨 Пол"))
         roomCard.addView(swatchRow(listOf(0xFFE1E1DC, 0xFFEAD9CC, 0xFFCFE7E6, 0xFFD8E3D0, 0xFF232840, 0xFF3C3428)))
         roomCard.addView(label("🎨 Плинтус и панель"))
         roomCard.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFC8E2E0, 0xFFD6E1C2, 0xFF2A2F4A)))
         roomCard.addView(label("🛋 Кресло"))
         roomCard.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFF94A3B8, 0xFF2C5875, 0xFF7B62C4, 0xFFB45309)))
-        screen.addView(sectionWrap(roomCard))
+        screen.addView(roomCard)
         screen.addView(gap(12))
 
         // ------------------------------------------------ ТЕМЫ (работает)
@@ -204,7 +225,7 @@ class AtelierActivity : Activity() {
             Toast.makeText(this, "Вернули мятную 🌿", Toast.LENGTH_SHORT).show()
         }, weights(1f))
         themeCard.addView(btnRow)
-        screen.addView(sectionWrap(themeCard))
+        screen.addView(themeCard)
         screen.addView(gap(12))
 
         // ------------------------------------------------ ЗАПАС (макет «скоро»)
@@ -213,7 +234,7 @@ class AtelierActivity : Activity() {
         soonCard.addView(label("🖼 Фото-обои"))
         soonCard.addView(label("🧣 Шарфик и шапочка питомцу"))
         soonCard.addView(label("🐾 Второй питомец"))
-        screen.addView(sectionWrap(soonCard))
+        screen.addView(soonCard)
         screen.addView(gap(12))
 
         // ------------------------------------------------ УХОД
@@ -226,7 +247,7 @@ class AtelierActivity : Activity() {
             } catch (_: Exception) {}
             Toast.makeText(this@AtelierActivity, "Питомец на связи 🌱", Toast.LENGTH_SHORT).show()
         })
-        screen.addView(sectionWrap(careCard))
+        screen.addView(careCard)
         screen.addView(gap(30))
     }
 
@@ -239,6 +260,7 @@ class AtelierActivity : Activity() {
             textSize = 15f
             setTextColor(if (color == 0xFFE3ECE6.toInt()) 0xFF2E3B34.toInt() else Color.WHITE)
             background = GradientDrawable().apply { setColor(color); cornerRadius = dp(18).toFloat() }
+            styleButton(this)
         }
         val l = LinearLayout(this)
         l.addView(b, LinearLayout.LayoutParams(MATCH, WRAP))
@@ -265,7 +287,7 @@ class AtelierActivity : Activity() {
         t.text = s
         t.textSize = size
         t.setTextColor(color)
-        if (bold) t.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        styleFont(t, bold)
         t.setPadding(0, vertical, 0, 0)
         return t
     }
@@ -275,6 +297,7 @@ class AtelierActivity : Activity() {
         textSize = 13.5f
         setTextColor(0xFF4B5563.toInt())
         setPadding(0, dp(10), 0, dp(4))
+        styleFont(this)
     }
 
     /** белая скруглённая карточка-секция с заголовком */
@@ -291,11 +314,6 @@ class AtelierActivity : Activity() {
         l.addView(text(title, 17.5f, bold = true))
         l.addView(gap(6))
         return l
-    }
-
-    private fun sectionWrap(card: LinearLayout): LinearLayout {
-        card.setPadding(dp(18), dp(16), dp(18), dp(16))
-        return card
     }
 
     /** кружок-аватар для шапки */
@@ -349,11 +367,9 @@ class AtelierActivity : Activity() {
         return row
     }
 
-    /** ряд чипов-вариантов с визуальным выбором */
-    private fun chipRow(options: List<String>): LinearLayout {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
+    /** чип + опциональный живой выбор (пишет значение в prefs и обновляет виджет) */
+    private fun chipRow(options: List<String>, onPick: ((Int) -> Unit)? = null): LinearLayout {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val chips = ArrayList<TextView>()
         options.forEachIndexed { i, opt ->
             val chip = TextView(this).apply {
@@ -370,6 +386,7 @@ class AtelierActivity : Activity() {
                 layoutParams = LinearLayout.LayoutParams(WRAP, dp(32)).apply {
                     setMargins(0, 0, dp(8), dp(4))
                 }
+                styleFont(this)
             }
             chip.setOnClickListener {
                 chips.forEach { ch ->
@@ -380,6 +397,7 @@ class AtelierActivity : Activity() {
                 (chip.background as GradientDrawable).setColor(0xFFE3F4EB.toInt())
                 (chip.background as GradientDrawable).setStroke(dp(2), 0xFF7FC9A6.toInt())
                 chip.setTextColor(0xFF2E3B34.toInt())
+                onPick?.invoke(i)
             }
             chips.add(chip)
             row.addView(chip)

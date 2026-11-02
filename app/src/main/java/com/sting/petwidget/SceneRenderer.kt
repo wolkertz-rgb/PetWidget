@@ -110,7 +110,8 @@ class SceneRenderer {
         val ceil = Paint().apply { shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, w.toFloat(), pad * 1.6f, ceil)
 
-        // обои-зерно: деликатная точечная сетка на стене
+        // узор обоев (читается из кастомизации)
+        drawWallPattern(c, unit, pad, floorY)
         pF.color = 0xFF555550.toInt()
         pF.alpha = 14
         val grainStep = unit * 1.5f
@@ -287,6 +288,101 @@ class SceneRenderer {
         c.drawCircle(sx, tipY, unit * 0.18f, pF)
         pF.color = 0x49FFFFFF.toInt()
         c.drawCircle(sx - unit * 0.05f, tipY - unit * 0.05f, unit * 0.07f, pF)
+    }
+
+    /** узор обоев: 0 нет(только зерно), 1 точки, 2 полоски, 3 зигзаг, 4 клетка, 5 звёзды */
+    private fun drawWallPattern(c: Canvas, unit: Float, pad: Float, floorY: Float) {
+        val idx = th("wall_pattern", 0)
+        if (idx == 0) return
+        val col = th("wall_pattern_color", 0x1A55604F.toInt())
+        val top = pad * 1.6f
+        val bottom = floorY - unit * 2.1f
+        val left = pad
+        val right = w - pad
+        rect.set(left, top, right, bottom)
+        c.save()
+        c.clipRect(rect)
+        when (idx) {
+            1 -> { // крупные точки
+                pF.color = col
+                val st = unit * 1.8f
+                var y = top + st
+                while (y < bottom) {
+                    var x = left + st
+                    val sh = if (((y / st).toInt() % 2) == 1) st / 2f else 0f
+                    while (x < right) {
+                        c.drawCircle(x + sh, y, unit * 0.2f, pF)
+                        x += st
+                    }
+                    y += st
+                }
+            }
+            2 -> { // полоски
+                pF.color = col
+                var x = left + unit
+                while (x < right) {
+                    rect.set(x, top, x + unit * 0.5f, bottom)
+                    c.drawRect(rect, pF)
+                    x += unit * 2.2f
+                }
+            }
+            3 -> { // зигзаг
+                pS.color = col
+                pS.strokeWidth = unit * 0.16f
+                val amp = unit * 0.32f
+                var y = top + unit * 1.2f
+                while (y < bottom) {
+                    path.reset()
+                    var x = left
+                    var up = true
+                    path.moveTo(x, y + amp / 2f)
+                    while (x < right) {
+                        x += unit * 0.8f
+                        path.lineTo(x, y + (if (up) -amp else amp))
+                        up = !up
+                    }
+                    c.drawPath(path, pS)
+                    y += unit * 1.5f
+                }
+            }
+            4 -> { // шахматная клетка
+                pF.color = col
+                val st = unit * 1.1f
+                var row = 0
+                var yy = top
+                while (yy < bottom) {
+                    var ix = 0
+                    var xx = left
+                    while (xx < right) {
+                        if ((ix + row) % 2 == 0) {
+                            rect.set(xx, yy, xx + st, yy + st)
+                            c.drawRect(rect, pF)
+                        }
+                        xx += st
+                        ix++
+                    }
+                    yy += st
+                    row++
+                }
+            }
+            5 -> { // звёздочки-искры
+                val st = unit * 2.0f
+                var row = 0
+                var yy = top + st
+                while (yy < bottom) {
+                    var xx = left + st
+                    val sh = if (row % 2 == 1) st / 2f else 0f
+                    while (xx < right) {
+                        drawSpark(c, xx + sh, yy, unit * 0.34f, col, 190)
+                        xx += st
+                    }
+                    yy += st
+                    row++
+                }
+                pS.strokeWidth = unit * 0.16f
+            }
+        }
+        c.restore()
     }
 
     private fun applyLightOverlay(c: Canvas, unit: Float, floorY: Float) {
