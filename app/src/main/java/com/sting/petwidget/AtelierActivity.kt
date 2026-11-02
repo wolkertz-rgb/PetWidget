@@ -143,9 +143,9 @@ class AtelierActivity : Activity() {
         }
         val presetScroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
-            addView(presetRow, HorizontalScrollView.LayoutParams(
-                HorizontalScrollView.LayoutParams.WRAP_CONTENT,
-                HorizontalScrollView.LayoutParams.WRAP_CONTENT
+            addView(presetRow, FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
             ))
         }
         screen.addView(presetScroll)
