@@ -893,7 +893,7 @@ class SceneRenderer {
         }
         rect.set(px - r * sx, cy - r * sy, px + r * sx, cy + r * sy)
         c.drawOval(rect, body)
-        pS.color = 0x7A35684E.toInt()
+        pS.color = th("pet_outline", 0x7A35684E.toInt())
         pS.strokeWidth = unit * 0.11f
         c.drawOval(rect, pS)
 
@@ -986,24 +986,7 @@ class SceneRenderer {
                 c.drawCircle(px + eyeDx - sim.dir * r * 0.06f, eyeY + r * 0.02f, r * 0.07f, pF)
                 pF.alpha = 255
             }
-            blinking && st != PetSim.State.ROLL -> {
-                // моргание: мягкое «закрывание» — зрачок сжимается по вертикали
-                // и вариант глаза сохраняется (кастом не подменяется)
-                val er = r * 0.24f
-                val eyeCol = th("look_eyecolor", 0xFF22333B.toInt())
-                val blinkP = 1f - (sim.animPhase % 0.14f) / 0.14f   // 1→0 внутри фазы
-                val ry = er * 0.9f * (0.2f + 0.8f * blinkP)
-                circleAt(c, px - eyeDx, eyeY, er, eyeCol)
-                circleAt(c, px + eyeDx, eyeY, er, eyeCol)
-                pF.color = 0xFFFFFFFF.toInt()
-                rect.set(px - eyeDx - er * 0.4f, eyeY - ry * 0.4f, px - eyeDx + er * 0.4f, eyeY + ry * 0.4f)
-                c.drawOval(rect, pF)
-                rect.set(px + eyeDx - er * 0.4f, eyeY - ry * 0.4f, px + eyeDx + er * 0.4f, eyeY + ry * 0.4f)
-                c.drawOval(rect, pF)
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.12f
-                c.drawLine(px - eyeDx - er, eyeY, px - eyeDx + er, eyeY, pS)
-                c.drawLine(px + eyeDx - er, eyeY, px + eyeDx + er, eyeY, pS)
-            }
+            // моргание отключено (по решению владельца): питомец не моргает
             else -> {
                 val er = r * 0.24f
                 val eyeCol = th("look_eyecolor", 0xFF22333B.toInt())
@@ -1405,8 +1388,9 @@ class SceneRenderer {
         val cy = petCy(sim, floorY, unit, r)
         val st = sim.state
 
-        val armColor = 0xFF5CA985.toInt()
-        val palmColor = 0xFF9ADDB8.toInt()
+        // руки красятся токенами тела (утолщённый контур + светлые ладошки)
+        val armColor = th("pet_bottom", 0xFF5CA985.toInt())
+        val palmColor = th("pet_belly", 0xFF9ADDB8.toInt())
         val grip = unit * 0.24f
 
         fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean) {
@@ -1427,7 +1411,7 @@ class SceneRenderer {
             path.moveTo(ax, ay)
             path.quadTo(mx, my, hx, hy)
             // мягкое свечение под рукой
-            pS.color = 0x2E9ADDB8.toInt()
+            pS.color = (0x2E shl 24) or (palmColor and 0x00FFFFFF)
             pS.strokeWidth = unit * 0.40f
             c.drawPath(path, pS)
             // основная рука
@@ -1435,7 +1419,7 @@ class SceneRenderer {
             pS.strokeWidth = unit * 0.22f
             c.drawPath(path, pS)
             circleAt(c, hx, hy, grip, palmColor)
-            pS.color = 0x6E3C7A63.toInt()
+            pS.color = th("pet_outline", 0x6E3C7A63.toInt())
             pS.strokeWidth = unit * 0.08f
             c.drawCircle(hx, hy, grip, pS)
         }

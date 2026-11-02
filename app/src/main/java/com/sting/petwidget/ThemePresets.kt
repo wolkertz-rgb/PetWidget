@@ -12,7 +12,9 @@ object ThemePresets {
         "floor_top", "floor_bottom",
         "pet_top", "pet_mid", "pet_bottom", "pet_belly", "pet_blush",
         "chair_back1", "chair_back2", "chair_seat1", "chair_seat2",
-        "chair_roll1", "chair_roll2"
+        "chair_roll1", "chair_roll2",
+        "look_mouth", "look_grin", "look_eyes", "look_eyecolor",
+        "look_blush", "look_antenna", "look_ante", "wall_pattern", "wall_pattern_color"
     )
 
     /** hex → Int */
@@ -97,6 +99,83 @@ object ThemePresets {
             "chair_back1" to c("#9A9A92"), "chair_back2" to c("#6E6E66"),
             "chair_seat1" to c("#B4B4AC"), "chair_seat2" to c("#92928A"),
             "chair_roll1" to c("#A5A59D"), "chair_roll2" to c("#7F7F77")
+        ),
+        "Клубника" to mapOf(
+            "room_bg_top" to c("#FFF0F3"), "room_bg_bottom" to c("#FFE4EA"),
+            "room_panel" to c("#FFE0E8"), "room_skirt" to c("#F7D4DC"),
+            "floor_top" to c("#F9DEE4"), "floor_bottom" to c("#EFCBD4"),
+            "pet_top" to c("#FFB7C5"), "pet_mid" to c("#F58FB0"),
+            "pet_bottom" to c("#E56B8C"), "pet_belly" to c("#FFE0EA"),
+            "pet_blush" to c("#F5859E"),
+            "chair_back1" to c("#D4637A"), "chair_back2" to c("#9B3B52"),
+            "chair_seat1" to c("#E88CA2"), "chair_seat2" to c("#C05E74"),
+            "chair_roll1" to c("#DF7590"), "chair_roll2" to c("#B04D63")
+        ),
+        "Лаванда" to mapOf(
+            "room_bg_top" to c("#F5F1FB"), "room_bg_bottom" to c("#EAE3F7"),
+            "room_panel" to c("#EAE4F5"), "room_skirt" to c("#DCD4EE"),
+            "floor_top" to c("#E4DDF2"), "floor_bottom" to c("#D5CCE8"),
+            "pet_top" to c("#D4C5F7"), "pet_mid" to c("#A98BDB"),
+            "pet_bottom" to c("#8A6CC0"), "pet_belly" to c("#EDE6FA"),
+            "pet_blush" to c("#E3B8F2"),
+            "chair_back1" to c("#6B5B95"), "chair_back2" to c("#4A3F70"),
+            "chair_seat1" to c("#8E7CB8"), "chair_seat2" to c("#6C5D95"),
+            "chair_roll1" to c("#7E6DA6"), "chair_roll2" to c("#5A4D82")
+        ),
+        "Неон" to mapOf(
+            "room_bg_top" to c("#0F1020"), "room_bg_bottom" to c("#0A0B16"),
+            "room_panel" to c("#14162A"), "room_skirt" to c("#1D2036"),
+            "floor_top" to c("#12142A"), "floor_bottom" to c("#0C0D1A"),
+            "pet_top" to c("#67F5D8"), "pet_mid" to c("#22C9B8"),
+            "pet_bottom" to c("#0FA398"), "pet_belly" to c("#A8FFF0"),
+            "pet_blush" to c("#FF4FA3"),
+            "chair_back1" to c("#23255C"), "chair_back2" to c("#14162E"),
+            "chair_seat1" to c("#35387A"), "chair_seat2" to c("#24265C"),
+            "chair_roll1" to c("#2C2F6B"), "chair_roll2" to c("#1C1E48")
+        ),
+        "Шоколад" to mapOf(
+            "room_bg_top" to c("#F7EFE7"), "room_bg_bottom" to c("#EFE2D3"),
+            "room_panel" to c("#EFE2D3"), "room_skirt" to c("#E3D3BF"),
+            "floor_top" to c("#E8D7C2"), "floor_bottom" to c("#D9C4AA"),
+            "pet_top" to c("#D2A679"), "pet_mid" to c("#B08050"),
+            "pet_bottom" to c("#8F6136"), "pet_belly" to c("#F0E2CE"),
+            "pet_blush" to c("#D98C7A"),
+            "chair_back1" to c("#6B4226"), "chair_back2" to c("#432A18"),
+            "chair_seat1" to c("#8F5D36"), "chair_seat2" to c("#6E4526"),
+            "chair_roll1" to c("#7E4E2C"), "chair_roll2" to c("#5A3620")
+        ),
+        "Ретро" to mapOf(
+            "room_bg_top" to c("#1A2B3C"), "room_bg_bottom" to c("#122030"),
+            "room_panel" to c("#16273A"), "room_skirt" to c("#23384F"),
+            "floor_top" to c("#1F3247"), "floor_bottom" to c("#16263A"),
+            "pet_top" to c("#FFD166"), "pet_mid" to c("#EF8354"),
+            "pet_bottom" to c("#D4557F"), "pet_belly" to c("#FFE9C7"),
+            "pet_blush" to c("#FF9770"),
+            "chair_back1" to c("#274060"), "chair_back2" to c("#1B2C44"),
+            "chair_seat1" to c("#33557E"), "chair_seat2" to c("#244060"),
+            "chair_roll1" to c("#2C4A70"), "chair_roll2" to c("#1E3350")
+        ),
+        "Сакура" to mapOf(
+            "room_bg_top" to c("#FFF5F7"), "room_bg_bottom" to c("#FFEAF0"),
+            "room_panel" to c("#FFE7EE"), "room_skirt" to c("#F5D7E0"),
+            "floor_top" to c("#FAE3EA"), "floor_bottom" to c("#F0D2DC"),
+            "pet_top" to c("#FBD3E0"), "pet_mid" to c("#F0A3C0"),
+            "pet_bottom" to c("#E07CA3"), "pet_belly" to c("#FFF0F5"),
+            "pet_blush" to c("#F5859E"),
+            "chair_back1" to c("#B76E88"), "chair_back2" to c("#8A4C62"),
+            "chair_seat1" to c("#CE8BA4"), "chair_seat2" to c("#A66380"),
+            "chair_roll1" to c("#BE7A95"), "chair_roll2" to c("#925571")
+        ),
+        "Аврора" to mapOf(
+            "room_bg_top" to c("#EAF4FF"), "room_bg_bottom" to c("#DFECFB"),
+            "room_panel" to c("#E2EDFA"), "room_skirt" to c("#D0E0F0"),
+            "floor_top" to c("#D8E8F8"), "floor_bottom" to c("#C6D9EC"),
+            "pet_top" to c("#B4E6FF"), "pet_mid" to c("#7CC9F5"),
+            "pet_bottom" to c("#4FA6E0"), "pet_belly" to c("#E2F3FF"),
+            "pet_blush" to c("#F2B8C6"),
+            "chair_back1" to c("#3C6E8F"), "chair_back2" to c("#274C66"),
+            "chair_seat1" to c("#5C93B5"), "chair_seat2" to c("#3F7593"),
+            "chair_roll1" to c("#4E85A8"), "chair_roll2" to c("#365F80")
         )
     )
 
