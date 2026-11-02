@@ -130,7 +130,10 @@ class AtelierActivity : Activity() {
         screen.addView(gap(18))
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         header.setPadding(dp(22), 0, dp(22), 0)
-        header.addView(petAvatar(0xFFA8E6C3.toInt(), 0xFF6FBE97.toInt(), dp(40)))
+        header.addView(ImageView(this).apply {
+            setImageResource(R.drawable.ic_blob_avatar)
+            layoutParams = LinearLayout.LayoutParams(dp(46), dp(46))
+        })
         header.addView(gapW(dp(12)))
         header.addView(column(
             text("Кастомизация", 25f, bold = true, vertical = dp(2)),
@@ -174,7 +177,11 @@ class AtelierActivity : Activity() {
         petCard.addView(swatchRow(listOf(0xFF22333B, 0xFF2B2233, 0xFF20455F, 0xFF3B2233)))
         petCard.addView(label("👄 Рот — форма"))
         petCard.addView(chipRow(listOf("Улыбка", "Открытый", "Нейтральный", "«Оо»")))
-        petCard.addView(sliderBlock("Тонкая подстройка цвета", listOf(0xFF2E3B34, 0xFF7FC9A6, 0xFFFFFFFF, 0xFFF58C8C)))
+        petCard.addView(sliderBlock(
+            "Тонкая подстройка цвета тела",
+            listOf(0xFF2E3B34, 0xFF6FBE97, 0xFFF4F4F4),
+            listOf("Тень", "Основа", "Свет")
+        ))
         petCard.addView(label("📡 Антенна"))
         petCard.addView(chipRow(listOf("Шарик", "Цветочек", "Нить", "Ничего")))
         petCard.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFF60A5FA, 0xFF7FC9A6)))
@@ -338,8 +345,19 @@ class AtelierActivity : Activity() {
         return l
     }
 
+    /** горизонтальный ряд, который листается, если не влезает */
+    private fun hScroll(v: View): HorizontalScrollView {
+        val h = HorizontalScrollView(this)
+        h.isHorizontalScrollBarEnabled = false
+        h.addView(v, HorizontalScrollView.LayoutParams(
+            HorizontalScrollView.LayoutParams.WRAP_CONTENT,
+            HorizontalScrollView.LayoutParams.WRAP_CONTENT
+        ))
+        return h
+    }
+
     /** ряд цветовых свотчей с выбором (визуальный). Хексы 8-значные приходят как Long */
-    private fun swatchRow(colors: List<Long>): LinearLayout {
+    private fun swatchRow(colors: List<Long>): HorizontalScrollView {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -364,7 +382,7 @@ class AtelierActivity : Activity() {
             circles.add(v)
             row.addView(v)
         }
-        return row
+        return hScroll(row)
     }
 
     /** чип + опциональный живой выбор (пишет значение в prefs и обновляет виджет) */
@@ -402,27 +420,44 @@ class AtelierActivity : Activity() {
             chips.add(chip)
             row.addView(chip)
         }
-        return row
+        return hScroll(row)
     }
 
-    /** макет-слайдеры тонкой подстройки */
-    private fun sliderBlock(title: String, colors: List<Long>): LinearLayout {
-        val l = LinearLayout(this)
-        l.orientation = LinearLayout.VERTICAL
-        l.addView(text(title, 13f, color = 0xFF6B7280.toInt(), vertical = dp(8)))
+    /** слайдеры тонкой подстройки — маленькая карточка с подписями */
+    private fun sliderBlock(title: String, colors: List<Long>, names: List<String>): LinearLayout {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(0xFFF5F5F2.toInt())
+                cornerRadius = dp(14).toFloat()
+            }
+            setPadding(dp(12), dp(10), dp(12), dp(12))
+        }
+        card.addView(text(title, 12.5f, color = 0xFF6B7280.toInt()))
         colors.forEachIndexed { i, colRaw ->
-            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
             row.addView(View(this).apply {
-                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(colRaw.toInt()) }
-                layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { setMargins(0, 0, dp(8), 0) }
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(colRaw.toInt())
+                }
+                layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { setMargins(0, 0, dp(10), 0) }
+            })
+            row.addView(text(names[i], 12f, color = 0xFF6B7280.toInt()).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(64), WRAP)
+                setPadding(0, dp(6), 0, 0)
             })
             row.addView(SeekBar(this).apply {
-                progress = 160 + i * 30
-                layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f)
+                max = 255
+                progress = 70 + i * 45
+                layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f).apply { setMargins(dp(8), 0, dp(4), 0) }
             })
-            l.addView(row)
+            card.addView(row, LinearLayout.LayoutParams(MATCH, WRAP).apply { setMargins(0, dp(6), 0, 0) })
         }
-        return l
+        return card
     }
 
     // ------------------------------------------------ прочее

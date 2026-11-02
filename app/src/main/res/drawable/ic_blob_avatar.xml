@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- фон-кружок -->
+    <path
+        android:fillColor="#7FC9A6"
+        android:pathData="M54,4 a50,50 0 1,1 -0.01,0 Z" />
+
+    <!-- тело блоба (чуть крупнее в круге) -->
+    <path
+        android:fillColor="#A8E6C3"
+        android:pathData="M54,36 a27,25 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#4FA379"
+        android:pathData="M54,66 a27,22 0 0,0 -0.01,0 Z" />
+    <path
+        android:strokeColor="#35684E"
+        android:strokeWidth="2"
+        android:fillColor="#00000000"
+        android:pathData="M54,36 a27,25 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#BDEBCF"
+        android:pathData="M54,71 a17,12 0 1,1 -0.01,0 Z" />
+
+    <!-- глаза -->
+    <path
+        android:fillColor="#22333B"
+        android:pathData="M45.5,58 a4.8,4.8 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#22333B"
+        android:pathData="M62.5,58 a4.8,4.8 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46.6,56.7 a1.9,1.9 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M63.6,56.7 a1.9,1.9 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M46.2,60.4 a1,1 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M63.2,60.4 a1,1 0 1,1 -0.01,0 Z" />
+
+    <!-- улыбка -->
+    <path
+        android:strokeColor="#22333B"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M48.5,67 C51,70.6 57,70.6 59.5,67" />
+
+    <!-- румяшки -->
+    <path
+        android:fillColor="#5CF3A9A0"
+        android:pathData="M40,64.5 a3.6,2.4 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#5CF3A9A0"
+        android:pathData="M68,64.5 a3.6,2.4 0 1,1 -0.01,0 Z" />
+
+    <!-- антенна -->
+    <path
+        android:strokeColor="#35684E"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M54.5,35.5 C55.5,30.5 57.5,28 59,27.2" />
+    <path
+        android:fillColor="#F4C95D"
+        android:pathData="M60.5,26.2 a3.4,3.4 0 1,1 -0.01,0 Z" />
+    <path
+        android:fillColor="#40FFFFFF"
+        android:pathData="M59.5,25.3 a1.1,1.1 0 1,1 -0.01,0 Z" />
+
+    <!-- блик макушки -->
+    <path
+        android:fillColor="#3FFFFFFF"
+        android:pathData="M40,46 C40,39.5 46.5,36.5 52.5,37 C46.5,38.5 43.5,41.5 42.5,46.5 Z" />
+</vector>
