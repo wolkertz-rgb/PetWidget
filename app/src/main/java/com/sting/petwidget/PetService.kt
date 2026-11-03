@@ -159,32 +159,23 @@ class PetService : Service() {
             // свет читается рендером прямо из настроек — порядок кадра не важен
             renderer.density = resources.displayMetrics.density
 
-            // ДИСК: состояние живёт в памяти сервиса. save() — по таймеру 20 с,
-            // при выключении экрана и в onDestroy (никаких 20 записей в секунду)
+            // синхронизируемся с общим состоянием — burst/будильник и сервис
+            // всегда рисуют одну и ту же правду; last_wall пишет save() (единая метка)
+            sim.load()
             sim.tick(dt)
+            sim.save()
 
             val bmp = renderer.render(sim, sizeW, sizeH)
             if (bmp != null && ids.isNotEmpty()) {
-                val t0 = System.nanoTime()
                 val rv = RemoteViews(packageName, R.layout.pet_widget).apply {
                     setImageViewBitmap(R.id.scene, bmp)
                     PetWidgetProvider.applyClicks(this, this@PetService)
                 }
                 awm?.partiallyUpdateAppWidget(ids, rv)
-                renderAvgMs = (renderAvgMs * renderCount + (System.nanoTime() - t0) / 1_000_000.0) / (renderCount + 1)
-                renderCount++
-                if (renderCount % 120 == 0) {
-                    android.util.Log.d("PetRender", "send avg %.1f ms (%dx%d)".format(renderAvgMs, sizeW, sizeH))
-                }
             }
-            // частота: действия 12 FPS, сон 5 FPS
-            val interval = if (sim.state == PetSim.State.SLEEP) 200L else 83L
-            handler.postDelayed(this, interval)
+            handler.postDelayed(this, 50L) // ТУРБО: 20 ФПС, пока экран включён
         }
     }
-
-    private var renderAvgMs = 0.0
-    private var renderCount = 0L
 
     // ------------------------------------------------------------ размеры виджета
 
@@ -197,8 +188,8 @@ class PetService : Service() {
             hDp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 110)
         }
         val d = resources.displayMetrics.density
-        sizeW = (wDp * d).toInt().coerceIn(80, 720)   // ~720 по ширине: дешевле Binder-передача
-        sizeH = (hDp * d).toInt().coerceIn(60, 420)
+        sizeW = (wDp * d).toInt().coerceIn(80, 1100)
+        sizeH = (hDp * d).toInt().coerceIn(60, 640)
     }
 
     private fun refreshIds(): Boolean {

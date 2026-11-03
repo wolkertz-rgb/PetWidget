@@ -271,14 +271,8 @@ class PetSim(
                                 }
                             }
                         } else {
-                            // случайная прогулка: движемся только в «воздухе» хопа —
-                            // на земле лапки стоят, скольжения нет
-                            val hopPh = (animPhase * 1.15f) % 1f
-                            val inAir = hopPh >= Hop.GROUND
-                            if (inAir || dt > 300L) {
-                                val step = if (dt > 300L) WALK_SPEED * dtS else WALK_SPEED * dtS / (1f - Hop.GROUND)
-                                x += dir * step
-                            }
+                            // случайная прогулка: мягкий отскок от стен
+                            x += dir * WALK_SPEED * dtS
                             if (x < X_MIN) { x = X_MIN; dir = 1 }
                             if (x > X_MAX) { x = X_MAX; dir = -1 }
                         }
