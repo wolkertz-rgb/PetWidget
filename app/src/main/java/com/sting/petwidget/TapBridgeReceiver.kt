@@ -7,7 +7,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 
-/** Тап по виджету = поглаживание питомца. */
+/** Тап по виджету = поглаживание: его обрабатывает сервис, либо «ходы» — никогда оба. */
 class TapBridgeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pr = goAsync()
@@ -24,12 +24,24 @@ class TapBridgeReceiver : BroadcastReceiver() {
         }
         handler.post {
             try {
-                val sim = PetSim(app)
-                sim.tap()
-                sim.save()
-                val started = PetWidgetProvider.tryStartService(app)
-                if (started) finishOnce()
-                else PetWidgetProvider.burst(app, frames = 10, everyMs = 350) { finishOnce() }
+                if (PetService.running) {
+                    // сервис жив: тап по intent'у обрабатывает он сам (single writer)
+                    PetWidgetProvider.tryStartService(app)
+                    finishOnce()
+                } else {
+                    // сервис мёртв: сохраним реакцию в prefs — «ходы» её разыграют,
+                    // иначе сбой старта сервиса обернётся потерей поглаживания
+                    try {
+                        PetSim(app).apply { tap(); save() }
+                    } catch (e: Exception) {
+                        Log.w("PetWidget", "tap sim failed", e)
+                    }
+                    if (!PetWidgetProvider.tryStartService(app)) {
+                        PetWidgetProvider.burst(app, frames = 10, everyMs = 350) { finishOnce() }
+                    } else {
+                        finishOnce()
+                    }
+                }
             } catch (e: Exception) {
                 Log.w("PetWidget", "tap failed", e)
                 finishOnce()
