@@ -13,14 +13,16 @@ import kotlin.random.Random
  */
 class PetSim(
     private val prefs: android.content.SharedPreferences,
-    private val clock: () -> Long,          // часы — для единый метки last_wall
-    private val rng: Random
+    private val clock: () -> Long,          // часы — для единой метки last_wall
+    private val rng: Random,
+    private val autoSave: Boolean = true    // false — «копия» (превью) ничего не пишет на диск
 ) {
     /** удобный конструктор для боевого кода */
     constructor(context: Context) : this(
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
         { System.currentTimeMillis() },
-        Random.Default
+        Random.Default,
+        autoSave = true
     )
 
     enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY }
@@ -87,8 +89,10 @@ class PetSim(
             tickPiece(piece)
             remaining -= piece
         }
-        saveTimer += dt
-        if (saveTimer >= 20_000) { saveTimer = 0; save() }
+        if (autoSave) {
+            saveTimer += dt
+            if (saveTimer >= 20_000) { saveTimer = 0; save() }
+        }
     }
 
     private fun tickPiece(dt: Long) {

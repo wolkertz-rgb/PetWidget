@@ -66,7 +66,14 @@ class AtelierActivity : Activity() {
     /** живой маленький мир для превью */
     private inner class PreviewView(private val context: Context) : View(context) {
         private val renderer = SceneRenderer()
-        private val sim = PetSim(context)
+        // превью тикает КОПИЮ мозга и ничего не пишет в prefs:
+        // иначе это второй писатель параллельно сервису (урок №3 «Библии»)
+        private val sim = PetSim(
+            context.getSharedPreferences("pet_state", Context.MODE_PRIVATE),
+            { System.currentTimeMillis() },
+            kotlin.random.Random.Default,
+            autoSave = false
+        )
         private var bmp: Bitmap? = null
         private var lastTick = 0L
 
