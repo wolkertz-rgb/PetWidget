@@ -494,7 +494,13 @@ class SceneRenderer {
             ItemDefs.Reaction.OPEN  -> {
                 info.lidProg = ((t - (dur - 800f)).toFloat() / 800f).coerceIn(0f, 1f)
             }
-            else -> {} // RUB/PUSH/PLAY: предмет на полу, руки сами
+            ItemDefs.Reaction.RUB   -> {
+                // гладим мишку В ЛАПКАХ у морды (раньше предмет оставался на полу
+                // и руки кружили в воздухе — рассинхрон)
+                info.holding = true
+                info.liftPx = -r * 0.85f
+            }
+            else -> {} // PUSH/PLAY: предмет на полу, руки сами
         }
         return info
     }
@@ -565,12 +571,8 @@ class SceneRenderer {
             "robot" -> if (isTarget && sim.reaction == ItemDefs.Reaction.PLAY) {
                 toyRot = sin(sim.stateTime / 55f) * 4f        // вибрирует «бип-бип»
             }
-            "plushie" -> if (isTarget && sim.reaction == ItemDefs.Reaction.RUB) {
-                toyScale = 1f + 0.06f * sin(sim.stateTime / 120f)  // мягко пружинит
-            }
-            "flower" -> if (isTarget && sim.reaction == ItemDefs.Reaction.SMELL) {
-                toyRot = sin(sim.stateTime / 150f) * 7f           // кланяется навстречу
-            }
+            "plushie" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 6f
+            "flower" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 6f
         }
 
         c.save()
@@ -585,17 +587,7 @@ class SceneRenderer {
             drawSpark(c, ix, floorY - unit * 3.5f, unit * 0.35f, 0xFFFFD54D.toInt(),
                 ((sin(sim.stateTime / 90f) * 0.5f + 0.5f) * 200f).toInt().coerceIn(0, 255))
         }
-        if (def.id == "plushie" && isTarget && sim.reaction == ItemDefs.Reaction.RUB) {
-            val hp = (sin(sim.stateTime / 200f) * 0.5f + 0.5f)
-            drawMiniHeart(c, ix + unit * 1.1f, floorY - unit * (2.2f + hp * 0.4f),
-                unit * 0.16f, 0xFFF26D7E.toInt(), (hp * 200).toInt().coerceIn(0, 255))
-        }
-        if (def.id == "flower" && isTarget && sim.reaction == ItemDefs.Reaction.SMELL) {
-            drawSpark(c, ix - unit * 0.5f, floorY - unit * 3.0f, unit * 0.22f, 0xFF9FE8C4.toInt(),
-                (abs(sin(sim.stateTime / 150f)) * 190f).toInt().coerceIn(0, 255))
-            drawSpark(c, ix + unit * 0.55f, floorY - unit * 2.6f, unit * 0.18f, 0xFFFFF3B0.toInt(),
-                (abs(cos(sim.stateTime / 170f)) * 190f).toInt().coerceIn(0, 255))
-        }
+        // (мишка и цветок теперь в лапках — их эффекты переехали в drawHeldItem)
         pF.alpha = 255; pS.alpha = 255; pZ.alpha = 255
     }
 
@@ -769,7 +761,7 @@ class SceneRenderer {
                 sx = 1.16f + 0.022f * sin(sim.animPhase * 1.2f)
                 sy = 0.70f - 0.018f * sin(sim.animPhase * 1.2f)
             }
-            PetSim.State.INTERACT -> sx = 1f + 0.05f * sin(sim.stateTime / 50f)
+            PetSim.State.INTERACT -> sx = 1f + 0.03f * sin(sim.stateTime / 160f)
             PetSim.State.ROLL -> {
                 // антиципация: приседает (0..0.14) → кувырок → приземление с отскоком
                 if (p < 0.14f) {
@@ -1293,20 +1285,23 @@ class SceneRenderer {
         val y = floorY + inter.liftPx * prog
 
         // ---- Индивидуальность еды: масштаб/наклон/боб/крошки по типу
+        // Жевание: боб ~1.7 Гц — предел глазомера при 20 FPS (выше уже дрожь),
+        // усушка мягкая («откус» передаёт крошка + фейд, а не таяние)
         val ep = inter.eatProgress
         var sc = 1f
         var tilt = 0f
         var bob = 0f
         when (ti.def.id) {
-            "pizza" -> { sc = 1f - 0.32f * ep; bob = sin(sim.animPhase * 20f) * unit * 0.05f * ep }
-            "cookie" -> { sc = 1f - 0.38f * ep; bob = sin(sim.animPhase * 26f) * unit * 0.10f * ep }
-            "donut" -> { sc = 1f - 0.30f * ep; tilt = ep * 160f }
-            "apple" -> { sc = 1f - 0.55f * ep; tilt = ep * 12f }
-            "icecream" -> { bob = sin(sim.animPhase / 180f) * unit * 0.22f; tilt = ep * 16f }
-            "coffee" -> { tilt = ep * 34f }
-            "sushi" -> { bob = sin(sim.animPhase * 22f) * unit * 0.07f * ep }
+            "pizza" -> { sc = 1f - 0.16f * ep; bob = sin(sim.animPhase * 10.7f) * unit * 0.05f * ep }
+            "cookie" -> { sc = 1f - 0.18f * ep; bob = sin(sim.animPhase * 10.7f) * unit * 0.06f * ep }
+            "donut" -> { sc = 1f - 0.12f * ep; tilt = ep * 60f }
+            "apple" -> { sc = 1f - 0.16f * ep; tilt = ep * 12f }
+            "icecream" -> { bob = sin(sim.animPhase / 180f) * unit * 0.12f; tilt = ep * 16f }
+            "coffee" -> { tilt = ep * 26f }
+            "sushi" -> { bob = sin(sim.animPhase * 10.7f) * unit * 0.05f * ep }
             // ---- игрушки в руках (LIFT-игры)
-            "dice" -> tilt = sin(sim.animPhase * 18f) * 18f * (0.6f + 0.4f * ep)   // трясёт кости
+            "dice" -> tilt = sin(sim.animPhase * 10.7f) * 10f * (0.6f + 0.4f * ep)   // трясёт кости
+            "plushie" -> bob = sin(sim.animPhase * 6f) * unit * 0.06f                // мягко пружинит в лапках
             "balloon" -> {                                                        // шарик рвётся в небо
                 bob = -unit * 0.45f * ep + sin(sim.animPhase * 3f) * unit * 0.12f
                 tilt = sin(sim.animPhase * 2f) * 6f
@@ -1348,6 +1343,17 @@ class SceneRenderer {
             path.quadTo(x, yb + unit * (1.35f + fl * 0.3f), x + unit * 0.16f, yb + unit * 1.0f)
             path.close()
             c.drawPath(path, pF)
+        }
+        if (ti.def.id == "plushie" && sim.reaction == ItemDefs.Reaction.RUB) {
+            // поглаживание: сердце-искра всплывает над мишкой в лапках
+            val hp = (sin(sim.animPhase * 6f) * 0.5f + 0.5f)
+            drawMiniHeart(c, x + unit * 1.0f, yb - unit * 1.6f, unit * 0.16f,
+                0xFFF26D7E.toInt(), (hp * 200).toInt().coerceIn(0, 255))
+        }
+        if (ti.def.id == "flower" && sim.reaction == ItemDefs.Reaction.SMELL) {
+            // нюхает цветок в лапках: лёгкая искорка у бутона
+            drawSpark(c, x - unit * 0.4f, yb - unit * 2.2f, unit * 0.18f, 0xFF9FE8C4.toInt(),
+                (abs(sin(sim.stateTime / 150f)) * 190f).toInt().coerceIn(0, 255))
         }
         if (inter.eatProgress > 0.08f) {
             val crumbCol = when (ti.def.id) {
@@ -1472,13 +1478,13 @@ class SceneRenderer {
                         arm(axL, ay, inter.holdX - unit * 0.3f, hy + unit * 0.22f, false)
                         arm(axR, ay, inter.holdX + unit * 0.3f, hy + unit * 0.22f, false)
                     }
-                    // гладит: ручки кружат над предметом у себя перед мордой
+                    // гладит мишку в лапках: руки кружат вокруг точки хвата
                     ItemDefs.Reaction.RUB -> {
                         val a1 = inter.rubPhase
                         val a2 = inter.rubPhase + PI.toFloat()
-                        val ccx = cx + sim.dir * r * 1.15f
-                        arm(axL, ay, ccx + cos(a1) * unit * 0.42f, floorY - unit * 0.55f + sin(a1) * unit * 0.18f, false)
-                        arm(axR, ay, ccx + cos(a2) * unit * 0.42f, floorY - unit * 0.55f + sin(a2) * unit * 0.18f, false)
+                        val hy = floorY + inter.liftPx * inter.prog + inter.holdYExtra
+                        arm(axL, ay, inter.holdX + cos(a1) * unit * 0.42f, hy + unit * 0.10f + sin(a1) * unit * 0.12f, false)
+                        arm(axR, ay, inter.holdX + cos(a2) * unit * 0.42f, hy + unit * 0.10f + sin(a2) * unit * 0.12f, false)
                     }
                     // открывает крышку перед собой
                     ItemDefs.Reaction.OPEN -> {
