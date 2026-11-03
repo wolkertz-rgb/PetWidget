@@ -65,6 +65,7 @@ class PetService : Service() {
 
         sim = PetSim(this)
         renderer.lastPrefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
+        try { renderer.font = resources.getFont(R.font.rubik) } catch (_: Throwable) {}
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         screenOn = pm.isInteractive
 

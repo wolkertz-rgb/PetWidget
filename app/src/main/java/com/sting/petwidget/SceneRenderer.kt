@@ -78,6 +78,9 @@ class SceneRenderer {
     /** плотность экрана (px на dp) — для позиции лампочки */
     var density = 3f
 
+    /** шрифт подписей (Rubik задаётся сервисом/атelier; null → системный) */
+    var font: android.graphics.Typeface? = null
+
     /** читатель темы: значения можно переопределить из «ателье» (prefs) */
     private fun th(key: String, def: Int): Int {
         return try {
@@ -184,6 +187,14 @@ class SceneRenderer {
         for (item in sim.items) {
             if (inter.holding && item === inter.target) continue // этот в руках
             try { drawFloorItem(c, sim, item, inter, itemX(item.x), floorY, unit) } catch (t: Throwable) { logErr("item", t) }
+        }
+
+        // метка предмета при появлении — чтобы не угадывать, что упало
+        for (item in sim.items) {
+            if (item.ageMs in 0L..1_700L) {
+                try { drawSpawnLabel(c, item.def.name, itemX(item.x), floorY, unit, item.ageMs) }
+                catch (t: Throwable) { logErr("label", t) }
+            }
         }
 
         // крышка подарка
@@ -923,7 +934,7 @@ class SceneRenderer {
 
         // лицо
         val eyeY = cy - r * sy * 0.30f
-        val eyeDx = r * 0.40f * sx
+        val eyeDx = r * 0.42f * sx
         val sleeping = st == PetSim.State.SLEEP
         val stretching = st == PetSim.State.STRETCH
         val waving = st == PetSim.State.WAVE
@@ -946,7 +957,7 @@ class SceneRenderer {
 
         when {
             sleeping -> {
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.20f
                 rect.set(px - eyeDx - r * 0.18f, eyeY - r * 0.10f, px - eyeDx + r * 0.18f, eyeY + r * 0.10f)
                 c.drawArc(rect, 20f, 140f, false, pS)
                 rect.set(px + eyeDx - r * 0.18f, eyeY - r * 0.10f, px + eyeDx + r * 0.18f, eyeY + r * 0.10f)
@@ -965,10 +976,10 @@ class SceneRenderer {
             }
             stretching || waving || st == PetSim.State.SQUEEZE || st == PetSim.State.TICKLE || st == PetSim.State.HAPPY -> {
                 // РАДОСТЬ: дужки-глаза — читается мгновенно
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
-                rect.set(px - eyeDx - r * 0.17f, eyeY - r * 0.14f, px - eyeDx + r * 0.17f, eyeY + r * 0.07f)
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.21f
+                rect.set(px - eyeDx - r * 0.18f, eyeY - r * 0.14f, px - eyeDx + r * 0.18f, eyeY + r * 0.07f)
                 c.drawArc(rect, 200f, 140f, false, pS)
-                rect.set(px + eyeDx - r * 0.17f, eyeY - r * 0.14f, px + eyeDx + r * 0.17f, eyeY + r * 0.07f)
+                rect.set(px + eyeDx - r * 0.18f, eyeY - r * 0.14f, px + eyeDx + r * 0.18f, eyeY + r * 0.07f)
                 c.drawArc(rect, 200f, 140f, false, pS)
                 if (st == PetSim.State.TICKLE) {
                     // слеза смеха — золотая искорка
@@ -979,13 +990,13 @@ class SceneRenderer {
             }
             st == PetSim.State.BLUSH -> {
                 // СТЕСНЯЕТСЯ: глазки-полоски + украдкой смотрит вбок
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.19f
                 c.drawLine(px - eyeDx - r * 0.14f, eyeY + r * 0.02f, px - eyeDx + r * 0.14f, eyeY + r * 0.02f, pS)
                 c.drawLine(px + eyeDx - r * 0.14f, eyeY + r * 0.02f, px + eyeDx + r * 0.14f, eyeY + r * 0.02f, pS)
                 pF.color = 0xFF2E3B34.toInt()
-                pF.alpha = 130
-                c.drawCircle(px - eyeDx - sim.dir * r * 0.06f, eyeY + r * 0.02f, r * 0.07f, pF)
-                c.drawCircle(px + eyeDx - sim.dir * r * 0.06f, eyeY + r * 0.02f, r * 0.07f, pF)
+                pF.alpha = 150
+                c.drawCircle(px - eyeDx - sim.dir * r * 0.06f, eyeY + r * 0.02f, r * 0.085f, pF)
+                c.drawCircle(px + eyeDx - sim.dir * r * 0.06f, eyeY + r * 0.02f, r * 0.085f, pF)
                 pF.alpha = 255
             }
             // моргание отключено (по решению владельца): питомец не моргает
@@ -1055,7 +1066,7 @@ class SceneRenderer {
         val cheekY = eyeY + r * 0.24f
         val cheekLX = px - eyeDx - r * 0.3f
         val cheekRX = px + eyeDx + r * 0.3f
-        val grow = if (st == PetSim.State.BLUSH) 1.35f else 1f
+        val grow = if (st == PetSim.State.BLUSH) 1.45f else 1f
         when (look("look_blush", "circles")) {
             "stripes" -> {
                 pF.color = blushCol
@@ -1093,14 +1104,14 @@ class SceneRenderer {
                 c.drawOval(rect, pF)
                 rect.set(px + eyeDx - r * 0.1f, eyeY - r * 0.26f, px + eyeDx + r * 0.1f, eyeY - r * 0.08f)
                 c.drawOval(rect, pF)
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.11f
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f
                 c.drawLine(px - eyeDx - r * 0.16f, eyeY - r * 0.07f, px - eyeDx + r * 0.16f, eyeY - r * 0.07f, pS)
                 c.drawLine(px + eyeDx - r * 0.16f, eyeY - r * 0.07f, px + eyeDx + r * 0.16f, eyeY - r * 0.07f, pS)
                 pS.strokeWidth = unit * 0.16f
             }
             sim.hunger > 70f && !sleeping && !stretching && !waving -> {
                 // голоден: бровки «домиком»
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.10f; pS.alpha = 185
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f; pS.alpha = 215
                 c.drawLine(px - eyeDx - r * 0.15f, eyeY - r * 0.44f, px - eyeDx - r * 0.02f, eyeY - r * 0.31f, pS)
                 c.drawLine(px + eyeDx + r * 0.15f, eyeY - r * 0.44f, px + eyeDx + r * 0.02f, eyeY - r * 0.31f, pS)
                 pS.alpha = 255; pS.strokeWidth = unit * 0.16f
@@ -1137,13 +1148,14 @@ class SceneRenderer {
             }
             st == PetSim.State.SQUEEZE -> {
                 // блаженный "ооо"
+                // блаженный «ооо»
                 pF.color = 0xFF2E3B34.toInt()
-                c.drawCircle(px, mouthY + r * 0.02f, r * 0.09f, pF)
+                c.drawCircle(px, mouthY + r * 0.02f, r * 0.11f, pF)
             }
             st == PetSim.State.TICKLE -> {
                 // хохочет от щекотки
                 pF.color = 0xFF2E3B34.toInt()
-                rect.set(px - r * 0.22f, mouthY - r * 0.22f, px + r * 0.22f, mouthY + r * 0.08f)
+                rect.set(px - r * 0.26f, mouthY - r * 0.24f, px + r * 0.26f, mouthY + r * 0.08f)
                 c.drawArc(rect, 0f, 180f, true, pF)
             }
             st == PetSim.State.PULL -> {
@@ -1195,7 +1207,13 @@ class SceneRenderer {
             }
             happy && (sim.reaction == ItemDefs.Reaction.EAT || sim.reaction == ItemDefs.Reaction.SMELL) && st == PetSim.State.INTERACT -> {
                 pF.color = 0xFF2E3B34.toInt()
-                c.drawCircle(px, mouthY + r * 0.02f, r * 0.11f, pF)
+                if (sim.reaction == ItemDefs.Reaction.EAT) {
+                    // жуёт: рот открывается-закрывается ~1.5 Гц (закон SPEC: не выше 2 Гц)
+                    val chew = 0.55f + 0.45f * abs(sin(sim.stateTime / 170f))
+                    c.drawCircle(px, mouthY + r * 0.02f, r * 0.13f * chew, pF)
+                } else {
+                    c.drawCircle(px, mouthY + r * 0.02f, r * 0.1f, pF)
+                }
                 if (sim.reaction == ItemDefs.Reaction.SMELL) {
                     pS.color = 0x50FFFFFF
                     pS.strokeWidth = unit * 0.07f
@@ -1625,6 +1643,32 @@ class SceneRenderer {
         c.drawRect(rect, pF)
         rect.set(bx + unit * 0.85f, floorY - unit * 0.12f, bx + unit * 1.15f, floorY - unit * 0.0f)
         c.drawRect(rect, pF)
+    }
+
+    /** мягкая подпись предмета при появлении: 250 мс въезд, 500 мс уход */
+    private fun drawSpawnLabel(c: Canvas, name: String, x: Float, floorY: Float, unit: Float, age: Long) {
+        val a = when {
+            age < 250L -> age / 250f
+            age > 1_200L -> (1_700f - age) / 500f
+            else -> 1f
+        }.coerceIn(0f, 1f)
+        if (a <= 0.03f) return
+        val pad = unit * 0.7f
+        pZ.typeface = font ?: android.graphics.Typeface.DEFAULT
+        pZ.textSize = unit * 0.62f
+        val boxW = pZ.measureText(name) + unit * 0.9f
+        val boxH = unit * 1.0f
+        val cx = x.coerceIn(pad + boxW / 2f, w - pad - boxW / 2f)
+        val cy = floorY - unit * 4.4f
+        rect.set(cx - boxW / 2f, cy - boxH / 2f, cx + boxW / 2f, cy + boxH / 2f)
+        pF.color = 0xFFFFFFFF.toInt()
+        pF.alpha = (a * 205f).toInt()
+        c.drawRoundRect(rect, boxH / 2f, boxH / 2f, pF)
+        pZ.color = 0xFF3A3A36.toInt()
+        pZ.alpha = (a * 255f).toInt()
+        c.drawText(name, cx, cy + pZ.textSize * 0.36f, pZ)
+        pF.alpha = 255
+        pZ.alpha = 255
     }
 
     // Helpers -----------------------------------------------------------

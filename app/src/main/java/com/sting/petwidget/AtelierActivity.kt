@@ -79,6 +79,7 @@ class AtelierActivity : Activity() {
         fun refresh() {
             renderer.lastPrefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
             renderer.density = resources.displayMetrics.density
+            renderer.font = font()
             if (width < 20 || height < 20) {
                 invalidate()
                 return

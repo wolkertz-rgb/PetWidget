@@ -156,6 +156,7 @@ class PetWidgetProvider : AppWidgetProvider() {
                 val renderer = SceneRenderer()
                 renderer.lastPrefs = prefs
                 renderer.density = context.resources.displayMetrics.density
+                try { renderer.font = context.resources.getFont(R.font.rubik) } catch (_: Throwable) {}
 
                 for (id in ids) {
                     val opts = awm.getAppWidgetOptions(id)
