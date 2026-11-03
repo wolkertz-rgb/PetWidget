@@ -46,6 +46,8 @@ class PetService : Service() {
         }
     }
 
+    private var registered = false
+
     // ------------------------------------------------------------ жизненный цикл
 
     override fun onCreate() {
@@ -53,7 +55,9 @@ class PetService : Service() {
         startAsForeground()
 
         awm = AppWidgetManager.getInstance(this)
-        refreshIds()
+        if (!refreshIds()) return          // виджетов нет: ничего не регистрируем, не тикаем
+
+        PetService.running = true          // сервис жив: страховки «ходов» молчат
 
         val prefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
         lastWallSaved = prefs.getLong("last_wall", 0L)
@@ -80,12 +84,14 @@ class PetService : Service() {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
         }, flags)
+        registered = true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!this::sim.isInitialized || ids.isEmpty()) return START_NOT_STICKY
         when (intent?.action) {
             ACTION_TAP -> {
-                if (this::sim.isInitialized && screenOn) {
+                if (screenOn) {
                     sim.tap()
                     if (sizeW == 0) recomputeSizes()
                     handler.removeCallbacks(frameRunnable)
@@ -94,7 +100,8 @@ class PetService : Service() {
             }
             else -> { // ACTION_SHOW — виджет (пере)установлен
                 refreshIds()
-                if (screenOn && this::sim.isInitialized) {
+                if (ids.isEmpty()) return START_NOT_STICKY
+                if (screenOn) {
                     recomputeSizes()
                     handler.removeCallbacks(frameRunnable)
                     handler.post(frameRunnable)
@@ -105,8 +112,12 @@ class PetService : Service() {
     }
 
     override fun onDestroy() {
+        PetService.running = false
         handler.removeCallbacksAndMessages(null)
-        try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
+        if (registered) {
+            try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
+            registered = false
+        }
         if (this::sim.isInitialized) sim.save()
         super.onDestroy()
     }
@@ -142,8 +153,6 @@ class PetService : Service() {
             val dt = (now - lastFrameAt).coerceIn(50L, 2_000L)
             lastFrameAt = now
             lastWallSaved = System.currentTimeMillis()
-            val prefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
-            prefs.edit().putLong("last_wall", lastWallSaved).apply()
 
             if (sizeW == 0 || sizeH == 0) recomputeSizes()
 
@@ -151,11 +160,10 @@ class PetService : Service() {
             renderer.density = resources.displayMetrics.density
 
             // синхронизируемся с общим состоянием — burst/будильник и сервис
-            // всегда рисуют одну и ту же правду
+            // всегда рисуют одну и ту же правду; last_wall пишет save() (единая метка)
             sim.load()
             sim.tick(dt)
             sim.save()
-            prefs.edit().putLong("frame_at", System.currentTimeMillis()).apply()
 
             val bmp = renderer.render(sim, sizeW, sizeH)
             if (bmp != null && ids.isNotEmpty()) {
@@ -184,15 +192,18 @@ class PetService : Service() {
         sizeH = (hDp * d).toInt().coerceIn(60, 640)
     }
 
-    private fun refreshIds() {
+    private fun refreshIds(): Boolean {
         ids = awm?.getAppWidgetIds(
             ComponentName(this, PetWidgetProvider::class.java)
         ) ?: IntArray(0)
         if (ids.isEmpty()) {
-            // виджет(ы) сняли с рабочего стола — можно уйти на пенсию
+            // виджет(ы) сняли с рабочего стола — уходим на пенсию, зомби-цепочки нет
+            PetService.running = false
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+            return false
         }
+        return true
     }
 
     // ------------------------------------------------------------ уведомление
@@ -219,5 +230,8 @@ class PetService : Service() {
         const val ACTION_TAP = "com.sting.petwidget.TAP"
         private const val CHANNEL = "pet_life"
         private const val NOTIF_ID = 1
+
+        /** жив ли сервис (для «ходов»: страховка молчит, пока сервис рисует) */
+        @Volatile var running = false
     }
 }

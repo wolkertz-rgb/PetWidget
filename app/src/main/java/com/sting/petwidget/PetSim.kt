@@ -11,7 +11,17 @@ import kotlin.random.Random
  * - сон всегда в его кожаном кресле;
  * - все состояния непрерывны во времени: кадры без скачков.
  */
-class PetSim(context: Context) {
+class PetSim(
+    private val prefs: android.content.SharedPreferences,
+    private val clock: () -> Long,          // часы — для единый метки last_wall
+    private val rng: Random
+) {
+    /** удобный конструктор для боевого кода */
+    constructor(context: Context) : this(
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
+        { System.currentTimeMillis() },
+        Random.Default
+    )
 
     enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY }
     enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED, TO_SWITCH }
@@ -28,9 +38,6 @@ class PetSim(context: Context) {
     ) {
         val def: ItemDefs.Def get() = ItemDefs.byId[defId]!!
     }
-
-    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-    private val rng = Random.Default
 
     private fun rL(a: Long, b: Long): Long = rng.nextLong(a, b)
     private fun rF(a: Float, b: Float): Float = a + (b - a) * rng.nextFloat()
@@ -73,23 +80,35 @@ class PetSim(context: Context) {
 
     fun tick(dtRaw: Long) {
         tickCount++
-        val dt = dtRaw.coerceIn(100, 60_000)
+        val dt = dtRaw.coerceIn(1, 60_000)
+        // подшагивание: автомат, голод и таймеры живут честно даже при
+        // 60-секундных «ходах» (без сквозных прыжков). Внешние счётчики — один раз.
+        var remaining = dt
+        while (remaining > 0) {
+            val piece = minOf(remaining, 5_000L)
+            tickPiece(piece)
+            remaining -= piece
+        }
+        saveTimer += dt
+        if (saveTimer >= 20_000) { saveTimer = 0; save() }
+    }
+
+    private fun tickPiece(dt: Long) {
         val dtS = dt / 1000f
         animPhase += dtS
         stateTime += dt
 
-        // физика предметов: НОГОВОЙ-совместимая — шаг и трение ограничены,
-        // иначе за один тик предмет телепортировался и скорость умирала мгновенно
+        // физика предметов: экспоненциальное трение — время скольжения не зависит
+        // от частоты кадров (в отличие от vx *= 1 - k·dt)
         val it = items.iterator()
         while (it.hasNext()) {
             val i = it.next()
             i.ageMs += dt
             if (i.ageMs > i.ttlMs) { it.remove(); continue }
             if (i.ageMs >= 0 && abs(i.vx) > 0.01f) {
-                val moveS = (dt / 1000f).coerceAtMost(0.55f)   // шаг ≤ 0.55 комнаты за тик
-                val decayS = (dt / 1000f).coerceAtMost(0.5f)   // трение как в ~0.5с кадре
-                i.x += i.vx * moveS
-                i.vx *= (1f - 1.6f * decayS).coerceIn(0f, 0.99f)
+                val k = kotlin.math.exp(-1.6f * dtS)
+                i.x += i.vx * (1f - k) / 1.6f
+                i.vx *= k
                 if (i.x < 0.07f) { i.x = 0.07f; i.vx = -i.vx * 0.5f }
                 if (i.x > 0.93f) { i.x = 0.93f; i.vx = -i.vx * 0.5f }
             }
@@ -303,9 +322,6 @@ class PetSim(context: Context) {
                 }
             }
         }
-
-        saveTimer += dt
-        if (saveTimer >= 20_000) { saveTimer = 0; save() }
     }
 
     // -------------------------------------------------------------- решения
@@ -512,9 +528,8 @@ class PetSim(context: Context) {
     }
 
     fun onResume(gapMs: Long) {
-        if (gapMs > 2 * 60_000) {
-            items.removeAll { it.ageMs > it.ttlMs }
-        }
+        // время питомца замирает вместе с экраном: предметы в паузе не старели,
+        // поэтому чистка по gapMs не нужна (семантика «спал, а не жил в тени»)
         if (gapMs > 4 * 60 * 60_000) {
             sleepAfterGap = rL(8_000, 18_000)
         }
@@ -589,6 +604,9 @@ class PetSim(context: Context) {
         ed.putBoolean(KEY_INBED, sleepingInBed)
         ed.putBoolean(KEY_PULLDONE, pullDone)
         ed.putFloat(KEY_HUNGER, hunger)
+        ed.putInt(KEY_SCHEMA, SCHEMA_VERSION)
+        // ЕДИНАЯ метка времени (сервис и «ходы» читают одно и то же)
+        ed.putLong("last_wall", clock())
         // ЦЕЛЬ ХРАНИТСЯ НЕ ТОЛЬКО ДЛЯ INTERACT — иначе поход к предмету
         // теряет цель при пересоздании симуляции (амнезия ходьбы)
         if (targetItem != null &&
@@ -621,22 +639,34 @@ class PetSim(context: Context) {
         hunger = prefs.getFloat(KEY_HUNGER, 30f).coerceIn(0f, 100f)
         targetItem = null
         items.clear()
-        prefs.getString(KEY_ITEMS, null)?.takeIf { it.isNotBlank() }?.split("|")?.forEach { s ->
-            val p = s.split(",")
-            if (p.size == 5 || p.size == 6) {
-                val d = ItemDefs.byId[p[0]] ?: return@forEach
-                items.add(
-                    SpawnedItem(
-                        d.id,
-                        p[1].toFloatOrNull() ?: 0.5f,
-                        p[2].toFloatOrNull() ?: 0f,
-                        p[3].toLongOrNull() ?: 0L,
-                        p[4].toLongOrNull() ?: 120_000L,
-                        false,
-                        p.size == 6 && p[5] == "1"
-                    )
-                )
+        // разбор сохранённых предметов: брак одной записи НЕ убивает питомца
+        try {
+            prefs.getString(KEY_ITEMS, null)?.takeIf { it.isNotBlank() }?.split("|")?.forEach { s ->
+                try {
+                    val p = s.split(",")
+                    if (p.size == 5 || p.size == 6) {
+                        val d = ItemDefs.byId[p[0]]
+                        if (d != null) {
+                            items.add(
+                                SpawnedItem(
+                                    d.id,
+                                    p[1].toFloatOrNull() ?: 0.5f,
+                                    p[2].toFloatOrNull() ?: 0f,
+                                    p[3].toLongOrNull() ?: 0L,
+                                    p[4].toLongOrNull() ?: 120_000L,
+                                    false,
+                                    p.size == 6 && p[5] == "1"
+                                )
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("PetSim", "item entry skipped: ${s.take(40)}", e)
+                }
             }
+        } catch (e: Throwable) {
+            android.util.Log.w("PetSim", "items block corrupt — reset to empty", e)
+            items.clear()
         }
         // восстановить цель: для взаимодействия И для похода к предмету
         if (state == State.INTERACT || (state == State.WALK && walkMode == WalkMode.TO_ITEM)) {
@@ -651,6 +681,9 @@ class PetSim(context: Context) {
     }
 
     companion object {
+        /** версия формата сохранения; отсутствие ключа = v1 (legacy-чтение без сброса) */
+        const val SCHEMA_VERSION = 2
+        private const val KEY_SCHEMA = "schema"
         private const val PREFS = "pet_state"
         private const val KEY_X = "x"
         private const val KEY_DIR = "dir"

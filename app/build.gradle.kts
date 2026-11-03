@@ -11,7 +11,7 @@ android {
         applicationId = "com.sting.petwidget"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = "1.0"
     }
 
@@ -32,6 +32,9 @@ android {
             // постоянный ключ подписи хранится в репозитории (keystore/)
             // чтобы обновления APK ставились поверх прежней версии
             val ksFile = file("../keystore/petdebug.keystore")
+            if (!ksFile.exists() && System.getenv("CI") != null) {
+                error("keystore/petdebug.keystore отсутствует в репозитории — CI не может собрать")
+            }
             if (ksFile.exists()) {
                 signingConfig = signingConfigs.getByName("petDebug")
             }
@@ -41,6 +44,13 @@ android {
         }
     }
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+    lint {
+        abortOnError = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -48,4 +58,9 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+dependencies {
+    // только тестовая зависимость (в APK не попадает)
+    testImplementation("junit:junit:4.13.2")
 }

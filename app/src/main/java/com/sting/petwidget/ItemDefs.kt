@@ -39,15 +39,18 @@ object ItemDefs {
     val byId: Map<String, Def> = ALL.associateBy { it.id }
 
     // ------------------------------------------------------------- краски
+    // ЛЕНЬВО-инициализация: в юнит-тестах Android-классы не создаются, пока не начнётся рисование
 
-    private val pF = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val pS = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
+    private val pF: Paint by lazy { Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL } }
+    private val pS: Paint by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
     }
-    private val rect = RectF()
-    private val path = Path()
+    private val rect: RectF by lazy { RectF() }
+    private val path: Path by lazy { Path() }
 
     private fun circle(c: Canvas, cx: Float, cy: Float, r: Float, col: Int) {
         pF.color = col

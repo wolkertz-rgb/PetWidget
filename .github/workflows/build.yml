@@ -21,6 +21,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Кеш Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
+
       - name: Готовим постоянный ключ подписи
         run: |
           mkdir -p keystore
@@ -41,10 +46,10 @@ jobs:
             git push
           fi
 
-      - name: Собираем APK
+      - name: Собираем APK, lint и тесты
         run: |
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest --no-daemon --stacktrace
 
       - name: Сохраняем APK как артефакт
         uses: actions/upload-artifact@v4

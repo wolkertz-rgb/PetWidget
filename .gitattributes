@@ -1,0 +1,7 @@
+* text=auto
+gradlew text eol=lf
+*.bat text eol=crlf
+*.md text
+*.kts text eol=lf
+*.ttf binary
+*.keystore binary
