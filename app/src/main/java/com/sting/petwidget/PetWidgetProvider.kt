@@ -55,6 +55,16 @@ class PetWidgetProvider : AppWidgetProvider() {
 
     companion object {
 
+        fun updateOne(context: Context, awm: AppWidgetManager, id: Int) {
+            try {
+                val rv = RemoteViews(context.packageName, R.layout.pet_widget)
+                applyClicks(rv, context)
+                awm.updateAppWidget(id, rv)
+            } catch (e: Exception) {
+                Log.w("PetWidget", "updateOne $id failed", e)
+            }
+        }
+
         const val ACTION_LIGHT = "com.sting.petwidget.LIGHT"
         private const val KEEPALIVE_REQUEST = 7
         private const val KEEPALIVE_MS = 120_000L
