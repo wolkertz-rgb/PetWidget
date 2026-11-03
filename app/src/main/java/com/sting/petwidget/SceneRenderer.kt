@@ -689,10 +689,7 @@ class SceneRenderer {
         if (sim.state == PetSim.State.WALK) {
             cy -= abs(sin(sim.animPhase * 5.5f)) * r * 0.14f
         }
-        if (sim.state == PetSim.State.ROLL) {
-            val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-            cy -= sin((p * PI).toFloat()) * r * 0.3f
-        }
+        // ROLL-подъём удалён: он дублировался с позой (двойной подъём)
         if (sim.state == PetSim.State.WAVE) {
             cy -= abs(sin(sim.stateTime / 280f)) * r * 0.12f
         }
@@ -705,7 +702,32 @@ class SceneRenderer {
     }
 
     /** пол по последней позе (для плавных переходов), [sx, sy, rot, dx] */
-    private var lastPose = floatArrayOf(1f, 1f, 0f, 0f)
+    private val pose = AnimKitPose()
+
+    /** Набор пружин позы (AnimKit): пружины вместо лерпа — форма и фаза не проседают */
+    private inner class AnimKitPose {
+        private val sx = Spring(1f)
+        private val sy = Spring(1f)
+        private val lean = Spring(0f)
+        private val dxx = Spring(0f)
+        var outSx = 1f; private set
+        var outSy = 1f; private set
+        var outLean = 0f; private set
+        var outDx = 0f; private set
+
+        fun update(dt: Float, tSx: Float, tSy: Float, tLean: Float, tDx: Float, drivenLean: Boolean = false) {
+            outSx = sx.step(tSx, dt, 9f, 0.55f)
+            outSy = sy.step(tSy, dt, 9f, 0.55f)
+            outDx = dxx.step(tDx, dt, 7f, 0.8f)
+            if (drivenLean) {
+                lean.snap(wrapPi(tLean))
+                outLean = tLean
+            } else {
+                outLean = lean.step(tLean, dt, 6f, 0.6f)
+            }
+        }
+    }
+
     private var lastPosePhase = -1f
     private var lastStName = ""
     private var facePuff = 0f
@@ -717,7 +739,7 @@ class SceneRenderer {
     ) {
         val r = unit * 1.55f
         val onBed = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
-        var cy = petCy(sim, floorY, unit, r)
+        var cy = floorY - r * 0.92f    // пересчитается от ступней (опора на пол)
         var dx = 0f
         var sx = 1f
         var sy = 1f
@@ -725,19 +747,9 @@ class SceneRenderer {
         var headTilt = 0f
         val st = sim.state
 
-        // ---- ПЛАВНЫЕ ПЕРЕХОДЫ: поза тянется к новой, никаких телепортов
-        if (lastPosePhase < 0f) {
-            lastPrefs?.getString("pet_pose", "1,1,0,0,0")?.let { s ->
-                val pArr = s.split(",").mapNotNull { it.toFloatOrNull() }
-                if (pArr.size == 5) {
-                    lastPose = floatArrayOf(pArr[0], pArr[1], pArr[2], pArr[3])
-                    lastPosePhase = sim.animPhase - 0.05f
-                }
-            }
-            if (lastPosePhase < 0f) lastPosePhase = sim.animPhase
-        }
+        // ---- ПЛАВНЫЕ ПЕРЕХОДЫ: пружины позы (AnimKit)
+        if (lastPosePhase < 0f) lastPosePhase = sim.animPhase
         val dtAnim = (sim.animPhase - lastPosePhase).coerceIn(0f, 3f)
-        val k = (dtAnim * 9f).coerceIn(0.18f, 1f)
 
         // смена действия = мягкая «вспышка-облако» вместо резкого скачка лица
         if (lastStName != st.name) {
@@ -756,24 +768,32 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
+        var jumpLift = 0f   // подъём для прыжков (влияет на опору: footY)
         when (st) {
             PetSim.State.WALK -> {
-                sx = 1f + 0.05f * sin(sim.animPhase * 11f)
-                sy = 1f - 0.035f * sin(sim.animPhase * 11f)
+                // ШАГ-ХОП: цикл «касание-сжатие → полёт-растяжение», объём сохраняется
+                val hopPh = (sim.animPhase * 1.15f) % 1f
+                sy = Hop.squashY(hopPh)
+                sx = 1f / kotlin.math.sqrt(sy)
+                jumpLift = Hop.height(hopPh) * r * 0.18f
             }
             PetSim.State.SLEEP -> {
                 sx = 1f + 0.03f * sin(sim.animPhase * 1.2f)
                 sy = 1f - 0.02f * sin(sim.animPhase * 1.2f)
             }
-            PetSim.State.INTERACT -> sx = 1f + 0.05f * sin(sim.stateTime / 50f)
+            PetSim.State.INTERACT -> {
+                sx = 1f + 0.05f * sin(sim.stateTime / 50f)
+                sy = 1f / kotlin.math.sqrt(sx)   // объём сохраняется
+            }
             PetSim.State.ROLL -> {
-                // антиципация: приседает (0..0.14) → кувырок → приземление с отскоком
+                // антиципация: приседает (0..0.14) → кувырок (двойной подъём из petCy удалён)
+                // → приземление с отскоком
                 if (p < 0.14f) {
                     sy = 1f - 0.16f * smooth(p / 0.14f)
                 } else if (p < 0.86f) {
                     val rp = smooth((p - 0.14f) / 0.72f)
                     rot = rp * 2f * PI.toFloat() * sim.dir
-                    cy -= sin((rp * PI).toFloat()) * r * 0.5f
+                    jumpLift = sin((rp * PI).toFloat()) * r * 0.5f
                 } else {
                     sy = 1f - 0.14f * sin((smooth((p - 0.86f) / 0.14f) * PI).toFloat())
                 }
@@ -781,7 +801,7 @@ class SceneRenderer {
             PetSim.State.SWAY -> {
                 val osc = sin(p * PI.toFloat() * 4f)   // два полных покачивания
                 rot = osc * 0.30f
-                dx = osc * unit * 1.1f
+                dx = osc * unit * 0.55f   // поворот теперь вокруг ступней — амплитуду пополам
             }
             PetSim.State.LOOK -> {
                 headTilt = sin(p * PI.toFloat() * 1.2f) * 0.10f
@@ -789,6 +809,7 @@ class SceneRenderer {
             PetSim.State.WAVE -> {
                 sx = 1f + 0.04f * sin(sim.stateTime / 240f)
                 sy = 1f + 0.03f * sin(sim.stateTime / 240f)
+                jumpLift = abs(sin(sim.stateTime / 280f)) * r * 0.12f
             }
             PetSim.State.SMUG -> {
                 // хитро наклоняется и чуть надувается (плавный въезд)
@@ -807,7 +828,7 @@ class SceneRenderer {
             }
             PetSim.State.TICKLE -> {
                 // пружинистые подпрыгивания от щекотки
-                cy -= abs(sin(sim.stateTime / 120f)) * r * 0.9f
+                jumpLift = abs(sin(sim.stateTime / 120f)) * r * 0.9f
                 sx = 1f + 0.08f * sin(sim.stateTime / 60f)
             }
             PetSim.State.HUNGRY -> {
@@ -816,32 +837,30 @@ class SceneRenderer {
                 sy = 1f - 0.03f * sin(sim.stateTime / 90f)
             }
             else -> {
-                sx = 1f + 0.02f * sin(sim.animPhase * 1.5f)
-                sy = 1f - 0.015f * sin(sim.animPhase * 1.5f)
+                if (st == PetSim.State.HAPPY) jumpLift = sin((p * PI).toFloat()) * (r * 1.5f)
+                else {
+                    sx = 1f + 0.02f * sin(sim.animPhase * 1.5f)
+                    sy = 1f - 0.015f * sin(sim.animPhase * 1.5f)
+                }
             }
         }
 
-        // ---- сглаживание: поза тянется к целевой (кратчайшая дуга по углу)
-        val tl = lastPose
-        dx = tl[3] + (dx - tl[3]) * k
-        sx = lerp(tl[0], sx, k)
-        sy = lerp(tl[1], sy, k)
-        val TWO_PI = (2.0 * PI).toFloat()
-        var dRot = rot - tl[2]
-        dRot = ((dRot % TWO_PI) + TWO_PI) % TWO_PI
-        if (dRot > PI.toFloat()) dRot -= TWO_PI
-        rot = tl[2] + dRot * k
-        lastPose = floatArrayOf(sx, sy, rot, dx)
-        lastPosePhase = sim.animPhase
-        try {
-            lastPrefs?.edit()?.putString(
-                "pet_pose", "${sx},${sy},${rot},${dx},${sim.animPhase}"
-            )?.apply()
-        } catch (_: Throwable) {}
+        // ---- сглаживание пружинами позы (AnimKit): форма и фаза не проседают
+        pose.update(dtAnim, sx, sy, rot, dx, drivenLean = (st == PetSim.State.ROLL))
+        sx = pose.outSx
+        sy = pose.outSy
+        rot = pose.outLean
+        dx = pose.outDx
+
+        // ---- ОПОРА НА ПОЛ: масштаб и поворот вокруг точки касания (ступней).
+        // footY = пол минус высота прыжка; центр тела = footY − 0.92r·sy
+        val baseFoot = floorY - if (onBed) unit * 0.62f else 0f
+        val footY = baseFoot - jumpLift
+        cy = footY - r * 0.92f * sy
 
         val px = cx + dx
         c.save()
-        c.rotate(rot * 57.2958f + headTilt * 40f, px, cy)
+        c.rotate(rot * 57.2958f + headTilt * 40f, px, footY)
 
         // антеннка: варианты по кастомизации (шарик / цветочек / нить / ничего)
         when (look("look_antenna", "ball")) {
