@@ -110,6 +110,35 @@ class PetSimTest {
         assertTrue(sim.hunger > start)
     }
 
+    /** сохранение → загрузка восстанавливает мир питомца (round-trip) */
+    @Test
+    fun saveLoadRoundTrip() {
+        val prefs = FakePrefs()
+        val a = PetSim(prefs, ::clock, Random(101))
+        a.state = PetSim.State.SMUG
+        a.stateDur = 1_500
+        a.stateTime = 300
+        a.items.add(PetSim.SpawnedItem("ball", 0.3f, 0f, 0, 120_000, false, true))
+        a.save()
+
+        val b = PetSim(prefs, ::clock, Random(1)) // init{} вызывает load()
+        assertEquals(PetSim.State.SMUG, b.state)
+        assertEquals(300L, b.stateTime)
+        assertEquals(1_500L, b.stateDur)
+        val restored = b.items.firstOrNull { it.defId == "ball" && it.x == 0.3f }
+        assertTrue("предмет и used-флаг должны восстанавливаться", restored != null && restored.used)
+    }
+
+    /** тяга щёлкает светом: light_on переворачивается в момент щелчка */
+    @Test
+    fun tyagaSchelkaetSvetom() {
+        val prefs = FakePrefs()
+        val sim = PetSim(prefs, ::clock, Random(5))
+        sim.beginPull()
+        sim.tick(1_400)
+        assertEquals(false, prefs.getBoolean("light_on", true))
+    }
+
     /** DI: одинаковый seed — одинаковая жизнь (проверка внедрения рандома) */
     @Test
     fun determinirovannostSeeda() {
