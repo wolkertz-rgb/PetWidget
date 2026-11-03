@@ -139,6 +139,17 @@ class PetSimTest {
         assertEquals(false, prefs.getBoolean("light_on", true))
     }
 
+    /** мягкое просыпание: из сна ВСЕГДА сначала потягивание, без мгновенного рывка */
+    @Test
+    fun probyzhdenieCherezPotyagivanie() {
+        val sim = makeSim(17)
+        sim.state = PetSim.State.SLEEP
+        sim.stateTime = 60_000
+        sim.stateDur = 100
+        sim.tick(1_000)
+        assertEquals(PetSim.State.STRETCH, sim.state)
+    }
+
     /** DI: одинаковый seed — одинаковая жизнь (проверка внедрения рандома) */
     @Test
     fun determinirovannostSeeda() {

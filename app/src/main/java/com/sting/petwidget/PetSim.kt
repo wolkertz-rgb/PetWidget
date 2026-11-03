@@ -339,17 +339,15 @@ class PetSim(
 
         if (sleepAfterGap > 0) { state = State.SLEEP; stateDur = 2_500; return }
 
+        // мягкое просыпание: ВСЕГДА сначала потягушка (1.6 с), а не мгновенный
+        // рывок в случайную следующую позу — так просыпаются домашние зверьки
+        if (woke) { state = State.STRETCH; stateDur = 1_600; return }
+
         val nearest = items.filter { !it.used }.minByOrNull { abs(it.x - x) }
         val fresh = nearest?.takeIf { it.ageMs in 0L..12_000L }
         val r = rng.nextFloat()
 
         when {
-            // только что проснулся: потянуться, а потом пусть имя жизнь продолжается
-            woke && (nearest == null || rng.nextFloat() < 0.5f) -> {
-                state = State.STRETCH
-                stateDur = 1_600
-            }
-
             // ЛЮБОПЫТСТВО к НОВОМУ предмету (сила — только пока он нетронутый)
             fresh != null && rng.nextFloat() < 0.85f -> {
                 targetItem = fresh

@@ -764,8 +764,10 @@ class SceneRenderer {
                 sy = 1f - 0.035f * sin(sim.animPhase * 11f)
             }
             PetSim.State.SLEEP -> {
-                sx = 1f + 0.03f * sin(sim.animPhase * 1.2f)
-                sy = 1f - 0.02f * sin(sim.animPhase * 1.2f)
+                // лежит в кресле: расплющен (шире и ниже), мелко дышит —
+                // раньше «стоял столбиком» и выглядел неестественно
+                sx = 1.16f + 0.022f * sin(sim.animPhase * 1.2f)
+                sy = 0.70f - 0.018f * sin(sim.animPhase * 1.2f)
             }
             PetSim.State.INTERACT -> sx = 1f + 0.05f * sin(sim.stateTime / 50f)
             PetSim.State.ROLL -> {
@@ -961,10 +963,10 @@ class SceneRenderer {
                 c.drawCircle(px, eyeY + r * sy * 0.36f, unit * 0.11f, pF)
                 for (i in 0..2) {
                     val t = sim.animPhase + i * 0.4f
-                    val zy = cy - r * sy - unit * (0.6f + i * 0.55f + sin(t * 1.3f) * 0.2f)
-                    val zx = px + r * 0.6f + i * unit * 0.55f
-                    pZ.textSize = unit * (0.85f + i * 0.25f)
-                    pZ.alpha = (230 - i * 70).coerceIn(0, 255)
+                    val zy = cy - r * sy - unit * (0.9f + i * 0.50f + sin(t * 1.3f) * 0.15f)
+                    val zx = px + r * 0.6f + i * unit * 0.5f + sin(t * 0.9f) * unit * 0.08f
+                    pZ.textSize = unit * (0.70f + i * 0.16f)
+                    pZ.alpha = (170 - i * 45).coerceIn(0, 255)
                     c.drawText("Z", zx, zy, pZ)
                 }
                 pZ.alpha = 255
