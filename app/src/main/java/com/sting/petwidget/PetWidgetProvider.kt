@@ -107,11 +107,13 @@ class PetWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        /** запустить сервис жизни; false — система отказала (тогда живём «ходами») */
-        fun tryStartService(context: Context): Boolean {
+        /** запустить сервис жизни; false — система отказала (тогда живём «ходами»).
+         *  action: ACTION_SHOW — обычный подъём; ACTION_TAP — тап-поглаживание,
+         *  его обработает onStartCommand на живом сервисе (single writer). */
+        fun tryStartService(context: Context, action: String = PetService.ACTION_SHOW): Boolean {
             return try {
                 context.startForegroundService(
-                    Intent(context, PetService::class.java).setAction(PetService.ACTION_SHOW)
+                    Intent(context, PetService::class.java).setAction(action)
                 )
                 true
             } catch (e: Exception) {

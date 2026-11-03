@@ -25,8 +25,11 @@ class TapBridgeReceiver : BroadcastReceiver() {
         handler.post {
             try {
                 if (PetService.running) {
-                    // сервис жив: тап по intent'у обрабатывает он сам (single writer)
-                    PetWidgetProvider.tryStartService(app)
+                    // сервис жив: тап-поглаживание отправляется ЕМУ по intent'у
+                    // (ACTION_TAP → onStartCommand → sim.tap в той же памяти);
+                    // tryStartService по умолчанию шлёт ACTION_SHOW — тап обязан
+                    // нести именно TAP, иначе сервис никогда его не увидит
+                    PetWidgetProvider.tryStartService(app, PetService.ACTION_TAP)
                     finishOnce()
                 } else {
                     // сервис мёртв: сохраним реакцию в prefs — «ходы» её разыграют,
