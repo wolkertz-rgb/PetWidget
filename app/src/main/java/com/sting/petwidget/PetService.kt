@@ -159,11 +159,10 @@ class PetService : Service() {
             // свет читается рендером прямо из настроек — порядок кадра не важен
             renderer.density = resources.displayMetrics.density
 
-            // синхронизируемся с общим состоянием — burst/будильник и сервис
-            // всегда рисуют одну и ту же правду; last_wall пишет save() (единая метка)
-            sim.load()
+            // сим живёт в памяти сервиса и сам пишет диск по таймеру (~20 с).
+            // «ходы» не тикают одновременно (running-флаг) — кадр без load/save:
+            // экономим SharedPreferences-записи и парсинг строк (урок №4 «Библии»)
             sim.tick(dt)
-            sim.save()
 
             val bmp = renderer.render(sim, sizeW, sizeH)
             if (bmp != null && ids.isNotEmpty()) {

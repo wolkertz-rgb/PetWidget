@@ -708,6 +708,7 @@ class SceneRenderer {
     /** пол по последней позе (для плавных переходов), [sx, sy, rot, dx] */
     private var lastPose = floatArrayOf(1f, 1f, 0f, 0f)
     private var lastPosePhase = -1f
+    private var lastPoseWrite = 0f      // pet_pose пишется на диск НЕ каждый кадр, а раз в секунду
     private var lastStName = ""
     private var facePuff = 0f
 
@@ -834,11 +835,17 @@ class SceneRenderer {
         rot = tl[2] + dRot * k
         lastPose = floatArrayOf(sx, sy, rot, dx)
         lastPosePhase = sim.animPhase
-        try {
-            lastPrefs?.edit()?.putString(
-                "pet_pose", "${sx},${sy},${rot},${dx},${sim.animPhase}"
-            )?.apply()
-        } catch (_: Throwable) {}
+        // pet_pose: в кадре пружинная поза живёт в lastPose (память); на диск — раз в
+        // секунду, чтобы «ходы» после смерти процесса восстановили БЛИЗКУЮ позу
+        // (дальше пружина дотянет) — было 20 записей prefs в секунду
+        if (sim.animPhase - lastPoseWrite >= 1f) {
+            lastPoseWrite = sim.animPhase
+            try {
+                lastPrefs?.edit()?.putString(
+                    "pet_pose", "${sx},${sy},${rot},${dx},${sim.animPhase}"
+                )?.apply()
+            } catch (_: Throwable) {}
+        }
 
         val px = cx + dx
         c.save()
