@@ -33,15 +33,15 @@ class PetSimTest {
         override fun registerOnSharedPreferenceChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener?) {}
         override fun unregisterOnSharedPreferenceChangeListener(l: SharedPreferences.OnSharedPreferenceChangeListener?) {}
 
-        private inner class Editor : SharedPreferences.Editor {
-            override fun putString(key: String?, value: String?) { if (key != null) map[key] = value ?: "" }
-            override fun putStringSet(key: String?, values: MutableSet<String>?) { if (key != null) map[key] = values }
-            override fun putInt(key: String, value: Int) { map[key] = value }
-            override fun putLong(key: String, value: Long) { map[key] = value }
-            override fun putFloat(key: String, value: Float) { map[key] = value }
-            override fun putBoolean(key: String, value: Boolean) { map[key] = value }
-            override fun remove(key: String?) { map.remove(key) }
-            override fun clear(): SharedPreferences.Editor { map.clear(); return this }
+        private inner class Editor : android.content.SharedPreferences.Editor {
+            override fun putString(key: String?, value: String?): android.content.SharedPreferences.Editor { if (key != null) map[key] = value ?: ""; return this }
+            override fun putStringSet(key: String?, values: MutableSet<String>?): android.content.SharedPreferences.Editor { if (key != null) map[key] = values; return this }
+            override fun putInt(key: String, value: Int): android.content.SharedPreferences.Editor { map[key] = value; return this }
+            override fun putLong(key: String, value: Long): android.content.SharedPreferences.Editor { map[key] = value; return this }
+            override fun putFloat(key: String, value: Float): android.content.SharedPreferences.Editor { map[key] = value; return this }
+            override fun putBoolean(key: String, value: Boolean): android.content.SharedPreferences.Editor { map[key] = value; return this }
+            override fun remove(key: String?): android.content.SharedPreferences.Editor { map.remove(key); return this }
+            override fun clear(): android.content.SharedPreferences.Editor { map.clear(); return this }
             override fun apply() {}
             override fun commit(): Boolean = true
         }
