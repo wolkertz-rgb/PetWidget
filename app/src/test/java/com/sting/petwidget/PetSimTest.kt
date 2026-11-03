@@ -35,7 +35,7 @@ class PetSimTest {
 
         private inner class Editor : android.content.SharedPreferences.Editor {
             override fun putString(key: String?, value: String?): android.content.SharedPreferences.Editor { if (key != null) map[key] = value ?: ""; return this }
-            override fun putStringSet(key: String?, values: MutableSet<String>?): android.content.SharedPreferences.Editor { if (key != null) map[key] = values; return this }
+            override fun putStringSet(key: String?, values: MutableSet<String>?): android.content.SharedPreferences.Editor { if (key != null) { values?.let { map[key] = it as Any } }; return this }
             override fun putInt(key: String, value: Int): android.content.SharedPreferences.Editor { map[key] = value; return this }
             override fun putLong(key: String, value: Long): android.content.SharedPreferences.Editor { map[key] = value; return this }
             override fun putFloat(key: String, value: Float): android.content.SharedPreferences.Editor { map[key] = value; return this }
