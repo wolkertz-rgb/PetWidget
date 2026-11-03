@@ -21,7 +21,6 @@ import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 
@@ -111,19 +110,6 @@ class AtelierActivity : Activity() {
         } catch (_: Exception) {}
 
         val prefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
-
-        if (Build.VERSION.SDK_INT >= 31 && !prefs.getBoolean("alarms_asked", false)) {
-            try {
-                val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                if (!am.canScheduleExactAlarms()) {
-                    prefs.edit().putBoolean("alarms_asked", true).apply()
-                    startActivity(
-                        Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                            .setData(Uri.parse("package:$packageName"))
-                    )
-                }
-            } catch (_: Exception) {}
-        }
 
         if (Build.VERSION.SDK_INT >= 23 && !prefs.getBoolean("battery_asked", false)) {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -219,11 +205,6 @@ class AtelierActivity : Activity() {
         petCard.addView(chipRow(listOf("Улыбка", "Открытый", "Нейтральный", "«Оо»"), lookIdx("look_grin", "smile")) { i ->
             putLook("look_grin", when (i) { 0 -> "smile"; 1 -> "open"; 2 -> "neutral"; else -> "ooh" })
         })
-        petCard.addView(sliderBlock(
-            "Тонкая подстройка цвета тела",
-            listOf(0xFF2E3B34, 0xFF6FBE97, 0xFFF4F4F4),
-            listOf("Тень", "Основа", "Свет")
-        ))
         petCard.addView(label("📡 Антенна"))
         petCard.addView(chipRow(listOf("Шарик", "Цветочек", "Нить", "Ничего"), lookIdx("look_antenna", "ball")) { i ->
             putLook("look_antenna", when (i) { 0 -> "ball"; 1 -> "flower"; 2 -> "string"; else -> "none" })
@@ -497,43 +478,6 @@ class AtelierActivity : Activity() {
             row.addView(chip)
         }
         return hScroll(row)
-    }
-
-    /** слайдеры тонкой подстройки — маленькая карточка с подписями */
-    private fun sliderBlock(title: String, colors: List<Long>, names: List<String>): LinearLayout {
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                setColor(0xFFF5F5F2.toInt())
-                cornerRadius = dp(14).toFloat()
-            }
-            setPadding(dp(12), dp(10), dp(12), dp(12))
-        }
-        card.addView(text(title, 12.5f, color = 0xFF6B7280.toInt()))
-        colors.forEachIndexed { i, colRaw ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            row.addView(View(this).apply {
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(colRaw.toInt())
-                }
-                layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { setMargins(0, 0, dp(10), 0) }
-            })
-            row.addView(text(names[i], 12f, color = 0xFF6B7280.toInt()).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(64), WRAP)
-                setPadding(0, dp(6), 0, 0)
-            })
-            row.addView(SeekBar(this).apply {
-                max = 255
-                progress = 70 + i * 45
-                layoutParams = LinearLayout.LayoutParams(0, WRAP, 1f).apply { setMargins(dp(8), 0, dp(4), 0) }
-            })
-            card.addView(row, LinearLayout.LayoutParams(MATCH, WRAP).apply { setMargins(0, dp(6), 0, 0) })
-        }
-        return card
     }
 
     // ------------------------------------------------ прочее
