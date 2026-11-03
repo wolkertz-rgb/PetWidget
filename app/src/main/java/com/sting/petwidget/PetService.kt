@@ -3,6 +3,7 @@ package com.sting.petwidget
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.appwidget.AppWidgetManager
 import android.content.BroadcastReceiver
@@ -219,6 +220,13 @@ class PetService : Service() {
             .setSmallIcon(R.drawable.ic_launcher)
             .setContentTitle("Питомец")
             .setContentText("Питомец живёт в виджете")
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this, 0,
+                    Intent(this, AtelierActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+            )
             .setOngoing(true)
             .setShowWhen(false)
         startForeground(NOTIF_ID, b.build())
