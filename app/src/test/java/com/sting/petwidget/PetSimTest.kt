@@ -1,5 +1,6 @@
 package com.sting.petwidget
 
+import android.content.SharedPreferences
 import kotlin.random.Random
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -10,13 +11,13 @@ import org.junit.Test
  * Рефакторинг PetSim разрешён только под ними.
  *
  * Часы инъекцией: тесты бегут по «экранному времени» питомца.
- * Android-классы не дёргаются: Paint/Canvas остаются ленивыми в ItemDefs.
+ * FakePrefs реализует android.content.SharedPreferences напрямую.
  */
 class PetSimTest {
 
     // ------------------------------------------------- in-memory prefs (фейк)
 
-    private class FakePrefs : SharedPreferences {
+    private class FakePrefs : android.content.SharedPreferences {
         val map = HashMap<String, Any>()
 
         override fun getAll(): MutableMap<String, Any> = map
