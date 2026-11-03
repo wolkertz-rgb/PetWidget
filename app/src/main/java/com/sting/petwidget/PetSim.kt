@@ -55,16 +55,15 @@ class PetSim(
     var petStyle = 0              // вариант реакции на поглаживание
     var hunger = 30f              // 0..100: растёт со временем, снимается едой
     val items = ArrayList<SpawnedItem>()
-    var tickCount = 0L           // для диагностики (бейдж)
 
-    private var nextSpawnIn = 6_000L             // первый предмет comes скорее
+    private var nextSpawnIn = 6_000L             // первый предмет появится скорее
     private var sleepAfterGap = 0L
     private var saveTimer = 0L
     private var pendingSleepDur = 6_000L
     private var interactShown = false   // в режиме "ходов": середину уже показали?
 
     // --- социальная жизнь
-    private var msSinceWave = 45_000L            // первый wамяк через ~4 мин
+    private var msSinceWave = 45_000L            // первое махание через ~4 мин
     private var nextWaveEvery = rL(240_000, 360_000)
     private var nextAutoInteract = 35f           // первая самостоятельная встреча с предметом (~35 сек)
     private var nextTrickAt = 15f                // кулдаун между самостоятельными трюками (30 сек)
@@ -79,7 +78,6 @@ class PetSim(
     // ------------------------------------------------------------------ тик
 
     fun tick(dtRaw: Long) {
-        tickCount++
         val dt = dtRaw.coerceIn(1, 60_000)
         // подшагивание: автомат, голод и таймеры живут честно даже при
         // 60-секундных «ходах» (без сквозных прыжков). Внешние счётчики — один раз.
@@ -432,7 +430,7 @@ class PetSim(
                 ItemDefs.Reaction.OPEN -> openGift(ti)
                 else -> {}
             }
-            // ОДНА ВСТРЕЧА — ОДНУ ВЫСТАВКУ: после контакта интерес исчезает
+            // ОДНА ВСТРЕЧА — ОДИН ПРЕДМЕТ: после контакта интерес исчезает
             if (items.contains(ti)) ti.used = true
         }
         targetItem = null
@@ -443,7 +441,7 @@ class PetSim(
 
     private fun openGift(box: SpawnedItem) {
         val others = items.filter { it != box }.map { it.defId }.toSet()
-        //нынутри подарка — предмет согласно весам (голоден → еда чаще)
+        //внутри подарка — предмет по весам (голоден → еда чаще)
         var kind = pickKind()
         var pool = ItemDefs.ALL.filter {
             it.kind == kind && it.kind != ItemDefs.Kind.BOX && it.id !in others
@@ -683,7 +681,7 @@ class PetSim(
     companion object {
         /** версия формата сохранения; отсутствие ключа = v1 (legacy-чтение без сброса) */
         const val SCHEMA_VERSION = 2
-        private const val KEY_SCHEMA = "schema"
+        private const val KEY_SCHEMA = "schema"   // пишется; load() не читает — резерв под миграции
         private const val PREFS = "pet_state"
         private const val KEY_X = "x"
         private const val KEY_DIR = "dir"
@@ -712,7 +710,6 @@ class PetSim(
         const val HUNGER_LEVEL = 75f        // порог, при котором морда грустит
         const val HUNGER_EAT_RELIEF = 65f   // сколько снимает одна еда
 
-        const val HOLD_AT = 600L     // сколько мс тянуться/брать
         const val RELEASE_MS = 250L  // плавно убрать руки
     }
 }

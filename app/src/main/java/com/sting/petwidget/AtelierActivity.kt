@@ -33,7 +33,6 @@ import android.widget.Toast
 class AtelierActivity : Activity() {
 
     private lateinit var previewView: PreviewView
-    private var themeBuffer: Map<String, Int> = ThemePresets.MINT
     private var cachedFont: Typeface? = null
 
     /** округлый фирменный шрифт (Rubik, кириллица) */
@@ -269,7 +268,6 @@ class AtelierActivity : Activity() {
         val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(10), 0, dp(2)) }
         btnRow.addView(actionButton("Вернуть мятную 🌿", 0xFFB9B9B2.toInt()) {
             ThemePresets.reset(this)
-            themeBuffer = ThemePresets.MINT
             previewView.refresh()
             PetWidgetProvider.burst(this, frames = 1, everyMs = 60)
             Toast.makeText(this, "Мятная тема вернулась 🌿", Toast.LENGTH_SHORT).show()
@@ -403,19 +401,6 @@ class AtelierActivity : Activity() {
         l.addView(text(title, 17.5f, bold = true))
         l.addView(gap(6))
         return l
-    }
-
-    /** кружок-аватар для шапки */
-    private fun petAvatar(colTop: Int, colBottom: Int, sizeDp: Int): View {
-        val v = View(this)
-        val g = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColors(intArrayOf(colTop, colBottom))
-            orientation = GradientDrawable.Orientation.TL_BR
-        }
-        v.background = g
-        v.layoutParams = LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp))
-        return v
     }
 
     /** вертикальная колонка из двух текстов */
@@ -570,7 +555,6 @@ class AtelierActivity : Activity() {
         }
         wrap.addView(text(name, 12f, vertical = dp(6)).apply { gravity = Gravity.CENTER })
         wrap.setOnClickListener {
-            themeBuffer = tokens
             ThemePresets.apply(this, tokens)
             previewView.refresh()
         }

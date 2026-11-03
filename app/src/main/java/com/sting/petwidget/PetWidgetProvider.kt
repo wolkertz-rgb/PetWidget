@@ -65,16 +65,8 @@ class PetWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        const val ACTION_LIGHT = "com.sting.petwidget.LIGHT"
         private const val KEEPALIVE_REQUEST = 7
         private const val KEEPALIVE_MS = 120_000L
-
-        private fun lightIntent(context: Context): PendingIntent =
-            PendingIntent.getBroadcast(
-                context, 23,
-                Intent(context, TapBridgeReceiver::class.java).setAction(ACTION_LIGHT),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
 
         private fun tapIntent(context: Context): PendingIntent =
             PendingIntent.getBroadcast(

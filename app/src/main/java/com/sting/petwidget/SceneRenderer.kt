@@ -242,7 +242,8 @@ class SceneRenderer {
 
     // ------------------------------------------------------- свет и лампа
 
-    private fun drawBulb(c: Canvas, unit: Float, floorY: Float) {        val bx = w / 2f
+    private fun drawBulb(c: Canvas, unit: Float, floorY: Float) {
+        val bx = w / 2f
         val by = 26f * density          // фиксируем в dp, чтобы совпадало с зоной тапа
         val glass = unit * 0.62f
 

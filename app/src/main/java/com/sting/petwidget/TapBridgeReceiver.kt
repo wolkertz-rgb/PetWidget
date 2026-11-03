@@ -7,7 +7,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 
-/** Тапы по виджету: питомец = поглаживание; лампа = тумблер. */
+/** Тап по виджету = поглаживание питомца. */
 class TapBridgeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pr = goAsync()
@@ -24,25 +24,12 @@ class TapBridgeReceiver : BroadcastReceiver() {
         }
         handler.post {
             try {
-                when (intent.action) {
-                    PetWidgetProvider.ACTION_LIGHT -> {
-                        val prefs = app.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
-                        prefs.edit().putBoolean("light_on", !prefs.getBoolean("light_on", true)).apply()
-                        PetWidgetProvider.burst(app, frames = 2, everyMs = 80) { finishOnce() }
-                    }
-                    else -> {
-                        try {
-                            val sim = PetSim(app)
-                            sim.tap()
-                            sim.save()
-                        } catch (e: Exception) {
-                            Log.w("PetWidget", "tap sim failed", e)
-                        }
-                        val started = PetWidgetProvider.tryStartService(app)
-                        if (started) finishOnce()
-                        else PetWidgetProvider.burst(app, frames = 10, everyMs = 350) { finishOnce() }
-                    }
-                }
+                val sim = PetSim(app)
+                sim.tap()
+                sim.save()
+                val started = PetWidgetProvider.tryStartService(app)
+                if (started) finishOnce()
+                else PetWidgetProvider.burst(app, frames = 10, everyMs = 350) { finishOnce() }
             } catch (e: Exception) {
                 Log.w("PetWidget", "tap failed", e)
                 finishOnce()
