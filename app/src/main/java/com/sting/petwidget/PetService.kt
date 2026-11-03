@@ -173,7 +173,7 @@ class PetService : Service() {
                 awm?.partiallyUpdateAppWidget(ids, rv)
                 renderAvgMs = (renderAvgMs * renderCount + (System.nanoTime() - t0) / 1_000_000.0) / (renderCount + 1)
                 renderCount++
-                if (renderCount % 120L == 0L) {
+                if (renderCount % 120 == 0) {
                     android.util.Log.d("PetRender", "send avg %.1f ms (%dx%d)".format(renderAvgMs, sizeW, sizeH))
                 }
             }
