@@ -50,8 +50,17 @@ internal object PetMotion {
             }
             PetSim.State.HUNGRY -> Pose(1f + 0.025f * e, 1f - 0.045f * e,
                 sin(t * 3f) * 0.035f * e)
-            PetSim.State.INTERACT -> Pose(1f + 0.015f * sin(t * 6f) * e,
-                1f - 0.01f * sin(t * 6f) * e, 0.035f * e * sim.dir)
+            PetSim.State.INTERACT -> when (sim.targetItem?.defId) {
+                "robot", "top", "ball", "block" ->
+                    Pose(1f + 0.06f * e, 1f - 0.09f * e, 0.045f * e * sim.dir)
+                "plushie" -> Pose(1f + 0.07f * e, 1f - 0.045f * e,
+                    0.025f * sin(t * 2.6f) * e)
+                "pizza", "sushi", "donut", "cookie", "coffee", "apple", "icecream" -> {
+                    val chew = sin(t * 6f) * e
+                    Pose(1f + 0.018f * chew, 1f - 0.014f * chew, 0.028f * e * sim.dir)
+                }
+                else -> Pose(1f + 0.025f * e, 1f - 0.02f * e, 0.03f * e * sim.dir)
+            }
             PetSim.State.PULL -> Pose(1f - 0.04f * e, 1f + 0.06f * e)
             else -> Pose(1f + breath * 0.012f, 1f - breath * 0.009f)
         }

@@ -403,14 +403,24 @@ class PetSim(
         stateTime = 0
         interactShown = false
         reaction = item.def.reaction
-        stateDur = when (reaction) {
-            ItemDefs.Reaction.EAT   ->     rL(2_200, 3_200)  // накормили с рук!
-            ItemDefs.Reaction.SMELL ->     2_400
-            ItemDefs.Reaction.LIFT  ->     2_100
-            ItemDefs.Reaction.RUB   ->     2_500
-            ItemDefs.Reaction.PUSH  ->     1_100
-            ItemDefs.Reaction.OPEN  ->     2_800
-            ItemDefs.Reaction.PLAY  ->     rL(1_200, 2_000)
+        stateDur = when (item.defId) {
+            "robot" -> 4_200
+            "top" -> 3_400
+            "plushie" -> 3_600
+            "dice" -> 3_100
+            "rocket", "balloon" -> 3_400
+            "boat" -> 3_200
+            "flower" -> 2_900
+            "coffee" -> 3_600
+            else -> when (reaction) {
+                ItemDefs.Reaction.EAT   -> rL(3_300, 4_200)
+                ItemDefs.Reaction.SMELL -> 2_900
+                ItemDefs.Reaction.LIFT  -> 3_000
+                ItemDefs.Reaction.RUB   -> 3_600
+                ItemDefs.Reaction.PUSH  -> 1_500
+                ItemDefs.Reaction.OPEN  -> 2_800
+                ItemDefs.Reaction.PLAY  -> 3_100
+            }
         }
         dir = if (item.x >= x) 1 else -1
     }
@@ -419,7 +429,7 @@ class PetSim(
         val ti = targetItem
         if (ti != null) {
             when (reaction) {
-                ItemDefs.Reaction.EAT, ItemDefs.Reaction.SMELL -> {
+                ItemDefs.Reaction.EAT -> {
                     items.remove(ti)
                     // поел — голод отступает
                     hunger = (hunger - HUNGER_EAT_RELIEF).coerceAtLeast(0f)
@@ -428,7 +438,13 @@ class PetSim(
                         msSinceWave = nextWaveEvery - 900L
                     }
                 }
-                ItemDefs.Reaction.PUSH -> ti.vx = dir * rF(0.35f, 0.7f)
+                ItemDefs.Reaction.PUSH -> {
+                    ti.x = (ti.x + dir * 0.018f).coerceIn(X_MIN, X_MAX)
+                    ti.vx = dir * rF(0.35f, 0.7f)
+                }
+                ItemDefs.Reaction.PLAY -> if (ti.defId == "robot") {
+                    ti.x = (ti.x + dir * 0.09f).coerceIn(X_MIN, X_MAX)
+                }
                 ItemDefs.Reaction.OPEN -> openGift(ti)
                 else -> {}
             }

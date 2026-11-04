@@ -403,7 +403,6 @@ class SceneRenderer {
         var holdX = 0f         // ТОЧКА ХВАТА у питомца: предмет всегда здесь
         var liftPx = 0f        // подъём
         var lidProg = 0f
-        var rubPhase = 0f
         var eatFade = 0f       // 0..1 — съедание (затухание предмета)
         var eatProgress = 0f   // 0..1 — сколько уже "съедено" (	Schema поедания)
         var holdYExtra = 0f    // индивидуальный "боб" предмета (лижет, хрустит)
@@ -418,29 +417,34 @@ class SceneRenderer {
         val t = sim.stateTime
         val dur = sim.stateDur
         info.target = ti
-        info.rubPhase = sim.animPhase * 6f
 
         val reach = (t.toFloat() / 700f).coerceIn(0f, 1f)
-        val rel = if (t >= dur - PetSim.RELEASE_MS)
+        val release = if (t >= dur - PetSim.RELEASE_MS)
             smooth(((dur - t).toFloat() / PetSim.RELEASE_MS).coerceIn(0f, 1f)) else 1f
-        info.prog = (smooth(reach) * rel).coerceIn(0f, 1f)
-        info.armReach = (smooth((t.toFloat() / 380f).coerceIn(0f, 1f)) * rel).coerceIn(0f, 1f)
+        val itemRelease = if (sim.reaction == ItemDefs.Reaction.EAT) 1f else release
+        info.prog = (smooth(reach) * itemRelease).coerceIn(0f, 1f)
+        info.armReach = (smooth((t.toFloat() / 380f).coerceIn(0f, 1f)) * release).coerceIn(0f, 1f)
 
         info.fromX = itemX(ti.x)
         // ТОЧКА ХВАТА: всегда прямо перед питомцем — предмет "приклеен" к рукам
         val cx = itemX(sim.x)
-        info.holdX = cx + sim.dir * r * 1.35f
+        info.holdX = cx + sim.dir * r * when (ti.def.id) {
+            "plushie" -> 0.82f
+            "flower" -> 0.92f
+            "pizza", "sushi", "donut", "cookie", "coffee", "apple", "icecream" -> 0.90f
+            else -> 1.08f
+        }
 
         when (sim.reaction) {
-            ItemDefs.Reaction.SMELL -> { info.holding = true; info.liftPx = -r * 1.72f }
+            ItemDefs.Reaction.SMELL -> { info.holding = true; info.liftPx = -r * 1.28f }
             ItemDefs.Reaction.LIFT  -> {
-                info.holding = true; info.liftPx = -r * 1.05f
+                info.holding = true; info.liftPx = -r * 1.12f
                 // прогресс «в руках» — по нему живут игрушечные трюки
                 info.eatProgress = ((t - 600f) / (dur - 1000f).coerceAtLeast(1f)).coerceIn(0f, 1f)
             }
             ItemDefs.Reaction.EAT   -> {
                 info.holding = true
-                info.liftPx = -r * 1.15f
+                info.liftPx = -r * 1.20f
                 info.eatFade = ((t - (dur - 400f)).toFloat() / 400f).coerceIn(0f, 1f)
                 // прогресс поедания от захвата до конца-минус-финал
                 info.eatProgress = ((t - 600f) / (dur - 1000f).coerceAtLeast(1f)).coerceIn(0f, 1f)
@@ -452,7 +456,7 @@ class SceneRenderer {
                 // гладим мишку В ЛАПКАХ у морды (раньше предмет оставался на полу
                 // и руки кружили в воздухе — рассинхрон)
                 info.holding = true
-                info.liftPx = -r * 0.85f
+                info.liftPx = -r * 1.00f
             }
             else -> {} // PUSH/PLAY: предмет на полу, руки сами
         }
@@ -473,42 +477,22 @@ class SceneRenderer {
     ) {
         val def = item.def
         if (item.ageMs < 0) {
-            val a = item.ageMs
-            if (a < -1000) {
-                val tp = ((a + 1500f) / 500f).coerceIn(0f, 1f)
-                pF.color = 0xFF000000.toInt()
-                pF.alpha = (tp * 46).toInt().coerceIn(0, 255)
-                val rx = def.w * unit * 0.42f * (0.55f + 0.45f * tp)
-                rect.set(ix - rx, floorY - unit * 0.18f, ix + rx, floorY + unit * 0.10f)
-                c.drawOval(rect, pF)
-                pF.alpha = 255
-                return
-            }
-            val p = ((a + 1000f) / 1000f).coerceIn(0f, 1f)
-            val yOff: Float
-            var squash = 1f
-            when {
-                p < 0.62f -> { val q = p / 0.62f; yOff = -(1f - q * q) * unit * 9f }
-                p < 0.82f -> {
-                    val q = (p - 0.62f) / 0.20f
-                    yOff = -sin((q * PI).toFloat()) * unit * 1.15f
-                    if (q < 0.25f) squash = 1f - 0.3f * (1f - q * 4f)
-                }
-                else -> {
-                    val q = (p - 0.82f) / 0.18f
-                    yOff = -sin((q * PI).toFloat()) * unit * 0.35f
-                    if (q < 0.25f) squash = 1f - 0.2f * (1f - q * 4f)
-                }
-            }
-            if (p > 0.60f && p < 0.78f) spawnDust(c, ix, floorY, unit * 0.9f, (p - 0.60f) / 0.18f)
-            if (p > 0.80f && p < 0.98f) spawnDust(c, ix, floorY, unit * 0.5f, (p - 0.80f) / 0.18f)
-
+            val pose = SpawnMotion.pose(item.ageMs, item.defId.hashCode())
+            val proximity = (1f - (-pose.y / 10.5f)).coerceIn(0f, 1f)
+            pF.color = 0xFF000000.toInt()
+            pF.alpha = (proximity * 40f).toInt()
+            val shadowW = def.w * unit * (0.24f + proximity * 0.18f)
+            rect.set(ix - shadowW, floorY - unit * 0.10f, ix + shadowW, floorY + unit * 0.10f)
+            c.drawOval(rect, pF)
+            pF.alpha = 255
+            if (pose.impact > 0.02f) spawnDust(c, ix, floorY, unit * 0.72f, 1f - pose.impact)
             c.save()
-            c.translate(0f, yOff)
-            c.translate(ix, floorY)
-            c.scale(1f + (1f - squash) * 0.6f, squash, ix, floorY)
-            c.translate(-ix, -floorY)
-            def.draw(c, ix, floorY, unit, sim.animPhase)
+            // Локальная точка (0,0) — контакт с полом. Масштабирование вокруг неё
+            // физически не может протолкнуть предмет ниже floorY.
+            c.translate(ix, floorY + pose.y * unit)
+            c.rotate(pose.rotation, 0f, -unit)
+            c.scale(pose.scaleX, pose.scaleY, 0f, 0f)
+            def.draw(c, 0f, 0f, unit, sim.animPhase)
             c.restore()
             return
         }
@@ -521,6 +505,12 @@ class SceneRenderer {
 
         // ---- детская повадка каждой игрушки
         val isTarget = inter.target === item && sim.state == PetSim.State.INTERACT
+        val interactionPhase = if (isTarget)
+            (sim.stateTime.toFloat() / sim.stateDur.coerceAtLeast(1)).coerceIn(0f, 1f) else 0f
+        val floorPose = if (isTarget) InteractionMotion.floorPose(def.id, interactionPhase, sim.dir)
+            else InteractionMotion.FloorPose()
+        val renderX = ix + floorPose.dx * unit
+        val renderY = floorY + floorPose.lift * unit
         var toyRot = 0f
         var toyScale = 1f
         val rolling = abs(item.vx) > 0.02f
@@ -528,24 +518,22 @@ class SceneRenderer {
             "ball" -> if (rolling) toyRot = sim.animPhase * 240f * (if (item.vx > 0) 1f else -1f)
             "block" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 8f
             "top" -> if (rolling) toyRot = sim.animPhase * 260f * (if (item.vx > 0) 1f else -1f)
-            "robot" -> if (isTarget && sim.reaction == ItemDefs.Reaction.PLAY) {
-                toyRot = sin(sim.stateTime / 55f) * 4f        // вибрирует «бип-бип»
-            }
             "plushie" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 6f
             "flower" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 6f
         }
 
         c.save()
-        c.scale(sc * toyScale, sc * toyScale, ix, floorY)
-        c.rotate(toyRot, ix, floorY - unit * 0.9f)
+        c.scale(sc * toyScale * floorPose.scaleX, sc * toyScale * floorPose.scaleY, renderX, renderY)
+        c.rotate(toyRot + floorPose.rotation, renderX, renderY - unit * 0.9f)
         pF.alpha = alpha; pS.alpha = alpha; pZ.alpha = alpha
-        def.draw(c, ix, floorY, unit, sim.animPhase)
+        def.draw(c, renderX, renderY, unit, sim.animPhase)
         c.restore()
 
         // ---- спецэффекты поверх игрушек
         if (def.id == "robot" && isTarget && sim.reaction == ItemDefs.Reaction.PLAY) {
-            drawSpark(c, ix, floorY - unit * 3.5f, unit * 0.35f, 0xFFFFD54D.toInt(),
-                ((sin(sim.stateTime / 90f) * 0.5f + 0.5f) * 200f).toInt().coerceIn(0, 255))
+            val blink = if ((sim.stateTime / 260L) % 2L == 0L) 220 else 50
+            drawSpark(c, renderX, renderY - unit * 3.5f, unit * 0.30f,
+                0xFFFFD54D.toInt(), blink)
         }
         // (мишка и цветок теперь в лапках — их эффекты переехали в drawHeldItem)
         pF.alpha = 255; pS.alpha = 255; pZ.alpha = 255
@@ -1358,11 +1346,40 @@ class SceneRenderer {
                     }
                     // гладит мишку в лапках: руки кружат вокруг точки хвата
                     ItemDefs.Reaction.RUB -> {
-                        val a1 = inter.rubPhase
-                        val a2 = inter.rubPhase + PI.toFloat()
                         val hy = floorY + inter.liftPx * inter.prog + inter.holdYExtra
-                        arm(axL, ay, inter.holdX + cos(a1) * unit * 0.42f, hy + unit * 0.10f + sin(a1) * unit * 0.12f, false)
-                        arm(axR, ay, inter.holdX + cos(a2) * unit * 0.42f, hy + unit * 0.10f + sin(a2) * unit * 0.12f, false)
+                        val hug = PetMotion.envelope(
+                            (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f))
+                        val stroke = sin(sim.stateTime / 1000f * 4f) * unit * 0.10f * hug
+                        arm(axL, ay, inter.holdX - unit * 0.48f, hy + unit * 0.25f + stroke, false)
+                        arm(axR, ay, inter.holdX + unit * 0.48f, hy + unit * 0.25f - stroke, false)
+                    }
+                    ItemDefs.Reaction.PLAY -> {
+                        val phase = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
+                        val pose = InteractionMotion.floorPose(ti.def.id, phase, sim.dir)
+                        val tx = itemX(ti.x) + pose.dx * unit
+                        when (ti.def.id) {
+                            "robot" -> {
+                                // Одна лапа ставит робота, вторая нажимает кнопку на голове.
+                                val press = PetMotion.envelope(phase)
+                                if (phase < 0.44f) {
+                                    arm(axL, ay, tx - unit * 0.55f, floorY - unit * 1.15f, false)
+                                    arm(axR, ay, tx + unit * 0.12f,
+                                        floorY - unit * (2.65f + 0.10f * press), true)
+                                }
+                            }
+                            "top" -> {
+                                // Короткий толчок по оси юлы, затем лапы отходят и наблюдают.
+                                val release = smooth((phase / 0.28f).coerceIn(0f, 1f))
+                                if (release < 0.98f) {
+                                    arm(axR, ay, tx + sim.dir * unit * 0.18f,
+                                        floorY - unit * 1.85f, true)
+                                }
+                            }
+                            else -> {
+                                arm(axL, ay, tx - unit * 0.35f, floorY - unit * 0.48f, false)
+                                arm(axR, ay, tx + unit * 0.35f, floorY - unit * 0.48f, false)
+                            }
+                        }
                     }
                     // открывает крышку перед собой
                     ItemDefs.Reaction.OPEN -> {
@@ -1370,10 +1387,10 @@ class SceneRenderer {
                         arm(axL, ay, cx + sim.dir * r * 1.05f, floorY - unit * 1.55f - unit * 1.15f * lift, false)
                         arm(axR, ay, cx + sim.dir * r * 1.05f, floorY - unit * 1.55f - unit * 1.15f * lift, false)
                     }
-                    // упирается обеими и толкает перед собой
-                    else -> {
-                        arm(axL, ay, cx + sim.dir * r * 1.3f, floorY - unit * 0.42f, false)
-                        arm(axR, ay, cx + sim.dir * r * 1.3f, floorY - unit * 0.42f, false)
+                    ItemDefs.Reaction.PUSH -> {
+                        val tx = itemX(ti.x)
+                        arm(axL, ay, tx - unit * 0.35f, floorY - unit * 0.48f, false)
+                        arm(axR, ay, tx + unit * 0.35f, floorY - unit * 0.48f, false)
                     }
                 }
             }
