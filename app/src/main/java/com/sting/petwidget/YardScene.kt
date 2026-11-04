@@ -79,9 +79,9 @@ internal class YardScene {
         box(c,u*5.5f,floor-u*2.6f,w,floor-u*2.42f,fence)
         box(c,u*5.5f,floor-u*1.65f,w,floor-u*1.48f,fence)
         for(i in 6..24)box(c,u*i,floor-u*3f,u*(i+.28f),floor-u*.45f,fence,u*.1f)
-        box(c,0f,u*1.8f,w*.30f,floor, mix(0xFFE2D5BB.toInt(),0xFF858877.toInt(),n),u*.12f)
+        box(c,0f,floor-u*6f,w*.30f,floor, mix(0xFFE2D5BB.toInt(),0xFF858877.toInt(),n),u*.12f)
         edge.color=mix(0xFFC6B598.toInt(),0xFF6D776C.toInt(),n);edge.strokeWidth=u*.035f
-        for(i in 3..12)c.drawLine(0f,u*i,w*.30f,u*i,edge)
+        for(i in 1..12){val y=floor-u*6f+i*u*.45f;c.drawLine(0f,y,w*.30f,y,edge)}
         path.reset();path.moveTo(-u,floor-u*6f);path.lineTo(w*.12f,floor-u*8.3f);path.lineTo(w*.33f,floor-u*6f);path.close()
         p.color=mix(0xFFA87964.toInt(),0xFF675F60.toInt(),n);c.drawPath(path,p)
         edge.color=0xFF625343.toInt();edge.strokeWidth=u*.16f;c.drawPath(path,edge)
