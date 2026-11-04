@@ -729,7 +729,7 @@ class PetSim(
         const val WALK_SPEED = 0.075f
         const val X_MIN = 0.09f
         const val X_MAX = 0.91f
-        const val BED_X = 0.49f
+        const val BED_X = 0.80f
         const val SWITCH_X = 0.40f          // где висит шнур выключателя
 
         const val PULL_TOGGLE_MS = 700L     // момент в тяге, когда свет щёлкает

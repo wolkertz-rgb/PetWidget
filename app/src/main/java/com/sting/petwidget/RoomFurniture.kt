@@ -180,13 +180,16 @@ internal class RoomFurniture {
             edge.color = 0xFF4A4038.toInt()
         }
         if (tv) {
+            c.save(); c.translate(0.65f, 0f)
             box(c, 8f, -5.7f, 12.3f, -3f, 0xFF354B48.toInt(), 0.18f)
             box(c, 8.25f, -5.45f, 12.05f, -3.25f, 0xFF8AB3BE.toInt(), 0.08f)
             p.color = 0xFFB7D8D4.toInt(); c.drawOval(8.6f, -4.8f, 11.6f, -3.5f, p)
             c.drawLine(9.5f, -3f, 9.2f, -2.65f, edge); c.drawLine(10.8f, -3f, 11.1f, -2.65f, edge)
             box(c, 7.8f, -2.65f, 12.5f, -2.4f, accent, 0.08f)
+            c.restore()
         }
         if (plant) {
+            c.save(); c.translate(-0.6f, 0f)
             val pot = Path().apply {
                 moveTo(0.75f, -1.2f); lineTo(2.25f, -1.2f)
                 lineTo(2.04f, -0.15f); quadTo(1.5f, 0.05f, 0.96f, -0.15f); close()
@@ -209,6 +212,7 @@ internal class RoomFurniture {
                 c.drawLine(1.5f, y, tipX, y - 0.44f, edge)
             }
             edge.color = 0xFF4A4038.toInt(); edge.strokeWidth = 0.09f
+            c.restore()
         }
         c.restore()
     }

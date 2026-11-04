@@ -25,16 +25,28 @@ internal class YardScene {
         p.color = color; c.drawRoundRect(l,t,r,b,radius,radius,p)
     }
     fun door(c: Canvas, x: Float, floor: Float, u: Float, open: Float) {
-        c.save(); c.translate(x, floor); c.scale(1.95f, 1.28f); c.translate(-x, -floor)
-        box(c,x-u*1.03f,floor-u*4.6f,x+u*1.03f,floor,0xFF605B4B.toInt(),u*.18f)
-        box(c,x-u*.88f,floor-u*4.43f,x+u*.88f,floor,0xFF263B35.toInt(),u*.1f)
-        val left=x-u*.85f
-        val right=left+u*1.7f*(1f-open*.87f)
-        box(c,left,floor-u*4.4f,right,floor-u*.03f,0xFFB88A60.toInt(),u*.09f)
-        edge.color=0xFF725B46.toInt();edge.strokeWidth=u*.045f
-        c.drawRoundRect(left+u*.13f,floor-u*4.15f,right-u*.08f,floor-u*.3f,u*.05f,u*.05f,edge)
-        p.color=0xFFEBD799.toInt();c.drawCircle(right-u*.16f,floor-u*2.08f,u*.075f,p)
-        box(c,x-u*1.15f,floor-u*.03f,x+u*1.15f,floor+u*.08f,0xFF8E806B.toInt(),u*.04f)
+        c.save(); c.translate(x, floor); c.scale(u,u)
+        // Ширина чистого проёма 3.5 единицы при диаметре пета 3.1.
+        p.color=0x24000000;c.drawOval(-2.1f,-.12f,2.2f,.22f,p)
+        box(c,-1.98f,-5.85f,1.98f,.02f,0xFF62564B.toInt(),.12f)
+        box(c,-1.88f,-5.76f,1.88f,-.02f,0xFFE3D3B6.toInt(),.08f)
+        box(c,-1.75f,-5.6f,1.75f,-.04f,0xFF263B35.toInt(),.035f)
+        val squeeze=1f-open.coerceIn(0f,1f)*.91f
+        c.save();c.translate(-1.75f,0f);c.scale(squeeze,1f)
+        p.shader=LinearGradient(0f,-5.6f,3.5f,0f,0xFF8DA697.toInt(),0xFF587B6C.toInt(),Shader.TileMode.CLAMP)
+        c.drawRoundRect(0f,-5.6f,3.5f,-.06f,.04f,.04f,p);p.shader=null
+        edge.color=0xFF415D50.toInt();edge.strokeWidth=.055f
+        c.drawRoundRect(.22f,-5.34f,3.28f,-.3f,.04f,.04f,edge)
+        box(c,.42f,-5.12f,3.08f,-3.55f,0xFF41655D.toInt(),.06f)
+        box(c,.5f,-5.04f,3f,-3.63f,0xFFB7D4CC.toInt(),.04f)
+        edge.color=0x66FFFFFF;edge.strokeWidth=.055f;c.drawLine(.7f,-4.85f,2.4f,-3.82f,edge)
+        box(c,.42f,-3.3f,3.08f,-.55f,0xFF739382.toInt(),.05f)
+        edge.color=0xFF597868.toInt();edge.strokeWidth=.035f
+        c.drawRoundRect(.55f,-3.16f,2.95f,-.7f,.03f,.03f,edge)
+        box(c,2.95f,-2.9f,3.15f,-2.2f,0xFFB59A61.toInt(),.07f)
+        edge.color=0xFFF1D99B.toInt();edge.strokeWidth=.09f;c.drawLine(3.04f,-2.52f,2.65f,-2.52f,edge)
+        c.restore()
+        box(c,-2.05f,-.06f,2.05f,.1f,0xFFA6987F.toInt(),.035f)
         c.restore()
     }
     fun draw(c: Canvas, w: Float, h: Float, floor: Float, u: Float, now: Long, outing: Outing) {
@@ -79,13 +91,20 @@ internal class YardScene {
         box(c,u*5.5f,floor-u*2.6f,w,floor-u*2.42f,fence)
         box(c,u*5.5f,floor-u*1.65f,w,floor-u*1.48f,fence)
         for(i in 6..24)box(c,u*i,floor-u*3f,u*(i+.28f),floor-u*.45f,fence,u*.1f)
-        box(c,0f,floor-u*6f,w*.30f,floor, mix(0xFFE2D5BB.toInt(),0xFF858877.toInt(),n),u*.12f)
+        box(c,0f,floor-u*6.3f,w*.30f,floor, mix(0xFFE6DFCC.toInt(),0xFF858877.toInt(),n))
         edge.color=mix(0xFFC6B598.toInt(),0xFF6D776C.toInt(),n);edge.strokeWidth=u*.035f
-        for(i in 1..12){val y=floor-u*6f+i*u*.45f;c.drawLine(0f,y,w*.30f,y,edge)}
-        path.reset();path.moveTo(-u,floor-u*6f);path.lineTo(w*.12f,floor-u*8.3f);path.lineTo(w*.33f,floor-u*6f);path.close()
-        p.color=mix(0xFFA87964.toInt(),0xFF675F60.toInt(),n);c.drawPath(path,p)
-        edge.color=0xFF625343.toInt();edge.strokeWidth=u*.16f;c.drawPath(path,edge)
+        for(i in 1..12){val y=floor-u*6.3f+i*u*.48f;c.drawLine(0f,y,w*.30f,y,edge)}
+        // Видимая часть длинного ската: конёк и продолжение дома за левой границей.
+        path.reset();path.moveTo(-w,floor-u*6f);path.lineTo(-w,floor-u*13f)
+        path.lineTo(w*.33f,floor-u*6.3f);path.lineTo(w*.33f,floor-u*6f);path.close()
+        p.shader=LinearGradient(0f,floor-u*9f,w*.3f,floor-u*6f,
+            mix(0xFF6C7D77.toInt(),0xFF475A60.toInt(),n),mix(0xFF475E55.toInt(),0xFF35494E.toInt(),n),Shader.TileMode.CLAMP)
+        c.drawPath(path,p);p.shader=null
+        edge.color=0xFF384E45.toInt();edge.strokeWidth=u*.12f;c.drawPath(path,edge)
+        box(c,0f,floor-u*6.3f,w*.33f,floor-u*6.08f,0xFFBCA787.toInt(),u*.035f)
+        box(c,0f,floor-u*6.08f,w*.33f,floor-u*5.94f,0xFF716E59.toInt(),u*.025f)
         box(c,w*.29f,floor-u*6f,w*.31f,floor,0xFF9B7952.toInt(),u*.06f)
+        box(c,w*.294f,floor-u*5.85f,w*.302f,floor-u*.3f,0xFFC3A67D.toInt(),u*.025f)
         box(c,w*.282f,floor-u*6.05f,w*.318f,floor-u*5.8f,0xFFC0A078.toInt(),u*.04f)
         box(c,w*.282f,floor-u*.2f,w*.318f,floor+u*.04f,0xFFC0A078.toInt(),u*.04f)
         door(c,u*.7f+outing.doorX*(w-u*1.4f),floor,u,outing.doorOpen)
