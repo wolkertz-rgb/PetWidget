@@ -101,249 +101,272 @@ object ItemDefs {
         c.drawRoundRect(rect, r, r, pS)
     }
 
+    private fun fillPath(c: Canvas, color: Int) {
+        pF.color = color
+        c.drawPath(path, pF)
+    }
+
+    private fun inkPath(c: Canvas, w: Float) {
+        pS.color = INK
+        pS.strokeWidth = w
+        c.drawPath(path, pS)
+    }
+
+    private fun contactShadow(c: Canvas, cx: Float, fy: Float, rx: Float, s: Float) {
+        ellipse(c, cx, fy - s * 0.05f, rx, s * 0.13f, 0x26000000)
+    }
+
     // ------------------------------------------------------------ игрушки
 
-    /** Мячик — пляжный, три сектора: читается даже пятном */
+    /** Глянцевый мяч с цельными цветными панелями. */
     private fun ball() = Def("ball", "Мячик", Kind.TOY, Reaction.PUSH, 2.4f) { c, cx, fy, s, _ ->
-        val r = s * 1.12f
+        val r = s * 1.08f
         val cy = fy - r
-        circle(c, cx, cy, r, 0xFFF8F5EC.toInt())
+        contactShadow(c, cx, fy, r * 0.82f, s)
+        circle(c, cx, cy, r, 0xFFFFD166.toInt())
         rect.set(cx - r, cy - r, cx + r, cy + r)
-        pF.color = 0xFF7CC8A2.toInt()
-        c.drawArc(rect, -60f, 60f, true, pF)      // мятный сектор
-        pF.color = 0xFFF26D7E.toInt()
-        c.drawArc(rect, 60f, 60f, true, pF)       // розовый сектор
-        pF.color = 0xFFF4C95D.toInt()
-        c.drawArc(rect, 180f, 60f, true, pF)      // жёлтый сектор
+        pF.color = 0xFFEF6F7B.toInt()
+        c.drawArc(rect, 205f, 82f, true, pF)
+        pF.color = 0xFF5AB9A6.toInt()
+        c.drawArc(rect, 287f, 82f, true, pF)
+        path.reset()
+        path.moveTo(cx - r * 0.12f, cy - r)
+        path.cubicTo(cx + r * 0.18f, cy - r * 0.5f, cx + r * 0.18f, cy + r * 0.5f, cx - r * 0.12f, cy + r)
+        pS.color = 0xBFFFFFFF.toInt()
+        pS.strokeWidth = s * 0.08f
+        c.drawPath(path, pS)
         ink(c, cx, cy, r, s * 0.1f)
-        line(c, cx - r * 0.85f, cy, cx + r * 0.85f, cy, s * 0.08f, 0x40FFFFFF)
-        circle(c, cx - r * 0.38f, cy - r * 0.4f, r * 0.2f, 0x8CFFFFFF.toInt())
+        ellipse(c, cx - r * 0.38f, cy - r * 0.42f, r * 0.18f, r * 0.28f, 0xA6FFFFFF.toInt())
     }
 
-    /** Деревянный кубик — две грани + кант */
+    /** Деревянный кубик в три четверти: верх, лицевая и боковая грани. */
     private fun block() = Def("block", "Кубик", Kind.TOY, Reaction.PUSH, 2.2f) { c, cx, fy, s, _ ->
-        val h = s * 1.85f
-        roundRect(c, cx - h, fy - h, cx + h, fy - s * 0.04f, s * 0.26f, 0xFFFBBF69.toInt())
-        roundRect(c, cx - h, fy - h, cx + h, fy - h * 0.66f, s * 0.26f, 0xFFFCD492.toInt())
-        inkRound(c, cx - h, fy - h, cx + h, fy - s * 0.04f, s * 0.26f, s * 0.11f)
-        line(c, cx - h * 0.5f, fy - h * 0.38f, cx + h * 0.5f, fy - h * 0.38f, s * 0.11f, 0xFFB45309.toInt())
-        circle(c, cx - h * 0.55f, fy - h * 0.82f, s * 0.13f, 0x73FFFFFF.toInt())
+        val left = cx - s * 1.05f
+        val right = cx + s * 1.05f
+        val top = fy - s * 2.05f
+        val split = cx + s * 0.58f
+        contactShadow(c, cx, fy, s * 1.0f, s)
+        path.reset()
+        path.moveTo(left, top + s * 0.38f); path.lineTo(cx + s * 0.45f, top)
+        path.lineTo(right, top + s * 0.35f); path.lineTo(split, top + s * 0.72f); path.close()
+        fillPath(c, 0xFFFFD99A.toInt()); inkPath(c, s * 0.1f)
+        path.reset()
+        path.moveTo(left, top + s * 0.38f); path.lineTo(split, top + s * 0.72f)
+        path.lineTo(split, fy - s * 0.08f); path.lineTo(left, fy - s * 0.4f); path.close()
+        fillPath(c, 0xFFF4B95F.toInt()); inkPath(c, s * 0.1f)
+        path.reset()
+        path.moveTo(split, top + s * 0.72f); path.lineTo(right, top + s * 0.35f)
+        path.lineTo(right, fy - s * 0.42f); path.lineTo(split, fy - s * 0.08f); path.close()
+        fillPath(c, 0xFFD9903D.toInt()); inkPath(c, s * 0.1f)
+        roundRect(c, cx - s * 0.55f, fy - s * 1.45f, cx + s * 0.12f, fy - s * 0.65f, s * 0.14f, 0xFFFFE2A8.toInt())
+        line(c, cx - s * 0.35f, fy - s * 1.25f, cx - s * 0.1f, fy - s * 0.85f, s * 0.12f, 0xFFC76D2E.toInt())
+        line(c, cx - s * 0.1f, fy - s * 0.85f, cx - s * 0.43f, fy - s * 0.86f, s * 0.12f, 0xFFC76D2E.toInt())
     }
 
-    /** Игральный кубик — пять крупных точек на белом */
+    /** Игральная кость с мягким скруглением и утопленными точками. */
     private fun dice() = Def("dice", "Кости", Kind.TOY, Reaction.LIFT, 2.2f) { c, cx, fy, s, _ ->
-        val h = s * 1.8f
-        roundRect(c, cx - h, fy - h, cx + h, fy - s * 0.04f, s * 0.34f, 0xFFFAF8F2.toInt())
-        val d = s * 0.19f
-        val o = h * 0.48f
-        val cyc = fy - h * 0.52f
-        val oy = o * 0.88f
-        circle(c, cx - o, cyc - oy, d, 0xFF44403C.toInt())
-        circle(c, cx + o, cyc - oy, d, 0xFF44403C.toInt())
-        circle(c, cx, cyc, d, 0xFF44403C.toInt())
-        circle(c, cx - o, cyc + oy, d, 0xFF44403C.toInt())
-        circle(c, cx + o, cyc + oy, d, 0xFF44403C.toInt())
-        inkRound(c, cx - h, fy - h, cx + h, fy - s * 0.04f, s * 0.34f, s * 0.11f)
+        val half = s * 1.02f
+        val cy = fy - s * 1.02f
+        contactShadow(c, cx, fy, s * 0.92f, s)
+        roundRect(c, cx - half, cy - half, cx + half, cy + half, s * 0.34f, 0xFFFFFCF5.toInt())
+        roundRect(c, cx - half * 0.82f, cy - half * 0.86f, cx + half * 0.64f, cy - half * 0.67f, s * 0.09f, 0xFFFFFFFF.toInt())
+        inkRound(c, cx - half, cy - half, cx + half, cy + half, s * 0.34f, s * 0.1f)
+        val d = s * 0.16f
+        val o = s * 0.5f
+        for ((dx, dy) in listOf(-o to -o, o to -o, 0f to 0f, -o to o, o to o)) {
+            circle(c, cx + dx, cy + dy, d * 1.18f, 0xFFE0D8CA.toInt())
+            circle(c, cx + dx, cy + dy - s * 0.03f, d, 0xFF514A43.toInt())
+        }
     }
 
     /** Воздушный шарик — капля + узелок + верёвочка */
     private fun balloon() = Def("balloon", "Шарик", Kind.TOY, Reaction.LIFT, 2.1f) { c, cx, fy, s, t ->
-        val sway = sin(t * 1.4f) * s * 0.18f
+        val sway = sin(t * 1.4f) * s * 0.16f
         val bx = cx + sway
-        val ry = s * 1.45f
-        val by = fy - s * 3.5f
-        // верёвочка (узелок ляжет поверх)
-        pS.color = 0xFF9CA3AF.toInt()
-        pS.strokeWidth = s * 0.07f
-        val str = android.graphics.Path()
-        str.moveTo(bx, by + ry + s * 0.3f)
-        str.quadTo(cx - sway, fy - s * 1.5f, cx, fy - s * 0.1f)
-        c.drawPath(str, pS)
-        ellipse(c, bx, by, s * 1.02f, ry, 0xFFF472B6.toInt())
-        inkOval(c, bx, by, s * 1.02f, ry, s * 0.1f)
-        pF.color = 0xFFDB2777.toInt()
-        val knot = android.graphics.Path()
-        knot.moveTo(bx - s * 0.16f, by + ry - s * 0.05f)
-        knot.lineTo(bx + s * 0.16f, by + ry - s * 0.05f)
-        knot.lineTo(bx, by + ry + s * 0.3f)
-        knot.close()
-        c.drawPath(knot, pF)
-        ellipse(c, bx - s * 0.32f, by - ry * 0.42f, s * 0.24f, ry * 0.26f, 0x59FFFFFF.toInt())
+        val ry = s * 1.35f
+        val by = fy - s * 3.35f
+        path.reset(); path.moveTo(bx, by + ry + s * 0.24f)
+        path.cubicTo(cx - s * 0.5f, fy - s * 1.75f, cx + s * 0.45f, fy - s * 0.9f, cx, fy - s * 0.08f)
+        pS.color = 0xFF8C837B.toInt(); pS.strokeWidth = s * 0.065f; c.drawPath(path, pS)
+        ellipse(c, bx, by, s * 1.0f, ry, 0xFFEF6F9A.toInt())
+        ellipse(c, bx + s * 0.35f, by + s * 0.08f, s * 0.5f, s * 1.02f, 0x1F8D174C)
+        inkOval(c, bx, by, s * 1.0f, ry, s * 0.1f)
+        path.reset(); path.moveTo(bx, by + ry - s * 0.05f)
+        path.lineTo(bx - s * 0.2f, by + ry + s * 0.3f); path.lineTo(bx + s * 0.2f, by + ry + s * 0.3f); path.close()
+        fillPath(c, 0xFFD94A7C.toInt()); inkPath(c, s * 0.07f)
+        ellipse(c, bx - s * 0.34f, by - s * 0.48f, s * 0.2f, s * 0.38f, 0xA6FFFFFF.toInt())
     }
 
     /** Мягкий мишка — круглые уши, светлая морда */
     private fun plushie() = Def("plushie", "Мишка", Kind.TOY, Reaction.RUB, 2.6f) { c, cx, fy, s, _ ->
-        val brown = 0xFFB98A5E.toInt()
-        // ушки
-        circle(c, cx - s * 0.62f, fy - s * 3.05f, s * 0.34f, brown)
-        circle(c, cx + s * 0.62f, fy - s * 3.05f, s * 0.34f, brown)
-        // голова
-        circle(c, cx, fy - s * 2.45f, s * 0.78f, brown)
-        // тело
-        ellipse(c, cx, fy - s * 1.0f, s * 0.98f, s * 1.02f, brown)
-        // контур мишки целиком
-        ink(c, cx - s * 0.62f, fy - s * 3.05f, s * 0.34f, s * 0.09f)
-        ink(c, cx + s * 0.62f, fy - s * 3.05f, s * 0.34f, s * 0.09f)
-        ink(c, cx, fy - s * 2.45f, s * 0.78f, s * 0.1f)
-        inkOval(c, cx, fy - s * 1.0f, s * 0.98f, s * 1.02f, s * 0.1f)
-        // внутренняя ушек
-        circle(c, cx - s * 0.62f, fy - s * 3.05f, s * 0.16f, 0xFFE8C9A8.toInt())
-        circle(c, cx + s * 0.62f, fy - s * 3.05f, s * 0.16f, 0xFFE8C9A8.toInt())
-        // морда
-        ellipse(c, cx, fy - s * 2.22f, s * 0.4f, s * 0.3f, 0xFFE8C9A8.toInt())
-        circle(c, cx - s * 0.3f, fy - s * 2.58f, s * 0.11f, 0xFF3F2D1D.toInt())
-        circle(c, cx + s * 0.3f, fy - s * 2.58f, s * 0.11f, 0xFF3F2D1D.toInt())
-        circle(c, cx - s * 0.27f, fy - s * 2.61f, s * 0.035f, 0x73FFFFFF.toInt())
-        circle(c, cx + s * 0.33f, fy - s * 2.61f, s * 0.035f, 0x73FFFFFF.toInt())
-        ellipse(c, cx, fy - s * 2.18f, s * 0.12f, s * 0.09f, 0xFF3F2D1D.toInt()) // носик
-        // лапки
-        ellipse(c, cx - s * 0.9f, fy - s * 0.92f, s * 0.32f, s * 0.24f, 0xFFA9713F.toInt())
-        ellipse(c, cx + s * 0.9f, fy - s * 0.92f, s * 0.32f, s * 0.24f, 0xFFA9713F.toInt())
+        val fur = 0xFFBE8657.toInt(); val darkFur = 0xFFA86D42.toInt(); val cream = 0xFFF2D2AE.toInt()
+        contactShadow(c, cx, fy, s * 1.08f, s)
+        circle(c, cx - s * 0.62f, fy - s * 3.0f, s * 0.4f, darkFur)
+        circle(c, cx + s * 0.62f, fy - s * 3.0f, s * 0.4f, darkFur)
+        ink(c, cx - s * 0.62f, fy - s * 3.0f, s * 0.4f, s * 0.09f)
+        ink(c, cx + s * 0.62f, fy - s * 3.0f, s * 0.4f, s * 0.09f)
+        circle(c, cx - s * 0.62f, fy - s * 3.0f, s * 0.2f, cream)
+        circle(c, cx + s * 0.62f, fy - s * 3.0f, s * 0.2f, cream)
+        ellipse(c, cx, fy - s * 1.18f, s * 0.94f, s * 1.24f, fur)
+        inkOval(c, cx, fy - s * 1.18f, s * 0.94f, s * 1.24f, s * 0.1f)
+        ellipse(c, cx - s * 0.93f, fy - s * 1.35f, s * 0.35f, s * 0.62f, darkFur)
+        ellipse(c, cx + s * 0.93f, fy - s * 1.35f, s * 0.35f, s * 0.62f, darkFur)
+        ellipse(c, cx - s * 0.56f, fy - s * 0.28f, s * 0.5f, s * 0.3f, darkFur)
+        ellipse(c, cx + s * 0.56f, fy - s * 0.28f, s * 0.5f, s * 0.3f, darkFur)
+        circle(c, cx, fy - s * 2.5f, s * 0.83f, fur); ink(c, cx, fy - s * 2.5f, s * 0.83f, s * 0.1f)
+        ellipse(c, cx, fy - s * 2.28f, s * 0.46f, s * 0.35f, cream)
+        circle(c, cx - s * 0.3f, fy - s * 2.62f, s * 0.1f, 0xFF453329.toInt())
+        circle(c, cx + s * 0.3f, fy - s * 2.62f, s * 0.1f, 0xFF453329.toInt())
+        ellipse(c, cx, fy - s * 2.35f, s * 0.13f, s * 0.1f, 0xFF453329.toInt())
+        line(c, cx, fy - s * 2.25f, cx, fy - s * 2.1f, s * 0.055f, 0xFF76513B.toInt())
+        line(c, cx - s * 0.16f, fy - s * 2.08f, cx, fy - s * 2.1f, s * 0.055f, 0xFF76513B.toInt())
+        line(c, cx, fy - s * 2.1f, cx + s * 0.16f, fy - s * 2.08f, s * 0.055f, 0xFF76513B.toInt())
+        path.reset(); path.moveTo(cx - s * 0.36f, fy - s * 1.65f); path.lineTo(cx, fy - s * 1.35f)
+        path.lineTo(cx + s * 0.36f, fy - s * 1.65f); path.lineTo(cx + s * 0.25f, fy - s * 1.15f)
+        path.lineTo(cx - s * 0.25f, fy - s * 1.15f); path.close(); fillPath(c, 0xFFDF5D67.toInt())
+        circle(c, cx, fy - s * 1.38f, s * 0.13f, 0xFFF6C85F.toInt())
     }
 
     /** Робот — большой экран-лицо, светящиеся глаза-плашки */
     private fun robot() = Def("robot", "Робот", Kind.TOY, Reaction.PLAY, 2.4f) { c, cx, fy, s, t ->
-        val body = 0xFFB8C4D9.toInt()
-        val dark = 0xFF2E3B4A.toInt()
+        val body = 0xFFB9C9D8.toInt(); val side = 0xFF8299AE.toInt(); val dark = 0xFF314353.toInt()
         val blink = sin(t * 3.0f) > 0f
-        roundRect(c, cx - s * 0.95f, fy - s * 1.8f, cx + s * 0.95f, fy - s * 0.02f, s * 0.3f, body)
-        inkRound(c, cx - s * 0.95f, fy - s * 1.8f, cx + s * 0.95f, fy - s * 0.02f, s * 0.3f, s * 0.1f)
-        // голова-экран
-        roundRect(c, cx - s * 0.68f, fy - s * 3.2f, cx + s * 0.68f, fy - s * 1.72f, s * 0.26f, dark)
-        // глаза-плашки
-        val glow = if (blink) 0xFFB6F0D0.toInt() else 0xFF68C9A4.toInt()
-        roundRect(c, cx - s * 0.46f, fy - s * 2.9f, cx - s * 0.12f, fy - s * 2.52f, s * 0.1f, glow)
-        roundRect(c, cx + s * 0.12f, fy - s * 2.9f, cx + s * 0.46f, fy - s * 2.52f, s * 0.1f, glow)
-        // улыбка
-        pS.color = 0xFF9FE8C4.toInt()
-        pS.strokeWidth = s * 0.09f
-        rect.set(cx - s * 0.26f, fy - s * 2.36f, cx + s * 0.26f, fy - s * 2.04f)
-        c.drawArc(rect, 15f, 150f, false, pS)
-        // антенна с широким шариком
-        line(c, cx, fy - s * 3.2f, cx, fy - s * 3.72f, s * 0.09f, 0xFF64748B.toInt())
-        circle(c, cx, fy - s * 3.9f, s * 0.19f, if (blink) 0xFFFFD54D.toInt() else 0xFF7A6420.toInt())
-        // ручки
-        line(c, cx - s * 0.95f, fy - s * 1.25f, cx - s * 1.35f, fy - s * 0.65f, s * 0.18f, body)
-        line(c, cx + s * 0.95f, fy - s * 1.25f, cx + s * 1.35f, fy - s * 0.65f, s * 0.18f, body)
+        contactShadow(c, cx, fy, s * 1.15f, s)
+        line(c, cx - s * 0.86f, fy - s * 1.55f, cx - s * 1.27f, fy - s * 0.85f, s * 0.22f, side)
+        line(c, cx + s * 0.86f, fy - s * 1.55f, cx + s * 1.27f, fy - s * 0.85f, s * 0.22f, side)
+        circle(c, cx - s * 1.3f, fy - s * 0.75f, s * 0.2f, body)
+        circle(c, cx + s * 1.3f, fy - s * 0.75f, s * 0.2f, body)
+        roundRect(c, cx - s * 0.85f, fy - s * 1.85f, cx + s * 0.85f, fy - s * 0.45f, s * 0.25f, body)
+        roundRect(c, cx + s * 0.48f, fy - s * 1.76f, cx + s * 0.74f, fy - s * 0.55f, s * 0.1f, side)
+        inkRound(c, cx - s * 0.85f, fy - s * 1.85f, cx + s * 0.85f, fy - s * 0.45f, s * 0.25f, s * 0.1f)
+        roundRect(c, cx - s * 0.47f, fy - s * 1.52f, cx + s * 0.25f, fy - s * 0.94f, s * 0.12f, 0xFFF0F6F7.toInt())
+        circle(c, cx - s * 0.22f, fy - s * 1.23f, s * 0.11f, 0xFFEF6F6C.toInt())
+        circle(c, cx + s * 0.08f, fy - s * 1.23f, s * 0.11f, 0xFFF4C95D.toInt())
+        line(c, cx - s * 0.48f, fy - s * 0.45f, cx - s * 0.48f, fy - s * 0.12f, s * 0.24f, side)
+        line(c, cx + s * 0.48f, fy - s * 0.45f, cx + s * 0.48f, fy - s * 0.12f, s * 0.24f, side)
+        roundRect(c, cx - s * 0.8f, fy - s * 0.22f, cx - s * 0.2f, fy - s * 0.03f, s * 0.08f, dark)
+        roundRect(c, cx + s * 0.2f, fy - s * 0.22f, cx + s * 0.8f, fy - s * 0.03f, s * 0.08f, dark)
+        roundRect(c, cx - s * 0.72f, fy - s * 3.18f, cx + s * 0.72f, fy - s * 1.82f, s * 0.3f, body)
+        inkRound(c, cx - s * 0.72f, fy - s * 3.18f, cx + s * 0.72f, fy - s * 1.82f, s * 0.3f, s * 0.1f)
+        roundRect(c, cx - s * 0.52f, fy - s * 2.95f, cx + s * 0.52f, fy - s * 2.14f, s * 0.2f, dark)
+        val glow = if (blink) 0xFFB9F4D8.toInt() else 0xFF63D6AE.toInt()
+        roundRect(c, cx - s * 0.36f, fy - s * 2.72f, cx - s * 0.08f, fy - s * 2.48f, s * 0.08f, glow)
+        roundRect(c, cx + s * 0.08f, fy - s * 2.72f, cx + s * 0.36f, fy - s * 2.48f, s * 0.08f, glow)
+        line(c, cx - s * 0.2f, fy - s * 2.3f, cx + s * 0.2f, fy - s * 2.3f, s * 0.07f, glow)
+        line(c, cx, fy - s * 3.18f, cx, fy - s * 3.58f, s * 0.09f, side)
+        circle(c, cx, fy - s * 3.73f, s * 0.17f, if (blink) 0xFFFFD166.toInt() else 0xFFCF9D39.toInt())
     }
 
-    /** Ракета — красный нос, синий иллюминатор, плавники */
+    /** Игрушечная ракета: цельный корпус, два плавника и сопло. */
     private fun rocket() = Def("rocket", "Ракета", Kind.TOY, Reaction.LIFT, 2.4f) { c, cx, fy, s, _ ->
-        val bodyTop = fy - s * 4.0f
+        val top = fy - s * 4.05f
+        contactShadow(c, cx, fy, s * 1.0f, s)
+        // дальние плавники
         path.reset()
-        path.moveTo(cx, bodyTop)                                  // нос
-        path.quadTo(cx + s * 0.9f, fy - s * 2.0f, cx + s * 0.62f, fy - s * 0.1f)
-        path.lineTo(cx - s * 0.62f, fy - s * 0.1f)
-        path.quadTo(cx - s * 0.9f, fy - s * 2.0f, cx, bodyTop)
-        path.close()
-        pF.color = 0xFFF1F5F9.toInt()
-        c.drawPath(path, pF)
-        // нос-обтекатель
-        pF.color = 0xFFEF4444.toInt()
-        val nose = android.graphics.Path()
-        nose.moveTo(cx, bodyTop)
-        nose.quadTo(cx + s * 0.5f, fy - s * 3.2f, cx + s * 0.55f, fy - s * 2.8f)
-        nose.lineTo(cx - s * 0.55f, fy - s * 2.8f)
-        nose.quadTo(cx - s * 0.5f, fy - s * 3.2f, cx, bodyTop)
-        nose.close()
-        c.drawPath(nose, pF)
-        // плавники
-        pF.color = 0xFFEF4444.toInt()
-        val fin = android.graphics.Path()
-        fin.moveTo(cx - s * 0.6f, fy - s * 1.4f)
-        fin.lineTo(cx - s * 1.2f, fy - s * 0.05f)
-        fin.lineTo(cx - s * 0.6f, fy - s * 0.05f)
-        fin.close()
-        c.drawPath(fin, pF)
-        val fin2 = android.graphics.Path()
-        fin2.moveTo(cx + s * 0.6f, fy - s * 1.4f)
-        fin2.lineTo(cx + s * 1.2f, fy - s * 0.05f)
-        fin2.lineTo(cx + s * 0.6f, fy - s * 0.05f)
-        fin2.close()
-        c.drawPath(fin2, pF)
-        // обводка корпуса поверх деталей
-        pS.color = INK
-        pS.strokeWidth = s * 0.1f
-        c.drawPath(path, pS)
-        // иллюминатор двойной
-        circle(c, cx, fy - s * 2.05f, s * 0.38f, 0xFF60A5FA.toInt())
-        circle(c, cx, fy - s * 2.05f, s * 0.2f, 0xFFBAE6FD.toInt())
-        ink(c, cx, fy - s * 2.05f, s * 0.38f, s * 0.08f)
+        path.moveTo(cx - s * 0.55f, fy - s * 1.45f); path.lineTo(cx - s * 1.25f, fy - s * 0.18f)
+        path.lineTo(cx - s * 0.45f, fy - s * 0.5f); path.close(); fillPath(c, 0xFFDA5260.toInt()); inkPath(c, s * 0.1f)
+        path.reset(); path.moveTo(cx + s * 0.55f, fy - s * 1.45f); path.lineTo(cx + s * 1.25f, fy - s * 0.18f)
+        path.lineTo(cx + s * 0.45f, fy - s * 0.5f); path.close(); fillPath(c, 0xFFDA5260.toInt()); inkPath(c, s * 0.1f)
+        // корпус
+        path.reset(); path.moveTo(cx, top)
+        path.cubicTo(cx + s * 0.92f, fy - s * 3.0f, cx + s * 0.78f, fy - s * 1.35f, cx + s * 0.47f, fy - s * 0.48f)
+        path.lineTo(cx - s * 0.47f, fy - s * 0.48f)
+        path.cubicTo(cx - s * 0.78f, fy - s * 1.35f, cx - s * 0.92f, fy - s * 3.0f, cx, top); path.close()
+        fillPath(c, 0xFFF4F1E8.toInt()); inkPath(c, s * 0.11f)
+        // красный обтекатель
+        path.reset(); path.moveTo(cx, top); path.cubicTo(cx + s * 0.45f, fy - s * 3.55f, cx + s * 0.58f, fy - s * 3.05f, cx + s * 0.63f, fy - s * 2.8f)
+        path.lineTo(cx - s * 0.63f, fy - s * 2.8f); path.cubicTo(cx - s * 0.58f, fy - s * 3.05f, cx - s * 0.45f, fy - s * 3.55f, cx, top); path.close()
+        fillPath(c, 0xFFEF6570.toInt()); inkPath(c, s * 0.08f)
+        // панель и иллюминатор
+        roundRect(c, cx - s * 0.52f, fy - s * 1.45f, cx + s * 0.52f, fy - s * 0.78f, s * 0.2f, 0xFFE1DDD2.toInt())
+        circle(c, cx, fy - s * 2.18f, s * 0.43f, 0xFF40586A.toInt())
+        circle(c, cx, fy - s * 2.18f, s * 0.31f, 0xFF65C6D4.toInt())
+        ellipse(c, cx - s * 0.11f, fy - s * 2.31f, s * 0.1f, s * 0.14f, 0xBFFFFFFF.toInt())
+        ink(c, cx, fy - s * 2.18f, s * 0.43f, s * 0.08f)
+        // сопло
+        path.reset(); path.moveTo(cx - s * 0.38f, fy - s * 0.5f); path.lineTo(cx - s * 0.5f, fy - s * 0.08f)
+        path.lineTo(cx + s * 0.5f, fy - s * 0.08f); path.lineTo(cx + s * 0.38f, fy - s * 0.5f); path.close()
+        fillPath(c, 0xFF657786.toInt()); inkPath(c, s * 0.08f)
     }
 
     /** Кораблик — корпус-трапеция, белый парус, красный флажок */
     private fun boat() = Def("boat", "Кораблик", Kind.TOY, Reaction.LIFT, 2.8f) { c, cx, fy, s, _ ->
-        path.reset()
-        path.moveTo(cx - s * 1.4f, fy - s * 1.2f)
-        path.lineTo(cx + s * 1.4f, fy - s * 1.2f)
-        path.lineTo(cx + s * 0.9f, fy - s * 0.05f)
-        path.lineTo(cx - s * 0.9f, fy - s * 0.05f)
-        path.close()
-        pF.color = 0xFFB45309.toInt()
-        c.drawPath(path, pF)
-        pS.color = INK
-        pS.strokeWidth = s * 0.1f
-        c.drawPath(path, pS)
-        // мачта
-        line(c, cx, fy - s * 1.2f, cx, fy - s * 3.4f, s * 0.11f, 0xFF78350F.toInt())
-        // парус
-        val sail = android.graphics.Path()
-        sail.moveTo(cx + s * 0.12f, fy - s * 3.3f)
-        sail.quadTo(cx + s * 1.35f, fy - s * 2.0f, cx + s * 0.12f, fy - s * 1.35f)
-        sail.close()
-        pF.color = 0xFFF8FAFC.toInt()
-        c.drawPath(sail, pF)
-        pS.color = INK
-        pS.strokeWidth = s * 0.09f
-        c.drawPath(sail, pS)
-        // флажок
-        val flag = android.graphics.Path()
-        flag.moveTo(cx, fy - s * 3.4f)
-        flag.lineTo(cx - s * 0.5f, fy - s * 3.2f)
-        flag.lineTo(cx, fy - s * 3.0f)
-        flag.close()
-        pF.color = 0xFFE05B5B.toInt()
-        c.drawPath(flag, pF)
+        contactShadow(c, cx, fy, s * 1.3f, s)
+        line(c, cx - s * 0.1f, fy - s * 1.2f, cx - s * 0.1f, fy - s * 3.55f, s * 0.11f, 0xFF77513A.toInt())
+        // большой парус
+        path.reset(); path.moveTo(cx + s * 0.04f, fy - s * 3.38f)
+        path.quadTo(cx + s * 1.32f, fy - s * 2.25f, cx + s * 0.08f, fy - s * 1.42f); path.close()
+        fillPath(c, 0xFFF9F4E8.toInt()); inkPath(c, s * 0.09f)
+        path.reset(); path.moveTo(cx - s * 0.22f, fy - s * 3.18f)
+        path.lineTo(cx - s * 0.24f, fy - s * 1.48f); path.lineTo(cx - s * 1.03f, fy - s * 1.48f); path.close()
+        fillPath(c, 0xFF6FC3C0.toInt()); inkPath(c, s * 0.09f)
+        // корпус с верхней палубой
+        path.reset(); path.moveTo(cx - s * 1.45f, fy - s * 1.32f); path.lineTo(cx + s * 1.45f, fy - s * 1.32f)
+        path.quadTo(cx + s * 1.05f, fy - s * 0.15f, cx + s * 0.68f, fy - s * 0.08f)
+        path.lineTo(cx - s * 0.82f, fy - s * 0.08f); path.quadTo(cx - s * 1.18f, fy - s * 0.38f, cx - s * 1.45f, fy - s * 1.32f); path.close()
+        fillPath(c, 0xFFDF7355.toInt()); inkPath(c, s * 0.1f)
+        line(c, cx - s * 1.18f, fy - s * 0.93f, cx + s * 1.22f, fy - s * 0.93f, s * 0.1f, 0xFFF4B06A.toInt())
+        circle(c, cx - s * 0.5f, fy - s * 0.62f, s * 0.13f, 0xFF40586A.toInt())
+        circle(c, cx + s * 0.02f, fy - s * 0.62f, s * 0.13f, 0xFF40586A.toInt())
+        circle(c, cx + s * 0.54f, fy - s * 0.62f, s * 0.13f, 0xFF40586A.toInt())
+        path.reset(); path.moveTo(cx - s * 0.1f, fy - s * 3.55f); path.lineTo(cx + s * 0.58f, fy - s * 3.31f)
+        path.lineTo(cx - s * 0.1f, fy - s * 3.05f); path.close(); fillPath(c, 0xFFF1C453.toInt()); inkPath(c, s * 0.06f)
     }
 
     /** Цветок в горшке — крупный бутон из пяти лепестков */
     private fun flower() = Def("flower", "Цветок", Kind.TOY, Reaction.SMELL, 2.2f) { c, cx, fy, s, _ ->
-        val pot = s * 0.8f
+        val pot = s * 0.78f
+        contactShadow(c, cx, fy, s * 0.78f, s)
+        // стебель и листья находятся за горшком
+        line(c, cx, fy - s * 1.45f, cx, fy - s * 3.0f, s * 0.13f, 0xFF398B58.toInt())
+        path.reset(); path.moveTo(cx - s * 0.03f, fy - s * 2.15f)
+        path.quadTo(cx - s * 0.8f, fy - s * 2.55f, cx - s * 0.72f, fy - s * 1.85f)
+        path.quadTo(cx - s * 0.35f, fy - s * 1.78f, cx - s * 0.03f, fy - s * 2.15f); path.close(); fillPath(c, 0xFF55A96B.toInt())
+        path.reset(); path.moveTo(cx + s * 0.03f, fy - s * 2.48f)
+        path.quadTo(cx + s * 0.7f, fy - s * 2.75f, cx + s * 0.62f, fy - s * 2.15f)
+        path.quadTo(cx + s * 0.28f, fy - s * 2.12f, cx + s * 0.03f, fy - s * 2.48f); path.close(); fillPath(c, 0xFF72BB78.toInt())
+        // горшок
         path.reset()
         path.moveTo(cx - pot, fy - s * 1.5f)
         path.lineTo(cx + pot, fy - s * 1.5f)
         path.lineTo(cx + pot * 0.68f, fy - s * 0.05f)
         path.lineTo(cx - pot * 0.68f, fy - s * 0.05f)
         path.close()
-        pF.color = 0xFFD97706.toInt()
-        c.drawPath(path, pF)
-        pS.color = INK
-        pS.strokeWidth = s * 0.1f
-        c.drawPath(path, pS)
-        roundRect(c, cx - pot * 1.06f, fy - s * 1.72f, cx + pot * 1.06f, fy - s * 1.34f, s * 0.12f, 0xFFEA9A3E.toInt())
-        // стебель и лист
-        line(c, cx, fy - s * 1.5f, cx, fy - s * 3.0f, s * 0.12f, 0xFF16A34A.toInt())
-        ellipse(c, cx - s * 0.42f, fy - s * 2.2f, s * 0.32f, s * 0.15f, 0xFF22C55E.toInt())
-        // бутон: пять лепестков + крупная сердцевина
-        val cy = fy - s * 3.4f
+        fillPath(c, 0xFFD98758.toInt()); inkPath(c, s * 0.1f)
+        roundRect(c, cx - pot * 1.08f, fy - s * 1.72f, cx + pot * 1.08f, fy - s * 1.34f, s * 0.13f, 0xFFF0A06A.toInt())
+        inkRound(c, cx - pot * 1.08f, fy - s * 1.72f, cx + pot * 1.08f, fy - s * 1.34f, s * 0.13f, s * 0.08f)
+        line(c, cx - s * 0.42f, fy - s * 1.05f, cx + s * 0.42f, fy - s * 0.88f, s * 0.07f, 0x66FFFFFF)
+        // многослойный бутон
+        val cy = fy - s * 3.38f
         for (i in 0..4) {
             val ang = i * (Math.PI * 2 / 5).toFloat() - 1.57f
-            circle(c, cx + cos(ang) * s * 0.46f, cy + sin(ang) * s * 0.46f, s * 0.32f, 0xFFF472B6.toInt())
+            val px = cx + cos(ang) * s * 0.47f; val py = cy + sin(ang) * s * 0.47f
+            circle(c, px, py, s * 0.38f, 0xFFF47FA1.toInt()); ink(c, px, py, s * 0.38f, s * 0.065f)
         }
-        circle(c, cx, cy, s * 0.28f, 0xFFFDE047.toInt())
-        ink(c, cx, cy, s * 0.28f, s * 0.08f)
+        circle(c, cx, cy, s * 0.37f, 0xFFFFD166.toInt()); ink(c, cx, cy, s * 0.37f, s * 0.08f)
+        circle(c, cx - s * 0.11f, cy - s * 0.12f, s * 0.07f, 0x80FFFFFF.toInt())
     }
 
     /** Юла — жёлтая шапочка, фиолетовый диск, наконечник */
     private fun top() = Def("top", "Юла", Kind.TOY, Reaction.PLAY, 2.2f) { c, cx, fy, s, t ->
-        val rot = sin(t * 5.0f)
-        val tilt = rot * s * 0.12f
-        line(c, cx + tilt, fy - s * 2.9f, cx + tilt * 0.4f, fy - s * 2.4f, s * 0.16f, 0xFF7C3AED.toInt())
-        circle(c, cx + tilt, fy - s * 3.1f, s * 0.2f, 0xFFFDE047.toInt())
-        ellipse(c, cx, fy - s * 1.85f, s * 0.98f, s * 0.6f, 0xFFA78BFA.toInt())
-        inkOval(c, cx, fy - s * 1.85f, s * 0.98f, s * 0.6f, s * 0.1f)
-        ellipse(c, cx, fy - s * 1.55f, s * 0.55f, s * 0.32f, 0xFF7C3AED.toInt())
-        line(c, cx, fy - s * 1.1f, cx, fy - s * 0.1f, s * 0.12f, 0xFF5B21B6.toInt())
+        val tilt = sin(t * 5.0f) * s * 0.1f
+        contactShadow(c, cx, fy, s * 0.88f, s)
+        line(c, cx + tilt, fy - s * 3.0f, cx + tilt * 0.3f, fy - s * 2.35f, s * 0.16f, 0xFF6B4D8D.toInt())
+        roundRect(c, cx - s * 0.34f + tilt, fy - s * 3.25f, cx + s * 0.34f + tilt, fy - s * 2.94f, s * 0.13f, 0xFFFFD166.toInt())
+        inkRound(c, cx - s * 0.34f + tilt, fy - s * 3.25f, cx + s * 0.34f + tilt, fy - s * 2.94f, s * 0.13f, s * 0.07f)
+        // колоколообразный корпус из двух слоёв
+        path.reset(); path.moveTo(cx, fy - s * 2.58f)
+        path.cubicTo(cx + s * 0.72f, fy - s * 2.48f, cx + s * 1.18f, fy - s * 1.83f, cx + s * 1.02f, fy - s * 1.48f)
+        path.quadTo(cx, fy - s * 0.85f, cx - s * 1.02f, fy - s * 1.48f)
+        path.cubicTo(cx - s * 1.18f, fy - s * 1.83f, cx - s * 0.72f, fy - s * 2.48f, cx, fy - s * 2.58f); path.close()
+        fillPath(c, 0xFF9279D3.toInt()); inkPath(c, s * 0.1f)
+        path.reset(); path.moveTo(cx - s * 0.96f, fy - s * 1.65f)
+        path.quadTo(cx, fy - s * 1.08f, cx + s * 0.96f, fy - s * 1.65f)
+        path.lineTo(cx + s * 0.85f, fy - s * 1.38f)
+        path.quadTo(cx, fy - s * 0.9f, cx - s * 0.85f, fy - s * 1.38f); path.close(); fillPath(c, 0xFF5FC2B0.toInt())
+        ellipse(c, cx, fy - s * 1.52f, s * 0.9f, s * 0.23f, 0x4DFFFFFF)
+        path.reset(); path.moveTo(cx - s * 0.28f, fy - s * 1.08f); path.lineTo(cx, fy - s * 0.08f)
+        path.lineTo(cx + s * 0.28f, fy - s * 1.08f); path.close(); fillPath(c, 0xFF6B4D8D.toInt()); inkPath(c, s * 0.07f)
     }
 
     // --------------------------------------------------------------- еда
