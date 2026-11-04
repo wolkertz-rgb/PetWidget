@@ -5,7 +5,6 @@ import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
 import kotlin.math.PI
@@ -37,6 +36,10 @@ class SceneRenderer {
     private val rect = RectF()
     private val path = Path()
     private val furniture = RoomFurniture()
+    private val gradientPaints = HashMap<String, Paint>()
+    private fun gradientPaint(name: String): Paint = gradientPaints.getOrPut(name) { Paint(Paint.ANTI_ALIAS_FLAG) }
+    /** Превью не должно записывать общую позу живого питомца. */
+    var persistPose = true
 
     fun render(sim: PetSim, newW: Int, newH: Int): Bitmap? {
         if (newW <= 0 || newH <= 0) return null
@@ -99,7 +102,7 @@ class SceneRenderer {
         val itemX: (Float) -> Float = { pad + it.coerceIn(0f, 1f) * (w - 2 * pad) }
 
         // фон (тема-токены)
-        val bg = Paint().apply {
+        val bg = gradientPaint("bg").apply {
             shader = LinearGradient(0f, pad, 0f, floorY, th("room_bg_top", 0xFFF2F2EF.toInt()), th("room_bg_bottom", 0xFFE8E8E4.toInt()), Shader.TileMode.CLAMP)
         }
         c.drawRect(0f, 0f, w.toFloat(), floorY + 1f, bg)
@@ -110,11 +113,11 @@ class SceneRenderer {
         val night = WindowScene.night(worldTime)
 
         // стены/потолок
-        val wallL = Paint().apply { shader = LinearGradient(0f, 0f, pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP) }
+        val wallL = gradientPaint("wallL").apply { shader = LinearGradient(0f, 0f, pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, pad * 2.4f, h.toFloat(), wallL)
-        val wallR = Paint().apply { shader = LinearGradient(w.toFloat(), 0f, w - pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP) }
+        val wallR = gradientPaint("wallR").apply { shader = LinearGradient(w.toFloat(), 0f, w - pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP) }
         c.drawRect(w - pad * 2.4f, 0f, w.toFloat(), h.toFloat(), wallR)
-        val ceil = Paint().apply { shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP) }
+        val ceil = gradientPaint("ceil").apply { shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, w.toFloat(), pad * 1.6f, ceil)
 
         // узор обоев (читается из кастомизации)
@@ -143,7 +146,7 @@ class SceneRenderer {
         c.drawLine(pad, floorY - unit * 2.0f, w - pad, floorY - unit * 2.0f, pS)
 
         // пол + плинтус (тема-токены)
-        val floor = Paint().apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFE1E1DC.toInt()), th("floor_bottom", 0xFFD3D3CE.toInt()), Shader.TileMode.CLAMP) }
+        val floor = gradientPaint("floor").apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFE1E1DC.toInt()), th("floor_bottom", 0xFFD3D3CE.toInt()), Shader.TileMode.CLAMP) }
         rect.set(pad, floorY, w - pad, h - pad)
         c.drawRect(rect, floor)
         pF.color = th("room_skirt", 0xFFDCDCD6.toInt())
@@ -257,7 +260,7 @@ class SceneRenderer {
         c.drawLine(bx, unit * 0.18f, bx, by - unit * 0.72f, pS)
 
         // современный колоколообразный плафон
-        val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val shade = gradientPaint("shade").apply {
             shader = LinearGradient(bx - unit, by - unit * 0.7f, bx + unit, by + unit * 0.4f,
                 0xFF587067.toInt(), 0xFF263A34.toInt(), Shader.TileMode.CLAMP)
         }
@@ -758,8 +761,6 @@ class SceneRenderer {
     private var lastPose = floatArrayOf(1f, 1f, 0f, 0f)
     private var lastPosePhase = -1f
     private var lastPoseWrite = 0f      // pet_pose пишется на диск НЕ каждый кадр, а раз в секунду
-    private var lastStName = ""
-    private var facePuff = 0f
 
     private fun lerp(a: Float, b: Float, k: Float): Float = a + (b - a) * k
 
@@ -773,7 +774,6 @@ class SceneRenderer {
         var sx = 1f
         var sy = 1f
         var rot = 0f
-        var headTilt = 0f
         val st = sim.state
 
         // ---- ПЛАВНЫЕ ПЕРЕХОДЫ: поза тянется к новой, никаких телепортов
@@ -790,12 +790,6 @@ class SceneRenderer {
         val dtAnim = (sim.animPhase - lastPosePhase).coerceIn(0f, 3f)
         val k = (1f - kotlin.math.exp(-12f * dtAnim)).coerceIn(0f, 1f)
 
-        // смена действия = мягкая «вспышка-облако» вместо резкого скачка лица
-        if (lastStName != st.name) {
-            facePuff = 0f
-            lastStName = st.name
-        }
-        facePuff = (facePuff - dtAnim * 6f).coerceIn(0f, 1f)
 
         // тень (в кресле чуть меньше)
         pF.color = if (onBed) 0x0A000000 else 0x0F000000
@@ -832,12 +826,12 @@ class SceneRenderer {
         dRot = ((dRot % TWO_PI) + TWO_PI) % TWO_PI
         if (dRot > PI.toFloat()) dRot -= TWO_PI
         rot = tl[2] + dRot * k
-        lastPose = floatArrayOf(sx, sy, rot, dx)
+        lastPose[0] = sx; lastPose[1] = sy; lastPose[2] = rot; lastPose[3] = dx
         lastPosePhase = sim.animPhase
         // pet_pose: в кадре пружинная поза живёт в lastPose (память); на диск — раз в
         // секунду, чтобы «ходы» после смерти процесса восстановили БЛИЗКУЮ позу
         // (дальше пружина дотянет) — было 20 записей prefs в секунду
-        if (sim.animPhase - lastPoseWrite >= 1f) {
+        if (persistPose && sim.animPhase - lastPoseWrite >= 1f) {
             lastPoseWrite = sim.animPhase
             try {
                 lastPrefs?.edit()?.putString(
@@ -848,7 +842,7 @@ class SceneRenderer {
 
         val px = cx + dx
         c.save()
-        c.rotate(rot * 57.2958f + headTilt * 40f, px, cy)
+        c.rotate(rot * 57.2958f, px, cy)
 
         // антеннка: варианты по кастомизации (шарик / цветочек / нить / ничего)
         when (look("look_antenna", "ball")) {
@@ -909,7 +903,7 @@ class SceneRenderer {
         }
 
         // тело: палитра из темы (двухцветный градиент топ→низ, серединка выводится автоматически)
-        val body = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val body = gradientPaint("body").apply {
             shader = LinearGradient(
                 px - r * 0.4f, cy - r * sy, px + r * 0.2f, cy + r * sy,
                 intArrayOf(th("pet_top", 0xFFA8E6C3.toInt()), th("pet_mid", 0xFF6FBE97.toInt()), th("pet_bottom", 0xFF4FA379.toInt())),
@@ -950,7 +944,6 @@ class SceneRenderer {
         val sleeping = st == PetSim.State.SLEEP
         val stretching = st == PetSim.State.STRETCH
         val waving = st == PetSim.State.WAVE
-        val blinking = !sleeping && !stretching && !waving && (sim.animPhase % 4.4f) < 0.14f
         val happy = st == PetSim.State.HAPPY || st == PetSim.State.INTERACT || st == PetSim.State.ROLL
 
         var lookX = sim.dir * 0.18f
@@ -1327,17 +1320,6 @@ class SceneRenderer {
             }
         }
 
-        // «пуф-облако» при смене действия: мягкий мультипликационный переход
-        if (facePuff > 0.02f) {
-            val puff = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = RadialGradient(
-                    px, eyeY - r * sy * 0.10f, r * 1.35f,
-                    intArrayOf(((0x26 * facePuff).toInt() shl 24) or 0x00FFFFFF, 0x00FFFFFF),
-                    null, Shader.TileMode.CLAMP
-                )
-            }
-            c.drawCircle(px, eyeY - r * sy * 0.05f, r * 1.3f, puff)
-        }
         c.restore()
     }
 
@@ -1652,7 +1634,7 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         // цельный силуэт современной wingback-спинки
-        val back = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val back = gradientPaint("back").apply {
             shader = LinearGradient(bx - unit * 1.2f, floorY - unit * 3.25f, bx + unit * 1.1f, floorY - unit * 0.65f,
                 th("chair_back1", 0xFFAB7B44.toInt()), th("chair_back2", 0xFF6D4523.toInt()), Shader.TileMode.CLAMP)
         }
@@ -1667,7 +1649,7 @@ class SceneRenderer {
         pS.color = outline; pS.strokeWidth = unit * 0.11f; c.drawPath(path, pS)
 
         // внутренняя мягкая панель и кожаный кант
-        val panel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val panel = gradientPaint("panel").apply {
             shader = LinearGradient(0f, floorY - unit * 3.0f, 0f, floorY - unit * 1.0f,
                 th("chair_back1", 0xFFAB7B44.toInt()), th("chair_back2", 0xFF6D4523.toInt()), Shader.TileMode.CLAMP)
         }
@@ -1687,7 +1669,7 @@ class SceneRenderer {
         }
 
         // глубокая отдельная подушка сиденья
-        val seat = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val seat = gradientPaint("seat").apply {
             shader = LinearGradient(0f, floorY - unit * 1.05f, 0f, floorY - unit * 0.08f,
                 th("chair_seat1", 0xFFC08A57.toInt()), th("chair_seat2", 0xFF94613A.toInt()), Shader.TileMode.CLAMP)
         }
@@ -1708,7 +1690,7 @@ class SceneRenderer {
         }
 
         val outline = 0xFF4C3528.toInt()
-        val roll = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        val roll = gradientPaint("roll").apply {
             shader = LinearGradient(0f, floorY - unit * 2.0f, 0f, floorY,
                 th("chair_roll1", 0xFFB98350.toInt()), th("chair_roll2", 0xFF8A5A2E.toInt()), Shader.TileMode.CLAMP)
         }

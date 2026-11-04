@@ -59,7 +59,7 @@ class AtelierActivity : Activity() {
 
     /** живой маленький мир для превью */
     private inner class PreviewView(private val context: Context) : View(context) {
-        private val renderer = SceneRenderer()
+        private val renderer = SceneRenderer().apply { persistPose = false }
         // превью тикает КОПИЮ мозга и ничего не пишет в prefs:
         // иначе это второй писатель параллельно сервису (урок №3 «Библии»)
         private val sim = PetSim(
@@ -70,10 +70,14 @@ class AtelierActivity : Activity() {
         )
         private var bmp: Bitmap? = null
         private var lastTick = 0L
+        private var active = false
+
+        fun start() { active = true; lastTick = 0L; refresh() }
+        fun stop() { active = false; removeCallbacks(ticker) }
 
         private val ticker = object : Runnable {
             override fun run() {
-                if (!isShown) return
+                if (!active || !isShown) return
                 renderFrame()
                 postDelayed(this, 240)
             }
@@ -82,7 +86,7 @@ class AtelierActivity : Activity() {
         fun refresh() {
             removeCallbacks(ticker)
             renderFrame()
-            if (isShown) postDelayed(ticker, 240)
+            if (active && isShown) postDelayed(ticker, 240)
         }
 
         private fun renderFrame() {
@@ -116,6 +120,16 @@ class AtelierActivity : Activity() {
             super.onDraw(canvas)
             bmp?.let { canvas.drawBitmap(it, 0f, 0f, null) }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (this::previewView.isInitialized) previewView.start()
+    }
+
+    override fun onPause() {
+        if (this::previewView.isInitialized) previewView.stop()
+        super.onPause()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -127,6 +127,8 @@ class PetWidgetProvider : AppWidgetProvider() {
          * done() вызывается ровно один раз (для goAsync().finish()).
          */
         fun burst(context: Context, frames: Int = 8, everyMs: Long = 450L, done: () -> Unit = {}) {
+            // Работающий сервис уже непрерывно рисует актуальные настройки.
+            if (PetService.running) { done(); return }
             val app = context.applicationContext
             val thread = HandlerThread("pet-burst").apply { start() }
             val handler = Handler(thread.looper)
