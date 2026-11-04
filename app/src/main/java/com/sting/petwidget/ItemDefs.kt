@@ -118,23 +118,33 @@ object ItemDefs {
 
     // ------------------------------------------------------------ игрушки
 
-    /** Глянцевый мяч с цельными цветными панелями. */
+    /** Футбольный мяч: белая оболочка, чёрные пятиугольники и швы. */
     private fun ball() = Def("ball", "Мячик", Kind.TOY, Reaction.PUSH, 2.4f) { c, cx, fy, s, _ ->
         val r = s * 1.08f
         val cy = fy - r
         contactShadow(c, cx, fy, r * 0.82f, s)
-        circle(c, cx, cy, r, 0xFFFFD166.toInt())
-        rect.set(cx - r, cy - r, cx + r, cy + r)
-        pF.color = 0xFFEF6F7B.toInt()
-        c.drawArc(rect, 205f, 82f, true, pF)
-        pF.color = 0xFF5AB9A6.toInt()
-        c.drawArc(rect, 287f, 82f, true, pF)
-        path.reset()
-        path.moveTo(cx - r * 0.12f, cy - r)
-        path.cubicTo(cx + r * 0.18f, cy - r * 0.5f, cx + r * 0.18f, cy + r * 0.5f, cx - r * 0.12f, cy + r)
-        pS.color = 0xBFFFFFFF.toInt()
-        pS.strokeWidth = s * 0.08f
-        c.drawPath(path, pS)
+        circle(c, cx, cy, r, 0xFFF8F7F1.toInt())
+        c.save()
+        path.reset(); path.addCircle(cx, cy, r, Path.Direction.CW); c.clipPath(path)
+        for (panel in 0..5) {
+            val angle = -Math.PI.toFloat() / 2f + (panel - 1) * Math.PI.toFloat() * 2f / 5f
+            val px = if (panel == 0) cx else cx + cos(angle) * r * 1.02f
+            val py = if (panel == 0) cy else cy + sin(angle) * r * 1.02f
+            val size = r * (if (panel == 0) 0.4f else 0.32f)
+            if (panel > 0) {
+                line(c, cx + cos(angle) * r * 0.38f, cy + sin(angle) * r * 0.38f,
+                    px, py, s * 0.055f, 0xFF777974.toInt())
+            }
+            path.reset()
+            for (vertex in 0..4) {
+                val a = -Math.PI.toFloat() / 2f + vertex * Math.PI.toFloat() * 2f / 5f
+                val vx = px + cos(a) * size; val vy = py + sin(a) * size
+                if (vertex == 0) path.moveTo(vx, vy) else path.lineTo(vx, vy)
+            }
+            path.close(); fillPath(c, 0xFF303936.toInt())
+        }
+        ellipse(c, cx + r * 0.3f, cy + r * 0.62f, r * 0.9f, r * 0.25f, 0x18000000)
+        c.restore()
         ink(c, cx, cy, r, s * 0.1f)
         ellipse(c, cx - r * 0.38f, cy - r * 0.42f, r * 0.18f, r * 0.28f, 0xA6FFFFFF.toInt())
     }

@@ -27,11 +27,16 @@ internal object WindowScene {
         (Color.green(a) + (Color.green(b) - Color.green(a)) * t).toInt(),
         (Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t).toInt())
 
-    // 120 секунд день, 120 ночь; 12-секундные переходы на границах.
+    // Небо следует высоте светила; рассвет и закат непрерывны на границе цикла.
     fun night(now: Long): Float {
-        val seconds = (now % 240_000L) / 1000f
-        fun ease(x: Float): Float { val v = x.coerceIn(0f, 1f); return v * v * (3f - 2f * v) }
-        return if (seconds < 120f) 1f - ease(seconds / 12f) else ease((seconds - 120f) / 12f)
+        val altitude = sin((now % 240_000L) / 240_000f * 2f * PI.toFloat())
+        val v = (0.5f - altitude / 0.32f).coerceIn(0f, 1f)
+        return v * v * (3f - 2f * v)
+    }
+
+    fun daylight(now: Long): Float {
+        if (now % 240_000L >= 120_000L) return 0f
+        return sin((now % 120_000L) / 120_000f * PI.toFloat()).coerceAtLeast(0f)
     }
 
     fun draw(c: Canvas, unit: Float, floor: Float, now: Long) {
@@ -67,10 +72,15 @@ internal object WindowScene {
             mix(0xFF87CFE6.toInt(), 0xFF172642.toInt(), n),
             mix(0xFFDAEEDC.toInt(), 0xFF566784.toInt(), n), Shader.TileMode.CLAMP)
         c.drawRect(bounds, fill); fill.shader = null
-        fill.color = 0xFFFFD576.toInt(); fill.alpha = ((1f - n) * 255).toInt()
-        c.drawCircle(x - unit * 1.15f, top + unit * 1.1f, unit * 0.43f, fill)
-        fill.color = 0xFFF7EACB.toInt(); fill.alpha = (n * 255).toInt()
-        c.drawCircle(x + unit * 1.15f, top + unit * 1.1f, unit * 0.38f, fill)
+        // Светило входит за левую раму, проходит дугу и уходит за правую.
+        // Меняется только после выхода из окна: без растворения на месте.
+        val progress = (now % 120_000L) / 120_000f
+        val isDay = now % 240_000L < 120_000L
+        val celestialX = left - unit * 0.5f + progress * (right - left + unit)
+        val celestialY = top + (bottom - top) * 0.67f -
+            sin(progress * PI.toFloat()) * (bottom - top) * 0.48f
+        fill.color = if (isDay) 0xFFFFD576.toInt() else 0xFFF7EACB.toInt()
+        c.drawCircle(celestialX, celestialY, unit * (if (isDay) 0.43f else 0.38f), fill)
         for (i in 0..11) {
             fill.alpha = (n * (150 + 70 * sin(t * 0.8f + i))).toInt().coerceIn(0, 255)
             c.drawCircle(left + unit * (0.3f + (i * 1.17f) % 4.1f), top + unit * (0.35f + (i * 0.61f) % 2f), unit * 0.035f, fill)

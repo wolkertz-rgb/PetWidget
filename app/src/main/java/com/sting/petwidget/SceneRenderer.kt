@@ -371,7 +371,7 @@ class SceneRenderer {
                     row++
                 }
             }
-            5 -> { // звёздочки-искры
+            5 -> { // замкнутые пятиконечные звёзды
                 val st = unit * 2.0f
                 var row = 0
                 var yy = top + st
@@ -379,7 +379,15 @@ class SceneRenderer {
                     var xx = left + st
                     val sh = if (row % 2 == 1) st / 2f else 0f
                     while (xx < right) {
-                        drawSpark(c, xx + sh, yy, unit * 0.34f, col, 190)
+                        path.reset()
+                        for (point in 0..9) {
+                            val angle = -PI.toFloat() / 2f + point * PI.toFloat() / 5f
+                            val radius = unit * (if (point % 2 == 0) 0.37f else 0.17f)
+                            val sx = xx + sh + cos(angle) * radius
+                            val sy = yy + sin(angle) * radius
+                            if (point == 0) path.moveTo(sx, sy) else path.lineTo(sx, sy)
+                        }
+                        path.close(); pF.color = col; c.drawPath(path, pF)
                         xx += st
                     }
                     yy += st
@@ -449,8 +457,19 @@ class SceneRenderer {
         c.restore()
     }
 
+    private var windowGlow = 0f
+    private var lastLightFrame = 0L
+
     private fun applyLightOverlay(c: Canvas, unit: Float, floorY: Float) {
-        SceneLighting.draw(c, w.toFloat(), h.toFloat(), floorY, 26f * density, lightNow())
+        val now = android.os.SystemClock.uptimeMillis()
+        val dt = if (lastLightFrame == 0L) 0f else ((now - lastLightFrame) / 1000f).coerceIn(0f, 1f)
+        lastLightFrame = now
+        val on = lightNow()
+        val daylight = WindowScene.daylight(System.currentTimeMillis())
+        val target = if (on) 0f else daylight
+        windowGlow += (target - windowGlow) * (1f - kotlin.math.exp(-dt * 1.4f))
+        SceneLighting.draw(c, w.toFloat(), h.toFloat(), floorY, 26f * density, on,
+            windowGlow.coerceAtMost(daylight))
     }
 
     // ------------------------------------------------------------- захват
