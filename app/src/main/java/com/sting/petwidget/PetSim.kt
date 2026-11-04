@@ -61,6 +61,7 @@ class PetSim(
     var petStyle = 0              // вариант реакции на поглаживание
     var hunger = 30f              // 0..100: растёт со временем, снимается едой
     val items = ArrayList<SpawnedItem>()
+    val outing = Outing(prefs, autoSave)
 
     private var nextSpawnIn = 6_000L             // первый предмет появится скорее
     private var sleepAfterGap = 0L
@@ -103,6 +104,7 @@ class PetSim(
         val dtS = dt / 1000f
         animPhase += dtS
         stateTime += dt
+        if (outing.tick(this, dt)) return
 
         // физика предметов: экспоненциальное трение — время скольжения не зависит
         // от частоты кадров (в отличие от vx *= 1 - k·dt)
@@ -145,7 +147,7 @@ class PetSim(
         // Пока он в процессе тяги/похода/серии — правило честно ждёт окончания.
         val switchDue = animPhase - lastPullAt >= 60f
         val switchBusy = state == State.PULL || walkMode == WalkMode.TO_SWITCH || pendingNextPull
-        if (switchDue && !switchBusy) {
+        if (switchDue && !switchBusy && !outing.yard) {
             lastPullAt = animPhase
             walkMode = WalkMode.TO_SWITCH
             state = State.WALK
@@ -340,6 +342,7 @@ class PetSim(
         targetItem = null
         walkMode = WalkMode.NONE
         sleepingInBed = false
+        if (outing.yard && state == State.SLEEP) state = State.IDLE
 
         if (sleepAfterGap > 0) { state = State.SLEEP; stateDur = 2_500; return }
 
@@ -393,6 +396,7 @@ class PetSim(
             r < 0.97f -> { state = State.IDLE; stateDur = rL(2_000, 5_000) }
             else -> {
                 // сон всегда начинается с похода к своему креслу
+                if (outing.yard) { state = State.LOOK; stateDur = 2400; return }
                 pendingSleepDur = rL(5_000, 16_000)
                 walkMode = WalkMode.TO_BED
                 state = State.WALK
@@ -492,6 +496,7 @@ class PetSim(
 
     /** Начало тяги за шнур: питомец встал под выключатель */
     fun beginPull() {
+        if (outing.yard) return
         x = switchX
         dir = 1
         walkMode = WalkMode.NONE
@@ -533,6 +538,7 @@ class PetSim(
 
     /** Тап по питомцу = ПОГЛАЖИВАНИЕ: случайная реакция */
     fun tap() {
+        if (outing.busy) return
         if (state == State.SLEEP) return
         petStyle = rng.nextInt(5)
         targetItem = null
@@ -550,7 +556,7 @@ class PetSim(
     fun onResume(gapMs: Long) {
         // время питомца замирает вместе с экраном: предметы в паузе не старели,
         // поэтому чистка по gapMs не нужна (семантика «спал, а не жил в тени»)
-        if (gapMs > 4 * 60 * 60_000) {
+        if (gapMs > 4 * 60 * 60_000 && !outing.yard) {
             sleepAfterGap = rL(8_000, 18_000)
         }
         stateDur = stateTime + 1
@@ -612,6 +618,7 @@ class PetSim(
     // ---------------------------------------------------------- сохранение
 
     fun save() {
+        outing.save()
         val ed = prefs.edit()
         ed.putFloat(KEY_X, x)
         ed.putInt(KEY_DIR, dir)
