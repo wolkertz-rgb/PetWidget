@@ -36,6 +36,7 @@ class SceneRenderer {
     private val rect = RectF()
     private val path = Path()
     private val furniture = RoomFurniture()
+    private val yardScene = YardScene()
     private val gradientPaints = HashMap<String, Paint>()
     private fun gradientPaint(name: String): Paint = gradientPaints.getOrPut(name) { Paint(Paint.ANTI_ALIAS_FLAG) }
     /** Превью не должно записывать общую позу живого питомца. */
@@ -100,6 +101,10 @@ class SceneRenderer {
         val pad = unit * 0.7f
         val floorY = h - h * 0.115f
         val itemX: (Float) -> Float = { pad + it.coerceIn(0f, 1f) * (w - 2 * pad) }
+        if (sim.outing.yard) {
+            drawYard(c, sim, unit, floorY, itemX)
+            return
+        }
 
         // фон (тема-токены)
         val bg = gradientPaint("bg").apply {
@@ -182,6 +187,8 @@ class SceneRenderer {
         // шнур-выключатель с бусиной
         drawPullCord(c, sim, unit, floorY)
 
+        yardScene.door(c, itemX(sim.outing.doorX), floorY, unit, sim.outing.doorOpen)
+
         // когда питомец НЕ спит в кресле — подлокотники тоже позади него
         val sleepingInChair = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
         if (!sleepingInChair) drawChairFront(c, unit, floorY)
@@ -237,6 +244,36 @@ class SceneRenderer {
         // Настенная клавиша рисуется только в слое стены, до питомца.
         if (th("room_lamp", 0) == 0) drawPullCord(c, sim, unit, floorY)
 
+        drawLocationFade(c, sim)
+
+    }
+
+    private fun drawLocationFade(c: Canvas, sim: PetSim) {
+        val alpha = (sim.outing.fade * 255).toInt().coerceIn(0,255)
+        if (alpha > 0) c.drawColor((alpha shl 24) or 0x001D2B29)
+    }
+
+    private fun drawYard(c: Canvas, sim: PetSim, unit: Float, floor: Float, itemX: (Float) -> Float) {
+        yardScene.draw(c, w.toFloat(), h.toFloat(), floor, unit, System.currentTimeMillis(), sim.outing)
+        val inter = readInteract(sim, itemX, r = unit * 1.55f)
+        val a = sim.outing.swingAngle
+        c.save()
+        c.translate(sin(a)*unit*3.4f, -unit*.65f*sim.outing.mount-(1f-cos(a))*unit*3.4f)
+        drawPet(c, sim, itemX(sim.x), floor, unit, inter)
+        drawArms(c, sim, inter, unit, floor, itemX)
+        c.restore()
+        for (item in sim.items) {
+            if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), floor, unit)
+            if (item.ageMs in 0L..1700L) drawSpawnLabel(c, item.def.name, itemX(item.x), floor, unit, item.ageMs)
+            if (item.confetti && item.ageMs in 0L..420L) drawConfetti(c,itemX(item.x),floor,unit,item.ageMs/420f)
+        }
+        if (inter.lidProg > 0f && inter.target != null) drawLidPop(c,inter,unit,floor)
+        if (inter.holding && inter.target != null && inter.prog > 0f) {
+            drawHeldItem(c,sim,inter,unit,floor)
+            drawArms(c,sim,inter,unit,floor,itemX)
+        }
+        if (sim.state == PetSim.State.WAVE) drawHearts(c,sim,itemX(sim.x),floor,unit)
+        drawLocationFade(c,sim)
     }
 
     // ------------------------------------------------------- свет и лампа
