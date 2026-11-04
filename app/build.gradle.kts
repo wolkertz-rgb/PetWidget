@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// Один источник номера для установщика Android и отображаемой версии.
+// Локальная сборка помечается отдельно, чтобы не путать её с APK из Actions.
+val ciBuildNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()?.takeIf { it > 0 }
+
 android {
     namespace = "com.sting.petwidget"
     compileSdk = 35
@@ -11,8 +15,8 @@ android {
         applicationId = "com.sting.petwidget"
         minSdk = 26
         targetSdk = 35
-        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.0"
+        versionCode = ciBuildNumber ?: 1
+        versionName = ciBuildNumber?.let { "1.$it" } ?: "1.0-local"
     }
 
     signingConfigs {
