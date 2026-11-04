@@ -36,6 +36,7 @@ class SceneRenderer {
     }
     private val rect = RectF()
     private val path = Path()
+    private val furniture = RoomFurniture()
 
     fun render(sim: PetSim, newW: Int, newH: Int): Bitmap? {
         if (newW <= 0 || newH <= 0) return null
@@ -162,6 +163,11 @@ class SceneRenderer {
         // Мягкая смена времени суток и окно в свободной левой части стены.
         c.drawColor(((night * 30).toInt() shl 24) or 0x002E3A55)
         WindowScene.draw(c, unit, floorY, worldTime)
+        val curtainStyle = th("room_curtain", -1)
+        if (curtainStyle >= 0) furniture.curtains(c, unit, floorY, curtainStyle,
+            th("curtain_closed", 0) == 1, th("curtain_color", 0xFF8AAFA3.toInt()))
+        furniture.decor(c, unit, floorY, th("decor_rug", 0) == 1,
+            th("decor_tv", 0) == 1, th("decor_plant", 0) == 1)
 
         // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
         drawChairBack(c, unit, floorY)
@@ -231,6 +237,11 @@ class SceneRenderer {
     // ------------------------------------------------------- свет и лампа
 
     private fun drawBulb(c: Canvas, unit: Float, floorY: Float) {
+        val style = th("room_lamp", 0)
+        if (style != 0) {
+            furniture.lamp(c, w.toFloat(), floorY, unit, 26f * density, style, lightNow())
+            return
+        }
         val bx = w / 2f
         val by = 26f * density          // фиксируем в dp, чтобы совпадало с зоной тапа
         val on = lightNow()
@@ -268,7 +279,8 @@ class SceneRenderer {
 
     /** координаты кончика шнура-выключателя (с учётом тяги) */
     private fun pullCordPos(sim: PetSim, unit: Float, floorY: Float): Pair<Float, Float> {
-        val sx = floorXfor(PetSim.SWITCH_X, unit)
+        val sx = floorXfor(sim.switchX, unit)
+        if (th("room_lamp", 0) != 0) return sx to (floorY - unit * 2.5f)
         var pullOffset = 0f
         if (sim.state == PetSim.State.PULL) {
             val t = sim.stateTime
@@ -284,6 +296,16 @@ class SceneRenderer {
 
     private fun drawPullCord(c: Canvas, sim: PetSim, unit: Float, floorY: Float) {
         val (sx, tipY) = pullCordPos(sim, unit, floorY)
+        if (th("room_lamp", 0) != 0) {
+            pF.color = 0xFFF2E7D5.toInt()
+            rect.set(sx - unit * 0.32f, tipY - unit * 0.42f, sx + unit * 0.32f, tipY + unit * 0.42f)
+            c.drawRoundRect(rect, unit * 0.1f, unit * 0.1f, pF)
+            pS.color = 0xFF4A4038.toInt(); pS.strokeWidth = unit * 0.08f
+            c.drawRoundRect(rect, unit * 0.1f, unit * 0.1f, pS)
+            pF.color = if (lightNow()) 0xFF7FAE87.toInt() else 0xFF8A9290.toInt()
+            rect.inset(unit * 0.14f, unit * 0.15f); c.drawRoundRect(rect, unit * 0.04f, unit * 0.04f, pF)
+            return
+        }
         pS.color = 0xFF52635C.toInt()
         pS.strokeWidth = unit * 0.075f
         c.drawLine(sx, 0f, sx, tipY, pS)
@@ -465,11 +487,14 @@ class SceneRenderer {
         val dt = if (lastLightFrame == 0L) 0f else ((now - lastLightFrame) / 1000f).coerceIn(0f, 1f)
         lastLightFrame = now
         val on = lightNow()
-        val daylight = WindowScene.daylight(System.currentTimeMillis())
+        val curtainsBlockLight = th("room_curtain", -1) >= 0 && th("curtain_closed", 0) == 1
+        val daylight = if (curtainsBlockLight) 0f else WindowScene.daylight(System.currentTimeMillis())
         val target = if (on) 0f else daylight
         windowGlow += (target - windowGlow) * (1f - kotlin.math.exp(-dt * 1.4f))
-        SceneLighting.draw(c, w.toFloat(), h.toFloat(), floorY, 26f * density, on,
-            windowGlow.coerceAtMost(daylight))
+        val floorLamp = th("room_lamp", 0) == 2
+        SceneLighting.draw(c, w.toFloat(), h.toFloat(), floorY,
+            if (floorLamp) floorY - unit * 4.5f else 26f * density, on,
+            windowGlow.coerceAtMost(daylight), if (floorLamp) unit * 23f else w / 2f)
     }
 
     // ------------------------------------------------------------- захват
@@ -705,12 +730,13 @@ class SceneRenderer {
 
     private fun petCy(sim: PetSim, floorY: Float, unit: Float, r: Float): Float {
         val onBed = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
-        var cy = floorY - r * 0.92f - if (onBed) unit * 0.62f else 0f
+        val bedLift = if (th("room_bed", 0) == 1) 0.02f else 0.62f
+        var cy = floorY - r * 0.92f - if (onBed) unit * bedLift else 0f
         if (sim.state != PetSim.State.WALK) cy -= PetMotion.pose(sim).lift * r
         if (sim.state == PetSim.State.WALK) {
             cy -= abs(sin(sim.animPhase * 5.5f)) * r * 0.14f
         }
-        if (sim.state == PetSim.State.PULL) {
+        if (sim.state == PetSim.State.PULL && th("room_lamp", 0) == 0) {
             // подпрыгивает, чтобы схватить шнур
             val jp = (sim.stateTime.toFloat() / 500f).coerceIn(0f, 1f)
             cy -= sin((jp * PI).toFloat()) * r * 0.85f
@@ -1463,7 +1489,11 @@ class SceneRenderer {
             PetSim.State.PULL -> {
                 // рука держит бусину шнура
                 val (tipX, tipY) = pullCordPos(sim, unit, floorY)
-                arm(cx + r * 0.35f, cy - r * 0.30f, tipX, tipY + unit * 0.1f, true)
+                val press = if (th("room_lamp", 0) == 0) 1f else
+                    sin((sim.stateTime / PetSim.PULL_DUR.toFloat()).coerceIn(0f, 1f) * PI.toFloat())
+                arm(cx + r * 0.35f, cy - r * 0.30f,
+                    lerp(cx + r * 0.45f, tipX, press),
+                    lerp(cy + r * 0.1f, tipY + unit * 0.1f, press), true)
             }
 
             PetSim.State.INTERACT -> {
@@ -1595,6 +1625,11 @@ class SceneRenderer {
 
     private fun drawChairBack(c: Canvas, unit: Float, floorY: Float) {
         val bx = floorXfor(PetSim.BED_X, unit)
+        val style = th("room_bed", 0)
+        if (style != 0) {
+            furniture.bed(c, bx, floorY, unit, style, th("chair_back1", 0xFFAB7B44.toInt()), false)
+            return
+        }
         val outline = 0xFF4C3528.toInt()
 
         // широкая контактная тень
@@ -1652,6 +1687,11 @@ class SceneRenderer {
 
     private fun drawChairFront(c: Canvas, unit: Float, floorY: Float) {
         val bx = floorXfor(PetSim.BED_X, unit)
+        val style = th("room_bed", 0)
+        if (style != 0) {
+            furniture.bed(c, bx, floorY, unit, style, th("chair_back1", 0xFFAB7B44.toInt()), true)
+            return
+        }
 
         val outline = 0xFF4C3528.toInt()
         val roll = Paint(Paint.ANTI_ALIAS_FLAG).apply {

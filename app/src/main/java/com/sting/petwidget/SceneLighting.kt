@@ -11,8 +11,8 @@ internal object SceneLighting {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     fun draw(c: Canvas, width: Float, height: Float, floor: Float, bulbY: Float, on: Boolean,
-             windowGlow: Float = 0f) {
-        val x = width / 2f
+             windowGlow: Float = 0f, lampX: Float = width / 2f) {
+        val x = lampX
         if (!on) {
             paint.shader = LinearGradient(0f, 0f, width, height,
                 0xAE1C2942.toInt(), 0x55354764, Shader.TileMode.CLAMP)

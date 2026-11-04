@@ -28,6 +28,10 @@ class PetSim(
     enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY }
     enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED, TO_SWITCH }
 
+    /** У новых светильников настенная кнопка рядом со спальным местом. */
+    val switchX: Float
+        get() = if (prefs.getInt("room_lamp", 0) == 0) SWITCH_X else 0.64f
+
     /** Предмет в комнате */
     class SpawnedItem(
         val defId: String,
@@ -147,7 +151,7 @@ class PetSim(
             state = State.WALK
             stateTime = 0
             stateDur = 12_000
-            dir = if (SWITCH_X > x) 1 else -1
+            dir = if (switchX > x) 1 else -1
             sleepingInBed = false
             targetItem = null
         }
@@ -256,9 +260,9 @@ class PetSim(
                                 // пока питомец реально ни дойдёт
                             }
                         } else if (walkMode == WalkMode.TO_SWITCH) {
-                            val dxs = SWITCH_X - x
+                            val dxs = switchX - x
                             if (abs(dxs) < 0.05f) {
-                                x = SWITCH_X
+                                x = switchX
                                 beginPull()
                             } else {
                                 dir = if (dxs > 0) 1 else -1
@@ -488,7 +492,7 @@ class PetSim(
 
     /** Начало тяги за шнур: питомец встал под выключатель */
     fun beginPull() {
-        x = SWITCH_X
+        x = switchX
         dir = 1
         walkMode = WalkMode.NONE
         targetItem = null

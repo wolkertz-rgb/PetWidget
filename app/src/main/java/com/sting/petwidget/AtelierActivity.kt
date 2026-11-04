@@ -342,6 +342,32 @@ class AtelierActivity : Activity() {
 
     private fun roomControls(): View {
         val card = sectionCard("Интерьер комнаты", "Настрой фон и любимое кресло")
+        card.addView(label("СПАЛЬНОЕ МЕСТО"))
+        card.addView(chipRow(listOf("Кресло", "Лежанка", "Диванчик"), getThemePrefs().getInt("room_bed", 0)) {
+            getThemePrefs().edit().putInt("room_bed", it).apply(); refreshAll()
+        })
+        card.addView(label("СВЕТИЛЬНИК"))
+        card.addView(chipRow(listOf("Подвес · шнурок", "Люстра · кнопка", "Торшер · кнопка"), getThemePrefs().getInt("room_lamp", 0)) {
+            getThemePrefs().edit().putInt("room_lamp", it).apply(); refreshAll()
+        })
+        card.addView(label("ШТОРЫ"))
+        card.addView(chipRow(listOf("Без штор", "Классические", "С ламбрекеном", "Римская штора"), getThemePrefs().getInt("room_curtain", -1) + 1) {
+            getThemePrefs().edit().putInt("room_curtain", it - 1).apply(); refreshAll()
+        })
+        card.addView(chipRow(listOf("Открыты", "Закрыты"), getThemePrefs().getInt("curtain_closed", 0)) {
+            getThemePrefs().edit().putInt("curtain_closed", it).apply(); refreshAll()
+        })
+        card.addView(swatchRow(listOf(0xFF8AAFA3, 0xFFC9A184, 0xFF9B8BB8, 0xFFC38D9A, 0xFF739BB8, 0xFFDBCDAF), getThemePrefs().getInt("curtain_color", 0xFF8AAFA3.toInt())) {
+            putColor("curtain_color", it)
+        })
+        card.addView(label("КАТАЛОГ ДЕКОРА"))
+        listOf("Коврик" to "decor_rug", "Телевизор" to "decor_tv", "Растение" to "decor_plant").forEach { (title, key) ->
+            card.addView(label(title))
+            card.addView(chipRow(listOf("Убрать", "Добавить"), getThemePrefs().getInt(key, 0)) {
+                getThemePrefs().edit().putInt(key, it).apply(); refreshAll()
+            })
+        }
+        card.addView(divider())
         card.addView(label("ОБОИ"))
         card.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFFFF0F4, 0xFFF7F0FF, 0xFFEFF7F3, 0xFFEAF7F8, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF202631, 0xFF151A2A, 0xFF232840), getThemePrefs().getInt("room_bg_top", 0xFFF2F2EF.toInt())) {
             putColor("room_bg_top", it, mirror = "room_bg_bottom", mirrorShade = 0.94f)
@@ -364,7 +390,7 @@ class AtelierActivity : Activity() {
         card.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFEBD5DC, 0xFFDED6EA, 0xFFC8E2E0, 0xFFD6E1C2, 0xFFD1DCE8, 0xFF2A2F4A), getThemePrefs().getInt("room_skirt", 0xFFDCDCD6.toInt())) {
             putColor("room_skirt", it, mirror = "room_panel", mirrorShade = 0.97f)
         })
-        card.addView(label("КРЕСЛО"))
+        card.addView(label("ЦВЕТ СПАЛЬНОГО МЕСТА"))
         card.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFFB76E58, 0xFFB76E88, 0xFF7B62C4, 0xFF2C5875, 0xFF477A69, 0xFF94A3B8, 0xFF4D515B), getThemePrefs().getInt("chair_back1", 0xFFAB7B44.toInt())) { col ->
             putColor("chair_back1", col, mirror = "chair_back2", mirrorShade = 0.7f)
             putColor("chair_seat1", shade(col, 1.08f), mirror = "chair_seat2", mirrorShade = 0.72f)

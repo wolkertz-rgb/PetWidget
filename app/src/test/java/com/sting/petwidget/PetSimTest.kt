@@ -67,6 +67,21 @@ class PetSimTest {
 
     // ------------------------------------------------------------- тесты
 
+    @Test
+    fun lampButtonUsesNearbyPositionAndTogglesOnce() {
+        for (style in 0..2) {
+            val prefs = FakePrefs()
+            prefs.map["room_lamp"] = style
+            val sim = PetSim(prefs, ::clock, Random(2026))
+            sim.beginPull()
+            assertEquals(if (style == 0) PetSim.SWITCH_X else 0.64f, sim.x, 0.001f)
+            live(sim, 750)
+            assertEquals(false, prefs.getBoolean("light_on", true))
+            live(sim, 250)
+            assertEquals(false, prefs.getBoolean("light_on", true))
+        }
+    }
+
     /** после 4+ часов без экрана питомец ДОСЫПАЕТ: приходит состояние сна */
     @Test
     fun dosypaniePosleRazluki() {
