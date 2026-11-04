@@ -235,34 +235,37 @@ class SceneRenderer {
     private fun drawBulb(c: Canvas, unit: Float, floorY: Float) {
         val bx = w / 2f
         val by = 26f * density          // фиксируем в dp, чтобы совпадало с зоной тапа
-        val glass = unit * 0.62f
+        val on = lightNow()
 
-        // шнур
-        pS.color = 0x55707070.toInt()
-        pS.strokeWidth = unit * 0.1f
-        c.drawLine(bx, 0f, bx, by - glass - unit * 0.1f, pS)
+        // потолочная чашка и тканевый кабель
+        pF.color = 0xFF33443E.toInt()
+        rect.set(bx - unit * 0.5f, -unit * 0.08f, bx + unit * 0.5f, unit * 0.22f)
+        c.drawRoundRect(rect, unit * 0.12f, unit * 0.12f, pF)
+        pS.color = 0xFF53635D.toInt()
+        pS.strokeWidth = unit * 0.11f
+        c.drawLine(bx, unit * 0.18f, bx, by - unit * 0.72f, pS)
 
-        // цоколь
-        pF.color = 0xFF9B9B93.toInt()
-        rect.set(bx - unit * 0.26f, by - glass - unit * 0.12f, bx + unit * 0.26f, by - glass * 0.25f)
-        c.drawRoundRect(rect, unit * 0.06f, unit * 0.06f, pF)
+        // современный колоколообразный плафон
+        val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(bx - unit, by - unit * 0.7f, bx + unit, by + unit * 0.4f,
+                0xFF587067.toInt(), 0xFF263A34.toInt(), Shader.TileMode.CLAMP)
+        }
+        path.reset()
+        path.moveTo(bx - unit * 0.34f, by - unit * 0.72f)
+        path.quadTo(bx - unit * 0.78f, by - unit * 0.25f, bx - unit * 1.03f, by + unit * 0.34f)
+        path.quadTo(bx, by + unit * 0.62f, bx + unit * 1.03f, by + unit * 0.34f)
+        path.quadTo(bx + unit * 0.78f, by - unit * 0.25f, bx + unit * 0.34f, by - unit * 0.72f)
+        path.close()
+        c.drawPath(path, shade)
+        pS.color = 0xFF20312C.toInt(); pS.strokeWidth = unit * 0.09f; c.drawPath(path, pS)
 
-        // колба
-        pF.color = if (lightNow()) 0xFFFFE9A8.toInt() else 0xFFDCD8CA.toInt()
-        c.drawCircle(bx, by, glass, pF)
-        // контур колбы (виден и в темноте — чтобы найти тапом)
-        pS.color = if (lightNow()) 0x66C9A54A.toInt() else 0x5A6B6B66.toInt()
-        pS.strokeWidth = unit * 0.1f
-        c.drawCircle(bx, by, glass, pS)
-
-        // нить накала
-        pS.color = if (lightNow()) 0xFFFFB84D.toInt() else 0xFF8E8E82.toInt()
-        pS.strokeWidth = unit * 0.09f
-        c.drawCircle(bx, by + glass * 0.12f, unit * 0.17f, pS)
-
-        // блик
-        pF.color = 0x66FFFFFF.toInt()
-        c.drawCircle(bx - glass * 0.35f, by - glass * 0.35f, glass * 0.22f, pF)
+        // тёплый матовый рассеиватель, видимый и при выключенном свете
+        pF.color = if (on) 0xFFFFE7AE.toInt() else 0xFFC8C5B8.toInt()
+        rect.set(bx - unit * 0.88f, by + unit * 0.20f, bx + unit * 0.88f, by + unit * 0.58f)
+        c.drawOval(rect, pF)
+        pF.color = if (on) 0x8CFFFFFF.toInt() else 0x28FFFFFF
+        rect.set(bx - unit * 0.55f, by + unit * 0.24f, bx + unit * 0.18f, by + unit * 0.39f)
+        c.drawOval(rect, pF)
     }
 
     /** координаты кончика шнура-выключателя (с учётом тяги) */
@@ -283,17 +286,19 @@ class SceneRenderer {
 
     private fun drawPullCord(c: Canvas, sim: PetSim, unit: Float, floorY: Float) {
         val (sx, tipY) = pullCordPos(sim, unit, floorY)
-        pS.color = 0xFF8C8C86.toInt()
-        pS.strokeWidth = unit * 0.09f
+        pS.color = 0xFF52635C.toInt()
+        pS.strokeWidth = unit * 0.075f
         c.drawLine(sx, 0f, sx, tipY, pS)
-        // бусина-хвостик, за которую дёргают
-        pF.color = if (lightNow()) 0xFFD8B368.toInt() else 0xFF948A78.toInt()
-        c.drawCircle(sx, tipY, unit * 0.18f, pF)
-        pF.color = 0x49FFFFFF.toInt()
-        c.drawCircle(sx - unit * 0.05f, tipY - unit * 0.05f, unit * 0.07f, pF)
+        // компактная латунная ручка вместо старой бусины
+        pF.color = if (lightNow()) 0xFFD3A85D.toInt() else 0xFF857966.toInt()
+        rect.set(sx - unit * 0.16f, tipY - unit * 0.24f, sx + unit * 0.16f, tipY + unit * 0.24f)
+        c.drawRoundRect(rect, unit * 0.15f, unit * 0.15f, pF)
+        pF.color = 0x55FFFFFF
+        rect.set(sx - unit * 0.07f, tipY - unit * 0.16f, sx, tipY + unit * 0.07f)
+        c.drawRoundRect(rect, unit * 0.04f, unit * 0.04f, pF)
     }
 
-    /** узор обоев: 0 нет(только зерно), 1 точки, 2 полоски, 3 зигзаг, 4 клетка, 5 звёзды */
+    /** Узоры: чисто, точки, полосы, зигзаг, клетка, звёзды, сердца, облака, листья. */
     private fun drawWallPattern(c: Canvas, unit: Float, pad: Float, floorY: Float) {
         val idx = th("wall_pattern", 0)
         if (idx == 0) return
@@ -383,6 +388,61 @@ class SceneRenderer {
                     row++
                 }
                 pS.strokeWidth = unit * 0.16f
+            }
+            6 -> { // маленькие сердца
+                val st = unit * 2.05f
+                var row = 0
+                var yy = top + st
+                while (yy < bottom) {
+                    var xx = left + st * 0.7f
+                    val shift = if (row % 2 == 1) st / 2f else 0f
+                    while (xx < right) {
+                        drawMiniHeart(c, xx + shift, yy, unit * 0.3f, col and 0x00FFFFFF, (col ushr 24).coerceAtLeast(36))
+                        xx += st
+                    }
+                    yy += st * 0.9f; row++
+                }
+            }
+            7 -> { // мягкие облака
+                pF.color = col
+                val st = unit * 2.35f
+                var row = 0
+                var yy = top + st
+                while (yy < bottom) {
+                    var xx = left + st
+                    val shift = if (row % 2 == 1) st / 2f else 0f
+                    while (xx < right) {
+                        val x = xx + shift
+                        c.drawCircle(x - unit * 0.22f, yy, unit * 0.23f, pF)
+                        c.drawCircle(x + unit * 0.08f, yy - unit * 0.12f, unit * 0.3f, pF)
+                        c.drawCircle(x + unit * 0.38f, yy, unit * 0.2f, pF)
+                        rect.set(x - unit * 0.42f, yy, x + unit * 0.55f, yy + unit * 0.2f)
+                        c.drawRoundRect(rect, unit * 0.1f, unit * 0.1f, pF)
+                        xx += st
+                    }
+                    yy += st; row++
+                }
+            }
+            8 -> { // веточки с листьями
+                pS.color = col; pS.strokeWidth = unit * 0.08f
+                pF.color = col
+                val st = unit * 2.15f
+                var row = 0
+                var yy = top + st
+                while (yy < bottom) {
+                    var xx = left + st
+                    val shift = if (row % 2 == 1) st / 2f else 0f
+                    while (xx < right) {
+                        val x = xx + shift
+                        c.drawLine(x - unit * 0.35f, yy + unit * 0.3f, x + unit * 0.35f, yy - unit * 0.3f, pS)
+                        rect.set(x - unit * 0.42f, yy - unit * 0.18f, x - unit * 0.05f, yy + unit * 0.12f)
+                        c.drawOval(rect, pF)
+                        rect.set(x + unit * 0.03f, yy - unit * 0.24f, x + unit * 0.4f, yy + unit * 0.06f)
+                        c.drawOval(rect, pF)
+                        xx += st
+                    }
+                    yy += st; row++
+                }
             }
         }
         c.restore()
@@ -542,12 +602,14 @@ class SceneRenderer {
     /** искра-блеск: 4 лучика */
     private fun drawSpark(c: Canvas, x: Float, y: Float, s: Float, col: Int, alpha: Int) {
         pS.color = col
+        pS.alpha = alpha.coerceIn(0, 255)
         pS.strokeWidth = s * 0.22f
         c.drawLine(x - s, y, x + s, y, pS)
         c.drawLine(x, y - s, x, y + s, pS)
         val d = s * 0.55f
         c.drawLine(x - d, y - d, x + d, y + d, pS)
         c.drawLine(x - d, y + d, x + d, y - d, pS)
+        pS.alpha = 255
     }
 
     /** мини-сердечко (для мишки и компании) */
@@ -764,6 +826,24 @@ class SceneRenderer {
                 pF.color = 0xFF7C9B85.toInt()
                 c.drawCircle(px + r * 0.06f, antTipY, unit * 0.06f, pF)
             }
+            "leaf" -> {
+                val antTopX = px + r * 0.08f
+                val antTopY = cy - r * sy - unit * 0.58f
+                pS.color = 0xFF4E8F6E.toInt(); pS.strokeWidth = unit * 0.09f
+                c.drawLine(px + r * 0.02f, cy - r * sy * 0.92f, antTopX, antTopY, pS)
+                pF.color = th("look_ante", 0xFF7FC9A6.toInt())
+                rect.set(antTopX - unit * 0.34f, antTopY - unit * 0.13f, antTopX, antTopY + unit * 0.16f)
+                c.drawOval(rect, pF)
+                rect.set(antTopX, antTopY - unit * 0.28f, antTopX + unit * 0.34f, antTopY + unit * 0.04f)
+                c.drawOval(rect, pF)
+            }
+            "star" -> {
+                val antTopX = px + r * 0.08f
+                val antTopY = cy - r * sy - unit * 0.62f + sin(sim.animPhase * 2f) * unit * 0.05f
+                pS.color = 0xFF4E8F6E.toInt(); pS.strokeWidth = unit * 0.09f
+                c.drawLine(px + r * 0.02f, cy - r * sy * 0.92f, antTopX, antTopY, pS)
+                drawSpark(c, antTopX, antTopY, unit * 0.27f, th("look_ante", 0xFFF4C95D.toInt()), 255)
+            }
             else -> { /* без антенны */ }
         }
 
@@ -833,9 +913,11 @@ class SceneRenderer {
                 c.drawArc(rect, 20f, 140f, false, pS)
                 rect.set(px + eyeDx - r * 0.18f, eyeY - r * 0.10f, px + eyeDx + r * 0.18f, eyeY + r * 0.10f)
                 c.drawArc(rect, 20f, 140f, false, pS)
-                pF.color = 0xFF2E3B34.toInt()
-                c.drawCircle(px, eyeY + r * sy * 0.36f, unit * 0.11f, pF)
-                for (i in 0..2) {
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.11f
+                val sleepMouthY = eyeY + r * sy * 0.36f
+                rect.set(px - r * 0.1f, sleepMouthY - r * 0.05f, px + r * 0.1f, sleepMouthY + r * 0.05f)
+                c.drawArc(rect, 20f, 140f, false, pS)
+                for (i in 0..1) {
                     val t = sim.animPhase + i * 0.4f
                     val zy = cy - r * sy - unit * (0.9f + i * 0.50f + sin(t * 1.3f) * 0.15f)
                     val zx = px + r * 0.6f + i * unit * 0.5f + sin(t * 0.9f) * unit * 0.08f
@@ -918,6 +1000,21 @@ class SceneRenderer {
                         circleAt(c, px - eyeDx + lookX * er, eyeY - er * 0.22f, er * 0.3f, 0xFFFFFFFF.toInt())
                         circleAt(c, px + eyeDx + lookX * er, eyeY - er * 0.22f, er * 0.3f, 0xFFFFFFFF.toInt())
                     }
+                    "sparkle" -> {
+                        circleAt(c, px - eyeDx, eyeY, er * 1.04f, eyeCol)
+                        circleAt(c, px + eyeDx, eyeY, er * 1.04f, eyeCol)
+                        drawSpark(c, px - eyeDx - er * 0.12f, eyeY - er * 0.18f, er * 0.48f, 0xFFFFFFFF.toInt(), 255)
+                        drawSpark(c, px + eyeDx - er * 0.12f, eyeY - er * 0.18f, er * 0.48f, 0xFFFFFFFF.toInt(), 255)
+                    }
+                    "soft" -> {
+                        pF.color = eyeCol
+                        rect.set(px - eyeDx - er * 1.05f, eyeY - er * 0.68f, px - eyeDx + er * 1.05f, eyeY + er * 0.68f)
+                        c.drawOval(rect, pF)
+                        rect.set(px + eyeDx - er * 1.05f, eyeY - er * 0.68f, px + eyeDx + er * 1.05f, eyeY + er * 0.68f)
+                        c.drawOval(rect, pF)
+                        circleAt(c, px - eyeDx - er * 0.2f, eyeY - er * 0.2f, er * 0.26f, 0xFFFFFFFF.toInt())
+                        circleAt(c, px + eyeDx - er * 0.2f, eyeY - er * 0.2f, er * 0.26f, 0xFFFFFFFF.toInt())
+                    }
                     else -> {
                         circleAt(c, px - eyeDx, eyeY, er, eyeCol)
                         circleAt(c, px + eyeDx, eyeY, er, eyeCol)
@@ -953,6 +1050,17 @@ class SceneRenderer {
                 pF.color = blushCol
                 drawMiniHeart(c, cheekLX, cheekY + r * 0.04f, r * 0.17f * grow, blushCol and 0x00FFFFFF, (blushCol ushr 24))
                 drawMiniHeart(c, cheekRX, cheekY + r * 0.04f, r * 0.17f * grow, blushCol and 0x00FFFFFF, (blushCol ushr 24))
+            }
+            "freckles" -> {
+                pF.color = blushCol
+                for (i in -1..1) {
+                    c.drawCircle(cheekLX + i * r * 0.11f, cheekY + abs(i) * r * 0.04f, r * 0.045f * grow, pF)
+                    c.drawCircle(cheekRX + i * r * 0.11f, cheekY + abs(i) * r * 0.04f, r * 0.045f * grow, pF)
+                }
+            }
+            "stars" -> {
+                drawSpark(c, cheekLX, cheekY, r * 0.15f * grow, blushCol and 0x00FFFFFF, blushCol ushr 24)
+                drawSpark(c, cheekRX, cheekY, r * 0.15f * grow, blushCol and 0x00FFFFFF, blushCol ushr 24)
             }
             else -> {
                 pF.color = blushCol
@@ -1111,6 +1219,20 @@ class SceneRenderer {
                         pF.color = 0xFF2E3B34.toInt()
                         c.drawCircle(px, mouthY + r * 0.02f, r * 0.1f, pF)
                     }
+                    "tongue" -> {
+                        pF.color = 0xFF2E3B34.toInt()
+                        rect.set(px - r * 0.23f, mouthY - r * 0.2f, px + r * 0.23f, mouthY + r * 0.12f)
+                        c.drawArc(rect, 0f, 180f, true, pF)
+                        pF.color = 0xFFF08F9C.toInt()
+                        rect.set(px - r * 0.1f, mouthY + r * 0.01f, px + r * 0.1f, mouthY + r * 0.17f)
+                        c.drawOval(rect, pF)
+                    }
+                    "cat" -> {
+                        rect.set(px - r * 0.24f, mouthY - r * 0.1f, px, mouthY + r * 0.12f)
+                        c.drawArc(rect, 5f, 150f, false, pS)
+                        rect.set(px, mouthY - r * 0.1f, px + r * 0.24f, mouthY + r * 0.12f)
+                        c.drawArc(rect, 25f, 150f, false, pS)
+                    }
                     else -> {
                         rect.set(px - r * 0.28f, mouthY - r * 0.20f, px + r * 0.28f, mouthY + r * 0.08f)
                         c.drawArc(rect, 15f, 150f, false, pS)
@@ -1123,7 +1245,7 @@ class SceneRenderer {
                     // сильно голоден — спокойная грустинка вместо точки-рта
                     rect.set(px - r * 0.13f, mouthY - r * 0.05f, px + r * 0.13f, mouthY + r * 0.06f)
                     c.drawArc(rect, 195f, 150f, false, pS)
-                } else when (look("look_mouth", "smile")) {
+                } else when (look("look_mouth", "wide")) {
                     "wide" -> {
                         rect.set(px - r * 0.20f, mouthY - r * 0.16f, px + r * 0.20f, mouthY + r * 0.06f)
                         c.drawArc(rect, 25f, 130f, false, pS)
@@ -1145,6 +1267,18 @@ class SceneRenderer {
                     "small" -> {
                         rect.set(px - r * 0.12f, mouthY - r * 0.08f, px + r * 0.12f, mouthY + r * 0.03f)
                         c.drawArc(rect, 30f, 120f, false, pS)
+                    }
+                    "cat" -> {
+                        rect.set(px - r * 0.22f, mouthY - r * 0.08f, px, mouthY + r * 0.1f)
+                        c.drawArc(rect, 10f, 145f, false, pS)
+                        rect.set(px, mouthY - r * 0.08f, px + r * 0.22f, mouthY + r * 0.1f)
+                        c.drawArc(rect, 25f, 145f, false, pS)
+                    }
+                    "wave" -> {
+                        path.reset(); path.moveTo(px - r * 0.22f, mouthY)
+                        path.quadTo(px - r * 0.1f, mouthY + r * 0.1f, px, mouthY)
+                        path.quadTo(px + r * 0.1f, mouthY - r * 0.1f, px + r * 0.22f, mouthY)
+                        c.drawPath(path, pS)
                     }
                     else -> c.drawLine(px - r * 0.13f, mouthY, px + r * 0.13f, mouthY, pS)
                 }
@@ -1459,67 +1593,90 @@ class SceneRenderer {
 
     private fun drawChairBack(c: Canvas, unit: Float, floorY: Float) {
         val bx = floorXfor(PetSim.BED_X, unit)
+        val outline = 0xFF4C3528.toInt()
 
-        // тень кресла
-        pF.color = 0x14000000
-        rect.set(bx - unit * 2.0f, floorY - unit * 0.16f, bx + unit * 2.0f, floorY + unit * 0.14f)
+        // широкая контактная тень
+        pF.color = 0x1C000000
+        rect.set(bx - unit * 2.05f, floorY - unit * 0.2f, bx + unit * 2.05f, floorY + unit * 0.16f)
         c.drawOval(rect, pF)
 
-        // спинка с кожаным градиентом
+        // цельный силуэт современной wingback-спинки
         val back = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(bx - unit, floorY - unit * 3.0f, bx + unit * 0.6f, floorY - unit * 0.5f,
+            shader = LinearGradient(bx - unit * 1.2f, floorY - unit * 3.25f, bx + unit * 1.1f, floorY - unit * 0.65f,
                 th("chair_back1", 0xFFAB7B44.toInt()), th("chair_back2", 0xFF6D4523.toInt()), Shader.TileMode.CLAMP)
         }
-        rect.set(bx - unit * 1.05f, floorY - unit * 3.0f, bx + unit * 1.05f, floorY - unit * 0.4f)
-        c.drawRoundRect(rect, unit * 0.52f, unit * 0.52f, back)
-        // крылья спинки (ушейки)
-        rect.set(bx - unit * 1.30f, floorY - unit * 2.35f, bx - unit * 0.75f, floorY - unit * 0.55f)
-        c.drawRoundRect(rect, unit * 0.4f, unit * 0.4f, back)
-        rect.set(bx + unit * 0.75f, floorY - unit * 2.35f, bx + unit * 1.30f, floorY - unit * 0.55f)
-        c.drawRoundRect(rect, unit * 0.4f, unit * 0.4f, back)
+        path.reset()
+        path.moveTo(bx - unit * 1.08f, floorY - unit * 3.22f)
+        path.quadTo(bx, floorY - unit * 3.5f, bx + unit * 1.08f, floorY - unit * 3.22f)
+        path.quadTo(bx + unit * 1.46f, floorY - unit * 2.8f, bx + unit * 1.35f, floorY - unit * 1.0f)
+        path.lineTo(bx - unit * 1.35f, floorY - unit * 1.0f)
+        path.quadTo(bx - unit * 1.46f, floorY - unit * 2.8f, bx - unit * 1.08f, floorY - unit * 3.22f)
+        path.close()
+        c.drawPath(path, back)
+        pS.color = outline; pS.strokeWidth = unit * 0.11f; c.drawPath(path, pS)
 
-        // сиденье-подушка
+        // внутренняя мягкая панель и кожаный кант
+        val panel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, floorY - unit * 3.0f, 0f, floorY - unit * 1.0f,
+                th("chair_back1", 0xFFAB7B44.toInt()), th("chair_back2", 0xFF6D4523.toInt()), Shader.TileMode.CLAMP)
+        }
+        rect.set(bx - unit * 0.93f, floorY - unit * 3.0f, bx + unit * 0.93f, floorY - unit * 1.08f)
+        c.drawRoundRect(rect, unit * 0.48f, unit * 0.48f, panel)
+        pS.color = 0x55F1D1A7; pS.strokeWidth = unit * 0.07f; c.drawRoundRect(rect, unit * 0.48f, unit * 0.48f, pS)
+
+        // простёжка с утопленными пуговицами
+        pS.color = 0x38513425; pS.strokeWidth = unit * 0.055f
+        c.drawLine(bx - unit * 0.68f, floorY - unit * 2.55f, bx + unit * 0.68f, floorY - unit * 1.55f, pS)
+        c.drawLine(bx + unit * 0.68f, floorY - unit * 2.55f, bx - unit * 0.68f, floorY - unit * 1.55f, pS)
+        for ((dx, dy) in listOf(-0.5f to -2.35f, 0.5f to -2.35f, 0f to -1.95f, -0.5f to -1.55f, 0.5f to -1.55f)) {
+            pF.color = 0x66402B20
+            c.drawCircle(bx + unit * dx, floorY + unit * dy, unit * 0.09f, pF)
+            pF.color = 0x55F4D2A5
+            c.drawCircle(bx + unit * dx - unit * 0.025f, floorY + unit * dy - unit * 0.025f, unit * 0.03f, pF)
+        }
+
+        // глубокая отдельная подушка сиденья
         val seat = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = LinearGradient(0f, floorY - unit * 0.95f, 0f, floorY,
+            shader = LinearGradient(0f, floorY - unit * 1.05f, 0f, floorY - unit * 0.08f,
                 th("chair_seat1", 0xFFC08A57.toInt()), th("chair_seat2", 0xFF94613A.toInt()), Shader.TileMode.CLAMP)
         }
-        rect.set(bx - unit * 1.35f, floorY - unit * 0.95f, bx + unit * 1.35f, floorY - unit * 0.05f)
-        c.drawRoundRect(rect, unit * 0.4f, unit * 0.4f, seat)
-        // блик на подушке
-        pF.color = 0x2EFFFFFF.toInt()
-        rect.set(bx - unit * 1.2f, floorY - unit * 0.92f, bx + unit * 0.6f, floorY - unit * 0.55f)
+        rect.set(bx - unit * 1.28f, floorY - unit * 1.08f, bx + unit * 1.28f, floorY - unit * 0.12f)
+        c.drawRoundRect(rect, unit * 0.36f, unit * 0.36f, seat)
+        pS.color = outline; pS.strokeWidth = unit * 0.09f; c.drawRoundRect(rect, unit * 0.36f, unit * 0.36f, pS)
+        pF.color = 0x32FFFFFF
+        rect.set(bx - unit * 1.08f, floorY - unit * 1.0f, bx + unit * 0.62f, floorY - unit * 0.66f)
         c.drawOval(rect, pF)
     }
 
     private fun drawChairFront(c: Canvas, unit: Float, floorY: Float) {
         val bx = floorXfor(PetSim.BED_X, unit)
 
+        val outline = 0xFF4C3528.toInt()
         val roll = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(0f, floorY - unit * 2.0f, 0f, floorY,
                 th("chair_roll1", 0xFFB98350.toInt()), th("chair_roll2", 0xFF8A5A2E.toInt()), Shader.TileMode.CLAMP)
         }
-        // подлокотники (передний план)
-        rect.set(bx - unit * 1.75f, floorY - unit * 1.85f, bx - unit * 1.05f, floorY - unit * 0.05f)
-        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll)
-        rect.set(bx + unit * 1.05f, floorY - unit * 1.85f, bx + unit * 1.75f, floorY - unit * 0.05f)
-        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll)
-        // заглушки-капельки на подлокотниках
-        pF.color = 0xFFC99563.toInt()
-        rect.set(bx - unit * 1.72f, floorY - unit * 1.96f, bx - unit * 1.08f, floorY - unit * 1.64f)
-        c.drawOval(rect, pF)
-        rect.set(bx + unit * 1.08f, floorY - unit * 1.96f, bx + unit * 1.72f, floorY - unit * 1.64f)
-        c.drawOval(rect, pF)
-        // строчки
-        pS.color = 0x886B4423.toInt()
-        pS.strokeWidth = unit * 0.07f
-        c.drawLine(bx - unit * 1.42f, floorY - unit * 1.6f, bx - unit * 1.38f, floorY - unit * 0.25f, pS)
-        c.drawLine(bx + unit * 1.38f, floorY - unit * 1.6f, bx + unit * 1.42f, floorY - unit * 0.25f, pS)
-        // ножки
-        pF.color = 0xFF5B3A1F.toInt()
-        rect.set(bx - unit * 1.15f, floorY - unit * 0.12f, bx - unit * 0.85f, floorY - unit * 0.0f)
-        c.drawRect(rect, pF)
-        rect.set(bx + unit * 0.85f, floorY - unit * 0.12f, bx + unit * 1.15f, floorY - unit * 0.0f)
-        c.drawRect(rect, pF)
+        // скруглённые подлокотники с мягкими передними роллами
+        rect.set(bx - unit * 1.78f, floorY - unit * 1.82f, bx - unit * 1.02f, floorY - unit * 0.12f)
+        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll); pS.color = outline; pS.strokeWidth = unit * 0.09f; c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, pS)
+        rect.set(bx + unit * 1.02f, floorY - unit * 1.82f, bx + unit * 1.78f, floorY - unit * 0.12f)
+        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll); c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, pS)
+        pF.color = th("chair_seat1", 0xFFC08A57.toInt())
+        rect.set(bx - unit * 1.72f, floorY - unit * 1.92f, bx - unit * 1.08f, floorY - unit * 1.55f); c.drawOval(rect, pF)
+        rect.set(bx + unit * 1.08f, floorY - unit * 1.92f, bx + unit * 1.72f, floorY - unit * 1.55f); c.drawOval(rect, pF)
+        pS.color = 0x66F2D0A4; pS.strokeWidth = unit * 0.055f
+        c.drawLine(bx - unit * 1.43f, floorY - unit * 1.5f, bx - unit * 1.39f, floorY - unit * 0.32f, pS)
+        c.drawLine(bx + unit * 1.39f, floorY - unit * 1.5f, bx + unit * 1.43f, floorY - unit * 0.32f, pS)
+
+        // передняя царга и четыре скошенные деревянные ножки
+        pF.color = th("chair_roll2", 0xFF8A5A2E.toInt())
+        rect.set(bx - unit * 1.2f, floorY - unit * 0.42f, bx + unit * 1.2f, floorY - unit * 0.1f)
+        c.drawRoundRect(rect, unit * 0.13f, unit * 0.13f, pF)
+        pF.color = 0xFF493327.toInt()
+        path.reset(); path.moveTo(bx - unit * 1.08f, floorY - unit * 0.16f); path.lineTo(bx - unit * 0.82f, floorY - unit * 0.16f)
+        path.lineTo(bx - unit * 0.9f, floorY); path.lineTo(bx - unit * 1.14f, floorY); path.close(); c.drawPath(path, pF)
+        path.reset(); path.moveTo(bx + unit * 0.82f, floorY - unit * 0.16f); path.lineTo(bx + unit * 1.08f, floorY - unit * 0.16f)
+        path.lineTo(bx + unit * 1.14f, floorY); path.lineTo(bx + unit * 0.9f, floorY); path.close(); c.drawPath(path, pF)
     }
 
     /** мягкая подпись предмета при появлении: 250 мс въезд, 500 мс уход */

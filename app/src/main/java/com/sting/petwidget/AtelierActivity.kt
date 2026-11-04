@@ -48,11 +48,11 @@ class AtelierActivity : Activity() {
     private fun lookIdx(key: String, def: String): Int {
         val cur = try { getThemePrefs().getString(key, def) ?: def } catch (_: Throwable) { def }
         return when (key) {
-            "look_mouth" -> when (cur) { "wide" -> 0; "dimples" -> 1; "tooth" -> 2; else -> 3 }
-            "look_blush" -> when (cur) { "circles" -> 0; "stripes" -> 1; else -> 2 }
-            "look_eyes" -> when (cur) { "classic" -> 0; "shine" -> 1; "sleepy" -> 2; else -> 3 }
-            "look_grin" -> when (cur) { "smile" -> 0; "open" -> 1; "neutral" -> 2; else -> 3 }
-            "look_antenna" -> when (cur) { "ball" -> 0; "flower" -> 1; "string" -> 2; else -> 3 }
+            "look_mouth" -> when (cur) { "wide" -> 0; "dimples" -> 1; "tooth" -> 2; "small" -> 3; "cat" -> 4; else -> 5 }
+            "look_blush" -> when (cur) { "circles" -> 0; "stripes" -> 1; "hearts" -> 2; "freckles" -> 3; else -> 4 }
+            "look_eyes" -> when (cur) { "classic" -> 0; "shine" -> 1; "sleepy" -> 2; "round" -> 3; "sparkle" -> 4; else -> 5 }
+            "look_grin" -> when (cur) { "smile" -> 0; "open" -> 1; "neutral" -> 2; "ooh" -> 3; "tongue" -> 4; else -> 5 }
+            "look_antenna" -> when (cur) { "ball" -> 0; "flower" -> 1; "string" -> 2; "leaf" -> 3; "star" -> 4; else -> 5 }
             else -> 0
         }
     }
@@ -306,59 +306,66 @@ class AtelierActivity : Activity() {
     private fun petControls(): View {
         val card = sectionCard("Внешность питомца", "Цвет, характер и детали лица")
         card.addView(label("ОКРАС · ВЕРХ"))
-        card.addView(swatchRow(listOf(0xFFA8E6C3, 0xFF9ADDC8, 0xFFB4EBCF, 0xFF8EE0C4, 0xFF63CFA3, 0xFFF58C8C, 0xFFF7B27A, 0xFFB8A6F5), getThemePrefs().getInt("pet_top", 0xFFA8E6C3.toInt())) { putColor("pet_top", it) })
+        card.addView(swatchRow(listOf(0xFFA8E6C3, 0xFF9ADDC8, 0xFFB4EBCF, 0xFF63CFA3, 0xFF7FD8E6, 0xFFAFC8FF, 0xFFB8A6F5, 0xFFFFC9D8, 0xFFF58C8C, 0xFFF7B27A, 0xFFFFD08A, 0xFFE8E5DF), getThemePrefs().getInt("pet_top", 0xFFA8E6C3.toInt())) { putColor("pet_top", it) })
+        card.addView(label("ОКРАС · СЕРЕДИНА"))
+        card.addView(swatchRow(listOf(0xFF6FBE97, 0xFF48B69E, 0xFF55B9CE, 0xFF779FE0, 0xFFA98BDB, 0xFFF08BAA, 0xFFE98B75, 0xFFE9AE5E, 0xFF9CA8A1), getThemePrefs().getInt("pet_mid", 0xFF6FBE97.toInt())) { putColor("pet_mid", it) })
         card.addView(label("ОКРАС · НИЗ"))
-        card.addView(swatchRow(listOf(0xFF4FA379, 0xFF5FAE88, 0xFF3F9E77, 0xFF2C93A0, 0xFFB94E4E, 0xFFD97E4E, 0xFF7B62C4, 0xFF5E6B75), getThemePrefs().getInt("pet_bottom", 0xFF4FA379.toInt())) { putColor("pet_bottom", it) })
+        card.addView(swatchRow(listOf(0xFF4FA379, 0xFF3F9E77, 0xFF2C93A0, 0xFF3978B8, 0xFF5D6BAA, 0xFF7B62C4, 0xFFB94E77, 0xFFB94E4E, 0xFFD97E4E, 0xFFC38A3D, 0xFF5E6B75, 0xFF343B43), getThemePrefs().getInt("pet_bottom", 0xFF4FA379.toInt())) { putColor("pet_bottom", it) })
         card.addView(label("ЖИВОТИК"))
-        card.addView(swatchRow(listOf(0xFFBDEBCF, 0xFFD3F4F0, 0xFFFFE9DC, 0xFFFFF0D6, 0xFFF7F9F7, 0xFFF1E4E7), getThemePrefs().getInt("pet_belly", 0xFFBDEBCF.toInt())) { putColor("pet_belly", it) })
+        card.addView(swatchRow(listOf(0xFFBDEBCF, 0xFFD3F4F0, 0xFFDCEBFF, 0xFFEDE6FA, 0xFFFFE0EA, 0xFFFFE9DC, 0xFFFFF0D6, 0xFFF7F9F7, 0xFFF1E4E7, 0xFFD9D2C8), getThemePrefs().getInt("pet_belly", 0xFFBDEBCF.toInt())) { putColor("pet_belly", it) })
         card.addView(divider())
         card.addView(label("УЛЫБКА"))
-        card.addView(chipRow(listOf("Широкая", "Ямочки", "Зубик", "Скромная"), lookIdx("look_mouth", "smile")) { i ->
-            putLook("look_mouth", when (i) { 0 -> "wide"; 1 -> "dimples"; 2 -> "tooth"; else -> "small" })
+        card.addView(chipRow(listOf("Широкая", "Ямочки", "Зубик", "Скромная", "Кошачья", "Волна"), lookIdx("look_mouth", "wide")) { i ->
+            putLook("look_mouth", when (i) { 0 -> "wide"; 1 -> "dimples"; 2 -> "tooth"; 3 -> "small"; 4 -> "cat"; else -> "wave" })
         })
         card.addView(label("ГЛАЗА"))
-        card.addView(chipRow(listOf("Классика", "Блеск", "Сонные", "Круглые"), lookIdx("look_eyes", "classic")) { i ->
-            putLook("look_eyes", when (i) { 0 -> "classic"; 1 -> "shine"; 2 -> "sleepy"; else -> "round" })
+        card.addView(chipRow(listOf("Классика", "Блеск", "Сонные", "Круглые", "Искры", "Мягкие"), lookIdx("look_eyes", "classic")) { i ->
+            putLook("look_eyes", when (i) { 0 -> "classic"; 1 -> "shine"; 2 -> "sleepy"; 3 -> "round"; 4 -> "sparkle"; else -> "soft" })
         })
-        card.addView(swatchRow(listOf(0xFF22333B, 0xFF2B2233, 0xFF20455F, 0xFF3B2233), getThemePrefs().getInt("look_eyecolor", 0xFF22333B.toInt())) { putColor("look_eyecolor", it) })
+        card.addView(swatchRow(listOf(0xFF22333B, 0xFF2B2233, 0xFF20455F, 0xFF245E50, 0xFF6B4D8D, 0xFF8B4C62, 0xFF6A4A2F, 0xFF111827), getThemePrefs().getInt("look_eyecolor", 0xFF22333B.toInt())) { putColor("look_eyecolor", it) })
         card.addView(label("РУМЯНЕЦ"))
-        card.addView(chipRow(listOf("Кружки", "Полоски", "Сердечки"), lookIdx("look_blush", "circles")) { i ->
-            putLook("look_blush", when (i) { 0 -> "circles"; 1 -> "stripes"; else -> "hearts" })
+        card.addView(chipRow(listOf("Кружки", "Полоски", "Сердечки", "Веснушки", "Звёзды"), lookIdx("look_blush", "circles")) { i ->
+            putLook("look_blush", when (i) { 0 -> "circles"; 1 -> "stripes"; 2 -> "hearts"; 3 -> "freckles"; else -> "stars" })
         })
-        card.addView(swatchRow(listOf(0xFFF3A9A0, 0xFFF17A85, 0xFFF5B791, 0xFFE5687B), getThemePrefs().getInt("pet_blush", 0xFFF3A9A0.toInt())) { putColor("pet_blush", it) })
+        card.addView(swatchRow(listOf(0xFFF3A9A0, 0xFFF17A85, 0xFFF5B791, 0xFFE5687B, 0xFFE9A4D5, 0xFFB8A6E8, 0xFF8CC8D8, 0xFFD09B75), getThemePrefs().getInt("pet_blush", 0xFFF3A9A0.toInt())) { putColor("pet_blush", it) })
         card.addView(label("НАСТРОЕНИЕ"))
-        card.addView(chipRow(listOf("Улыбка", "Открытый", "Спокойный", "Удивлён"), lookIdx("look_grin", "smile")) { i ->
-            putLook("look_grin", when (i) { 0 -> "smile"; 1 -> "open"; 2 -> "neutral"; else -> "ooh" })
+        card.addView(chipRow(listOf("Улыбка", "Открытый", "Спокойный", "Удивлён", "Язычок", "Котик"), lookIdx("look_grin", "smile")) { i ->
+            putLook("look_grin", when (i) { 0 -> "smile"; 1 -> "open"; 2 -> "neutral"; 3 -> "ooh"; 4 -> "tongue"; else -> "cat" })
         })
         card.addView(label("АНТЕННА"))
-        card.addView(chipRow(listOf("Шарик", "Цветок", "Нить", "Без неё"), lookIdx("look_antenna", "ball")) { i ->
-            putLook("look_antenna", when (i) { 0 -> "ball"; 1 -> "flower"; 2 -> "string"; else -> "none" })
+        card.addView(chipRow(listOf("Шарик", "Цветок", "Нить", "Листики", "Звезда", "Без неё"), lookIdx("look_antenna", "ball")) { i ->
+            putLook("look_antenna", when (i) { 0 -> "ball"; 1 -> "flower"; 2 -> "string"; 3 -> "leaf"; 4 -> "star"; else -> "none" })
         })
-        card.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFF60A5FA, 0xFF7FC9A6), getThemePrefs().getInt("look_ante", 0xFFF4C95D.toInt())) { putColor("look_ante", it) })
+        card.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFFEF6570, 0xFF60A5FA, 0xFF7FC9A6, 0xFF72BB78, 0xFFA78BFA, 0xFFF59E5B), getThemePrefs().getInt("look_ante", 0xFFF4C95D.toInt())) { putColor("look_ante", it) })
         return card
     }
 
     private fun roomControls(): View {
         val card = sectionCard("Интерьер комнаты", "Настрой фон и любимое кресло")
         card.addView(label("ОБОИ"))
-        card.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFEFF7F3, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF151A2A, 0xFF232840), getThemePrefs().getInt("room_bg_top", 0xFFF2F2EF.toInt())) {
+        card.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFFFF0F4, 0xFFF7F0FF, 0xFFEFF7F3, 0xFFEAF7F8, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF202631, 0xFF151A2A, 0xFF232840), getThemePrefs().getInt("room_bg_top", 0xFFF2F2EF.toInt())) {
             putColor("room_bg_top", it, mirror = "room_bg_bottom", mirrorShade = 0.94f)
         })
         card.addView(label("УЗОР"))
-        card.addView(chipRow(listOf("Чисто", "Точки", "Полосы", "Зигзаг", "Клетка", "Звёзды"), getThemePrefs().getInt("wall_pattern", 0)) { i ->
+        card.addView(chipRow(listOf("Чисто", "Точки", "Полосы", "Зигзаг", "Клетка", "Звёзды", "Сердца", "Облака", "Листья"), getThemePrefs().getInt("wall_pattern", 0)) { i ->
             getThemePrefs().edit().putInt("wall_pattern", i).apply(); refreshAll()
+        })
+        card.addView(label("ЦВЕТ УЗОРА"))
+        val patternColor = (getThemePrefs().getInt("wall_pattern_color", 0x2855604F) and 0x00FFFFFF) or 0xFF000000.toInt()
+        card.addView(swatchRow(listOf(0xFF55604F, 0xFFB46672, 0xFF8C6BA8, 0xFF557FA8, 0xFF4F8C7B, 0xFFC28A42, 0xFF8A7564), patternColor) { col ->
+            putColor("wall_pattern_color", (0x28 shl 24) or (col and 0x00FFFFFF))
         })
         card.addView(divider())
         card.addView(label("ПОЛ"))
-        card.addView(swatchRow(listOf(0xFFE1E1DC, 0xFFEAD9CC, 0xFFCFE7E6, 0xFFD8E3D0, 0xFF232840, 0xFF3C3428), getThemePrefs().getInt("floor_top", 0xFFE1E1DC.toInt())) {
+        card.addView(swatchRow(listOf(0xFFE1E1DC, 0xFFEAD9CC, 0xFFF0D7DE, 0xFFE3DBEF, 0xFFCFE7E6, 0xFFD8E3D0, 0xFFD4DDEA, 0xFF3C3428, 0xFF232840), getThemePrefs().getInt("floor_top", 0xFFE1E1DC.toInt())) {
             putColor("floor_top", it, mirror = "floor_bottom", mirrorShade = 0.95f)
         })
         card.addView(label("ПАНЕЛЬ И ПЛИНТУС"))
-        card.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFC8E2E0, 0xFFD6E1C2, 0xFF2A2F4A), getThemePrefs().getInt("room_skirt", 0xFFDCDCD6.toInt())) {
+        card.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFEBD5DC, 0xFFDED6EA, 0xFFC8E2E0, 0xFFD6E1C2, 0xFFD1DCE8, 0xFF2A2F4A), getThemePrefs().getInt("room_skirt", 0xFFDCDCD6.toInt())) {
             putColor("room_skirt", it, mirror = "room_panel", mirrorShade = 0.97f)
         })
         card.addView(label("КРЕСЛО"))
-        card.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFF94A3B8, 0xFF2C5875, 0xFF7B62C4, 0xFFB45309), getThemePrefs().getInt("chair_back1", 0xFFAB7B44.toInt())) { col ->
+        card.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFFB76E58, 0xFFB76E88, 0xFF7B62C4, 0xFF2C5875, 0xFF477A69, 0xFF94A3B8, 0xFF4D515B), getThemePrefs().getInt("chair_back1", 0xFFAB7B44.toInt())) { col ->
             putColor("chair_back1", col, mirror = "chair_back2", mirrorShade = 0.7f)
             putColor("chair_seat1", shade(col, 1.08f), mirror = "chair_seat2", mirrorShade = 0.72f)
             putColor("chair_roll1", shade(col, 1.05f), mirror = "chair_roll2", mirrorShade = 0.7f)

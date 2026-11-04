@@ -21,7 +21,18 @@ internal object PetMotion {
         val t = sim.stateTime / 1000f
         val breath = sin(sim.animPhase * 1.6f)
         return when (sim.state) {
-            PetSim.State.SLEEP -> Pose(1.16f + breath * 0.012f, 0.70f - breath * 0.009f)
+            PetSim.State.SLEEP -> {
+                // Сон — это спокойное дыхание всем телом, а не растяжение «резины».
+                // В кресле питомец чуть сворачивается и кладёт голову набок.
+                val inhale = breath * 0.012f
+                if (sim.sleepingInBed) {
+                    Pose(1.02f + inhale, 0.90f + inhale,
+                        angle = -0.075f * sim.dir, lift = (breath + 1f) * 0.012f)
+                } else {
+                    Pose(0.98f + inhale, 0.93f + inhale,
+                        angle = -0.035f * sim.dir, lift = (breath + 1f) * 0.01f)
+                }
+            }
             PetSim.State.SIT -> Pose(1f + 0.09f * e, 1f - 0.12f * e)
             PetSim.State.STRETCH -> Pose(1f - 0.09f * e, 1f + 0.16f * e)
             PetSim.State.HAPPY -> {
