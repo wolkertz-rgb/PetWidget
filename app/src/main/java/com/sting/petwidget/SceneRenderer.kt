@@ -910,22 +910,10 @@ class SceneRenderer {
             )
         }
         rect.set(px - r * sx, cy - r * sy, px + r * sx, cy + r * sy)
-        // Новый силуэт: мягкие ушки и широкое устойчивое основание.
-        val rx = r * sx
-        val ry = r * sy
-        path.reset()
-        path.moveTo(px - rx * 0.82f, cy - ry * 0.32f)
-        path.cubicTo(px - rx * 0.98f, cy - ry * 1.10f, px - rx * 0.48f, cy - ry * 1.12f, px - rx * 0.30f, cy - ry * 0.82f)
-        path.cubicTo(px - rx * 0.10f, cy - ry * 0.92f, px + rx * 0.10f, cy - ry * 0.92f, px + rx * 0.30f, cy - ry * 0.82f)
-        path.cubicTo(px + rx * 0.48f, cy - ry * 1.12f, px + rx * 0.98f, cy - ry * 1.10f, px + rx * 0.82f, cy - ry * 0.32f)
-        path.cubicTo(px + rx * 1.12f, cy + ry * 0.12f, px + rx * 1.06f, cy + ry * 0.77f, px + rx * 0.56f, cy + ry * 0.91f)
-        path.cubicTo(px + rx * 0.22f, cy + ry, px - rx * 0.22f, cy + ry, px - rx * 0.56f, cy + ry * 0.91f)
-        path.cubicTo(px - rx * 1.06f, cy + ry * 0.77f, px - rx * 1.12f, cy + ry * 0.12f, px - rx * 0.82f, cy - ry * 0.32f)
-        path.close()
-        c.drawPath(path, body)
+        c.drawOval(rect, body)
         pS.color = th("pet_outline", 0xFF4A4038.toInt())
         pS.strokeWidth = unit * 0.12f
-        c.drawPath(path, pS)
+        c.drawOval(rect, pS)
 
         // обводка-кромка слоя света (rim-light)
         pS.color = 0x20FFFFFF.toInt()
@@ -950,8 +938,8 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         // лицо
-        val eyeY = cy - r * sy * 0.20f
-        val eyeDx = r * 0.36f * sx
+        val eyeY = cy - r * sy * 0.30f
+        val eyeDx = r * 0.42f * sx
         val sleeping = st == PetSim.State.SLEEP
         val stretching = st == PetSim.State.STRETCH
         val waving = st == PetSim.State.WAVE

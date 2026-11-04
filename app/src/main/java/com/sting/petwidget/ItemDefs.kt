@@ -53,29 +53,25 @@ object ItemDefs {
     }
     private val rect: RectF by lazy { RectF() }
     private val path: Path by lazy { Path() }
-    private val material by lazy { SoftMaterial() }
 
     /** единый тёплый контур всего мира (visual-v3) */
     private val INK = 0xFF4A4038.toInt()
 
     private fun circle(c: Canvas, cx: Float, cy: Float, r: Float, col: Int) {
-        material.apply(pF, col, cx - r, cy - r, r * 2f, r * 2f)
+        pF.color = col
         c.drawCircle(cx, cy, r, pF)
-        pF.shader = null
     }
 
     private fun ellipse(c: Canvas, cx: Float, cy: Float, rx: Float, ry: Float, col: Int) {
         rect.set(cx - rx, cy - ry, cx + rx, cy + ry)
-        material.apply(pF, col, cx - rx, cy - ry, rx * 2f, ry * 2f)
+        pF.color = col
         c.drawOval(rect, pF)
-        pF.shader = null
     }
 
     private fun roundRect(c: Canvas, x0: Float, y0: Float, x1: Float, y1: Float, r: Float, col: Int) {
         rect.set(x0, y0, x1, y1)
-        material.apply(pF, col, x0, y0, x1 - x0, y1 - y0)
+        pF.color = col
         c.drawRoundRect(rect, r, r, pF)
-        pF.shader = null
     }
 
     private fun line(c: Canvas, x0: Float, y0: Float, x1: Float, y1: Float, w: Float, col: Int) {
@@ -106,10 +102,8 @@ object ItemDefs {
     }
 
     private fun fillPath(c: Canvas, color: Int) {
-        path.computeBounds(rect, true)
-        material.apply(pF, color, rect.left, rect.top, rect.width(), rect.height())
+        pF.color = color
         c.drawPath(path, pF)
-        pF.shader = null
     }
 
     private fun inkPath(c: Canvas, w: Float) {

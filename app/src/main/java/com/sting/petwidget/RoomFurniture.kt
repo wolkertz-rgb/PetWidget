@@ -8,30 +8,24 @@ import android.graphics.RectF
 /** Мебель в координатах комнаты; выбор хранится в существующих настройках. */
 internal class RoomFurniture {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val material = SoftMaterial()
-    private val materialBounds = RectF()
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = 0.09f
         strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
         color = 0xFF4A4038.toInt()
     }
     private fun box(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int, radius: Float = 0.2f) {
-        material.apply(p, color, l, t, r - l, b - t)
+        p.color = color
         val rect = RectF(l, t, r, b)
         c.drawRoundRect(rect, radius, radius, p)
-        p.shader = null
         c.drawRoundRect(rect, radius, radius, edge)
     }
 
     private fun shape(c: Canvas, path: Path, color: Int) {
-        path.computeBounds(materialBounds, true)
-        material.apply(p, color, materialBounds.left, materialBounds.top, materialBounds.width(), materialBounds.height())
-        c.drawPath(path, p); p.shader = null; c.drawPath(path, edge)
+        p.color = color; c.drawPath(path, p); c.drawPath(path, edge)
     }
 
     private fun oval(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int) {
-        material.apply(p, color, l, t, r - l, b - t)
-        c.drawOval(l, t, r, b, p); p.shader = null; c.drawOval(l, t, r, b, edge)
+        p.color = color; c.drawOval(l, t, r, b, p); c.drawOval(l, t, r, b, edge)
     }
 
     fun bed(c: Canvas, x: Float, floor: Float, u: Float, style: Int, color: Int, front: Boolean) {
