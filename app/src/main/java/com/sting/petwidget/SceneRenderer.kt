@@ -1256,7 +1256,7 @@ class SceneRenderer {
             pF.alpha = 255
         }
         pF.alpha = 255; pS.alpha = 255; pZ.alpha = 255
-        inter.holdYExtra = bob
+        // Поза хвата уже вычислена в readInteract до отрисовки.
     }
 
     /** живые крошки у рта */
