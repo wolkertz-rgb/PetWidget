@@ -167,7 +167,8 @@ class SceneRenderer {
         if (curtainStyle >= 0) furniture.curtains(c, unit, floorY, curtainStyle,
             th("curtain_closed", 0) == 1, th("curtain_color", 0xFF8AAFA3.toInt()))
         furniture.decor(c, unit, floorY, th("decor_rug", 0) == 1,
-            th("decor_tv", 0) == 1, th("decor_plant", 0) == 1)
+            th("decor_tv", 0) == 1, th("decor_plant", 0) == 1,
+            th("rug_color", 0xFF7FA89D.toInt()), th("decor_accent", 0xFFD18F6C.toInt()))
 
         // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
         drawChairBack(c, unit, floorY)
@@ -230,7 +231,8 @@ class SceneRenderer {
 
         // лампу и шнур видно и в темноте (питомцу нужно видеть, куда тянуть)
         drawBulb(c, unit, floorY)
-        drawPullCord(c, sim, unit, floorY)
+        // Настенная клавиша рисуется только в слое стены, до питомца.
+        if (th("room_lamp", 0) == 0) drawPullCord(c, sim, unit, floorY)
 
     }
 
@@ -280,7 +282,7 @@ class SceneRenderer {
     /** координаты кончика шнура-выключателя (с учётом тяги) */
     private fun pullCordPos(sim: PetSim, unit: Float, floorY: Float): Pair<Float, Float> {
         val sx = floorXfor(sim.switchX, unit)
-        if (th("room_lamp", 0) != 0) return sx to (floorY - unit * 2.5f)
+        if (th("room_lamp", 0) != 0) return (sx + unit * 0.8f) to (floorY - unit * 2.5f)
         var pullOffset = 0f
         if (sim.state == PetSim.State.PULL) {
             val t = sim.stateTime
@@ -303,7 +305,12 @@ class SceneRenderer {
             pS.color = 0xFF4A4038.toInt(); pS.strokeWidth = unit * 0.08f
             c.drawRoundRect(rect, unit * 0.1f, unit * 0.1f, pS)
             pF.color = if (lightNow()) 0xFF7FAE87.toInt() else 0xFF8A9290.toInt()
-            rect.inset(unit * 0.14f, unit * 0.15f); c.drawRoundRect(rect, unit * 0.04f, unit * 0.04f, pF)
+            val press = buttonPress(sim)
+            rect.inset(unit * (0.14f + press * 0.025f), unit * 0.15f)
+            rect.offset(0f, unit * 0.06f * press)
+            c.drawRoundRect(rect, unit * 0.04f, unit * 0.04f, pF)
+            pS.color = 0x77524C43; pS.strokeWidth = unit * 0.045f
+            c.drawLine(rect.left, rect.bottom, rect.right, rect.bottom, pS)
             return
         }
         pS.color = 0xFF52635C.toInt()
@@ -480,6 +487,11 @@ class SceneRenderer {
     }
 
     private var windowGlow = 0f
+    private fun buttonPress(sim: PetSim): Float {
+        if (sim.state != PetSim.State.PULL) return 0f
+        val t = sim.stateTime.toFloat()
+        return smooth((t - 520f) / 160f) * (1f - smooth((t - 840f) / 220f))
+    }
     private var lastLightFrame = 0L
 
     private fun applyLightOverlay(c: Canvas, unit: Float, floorY: Float) {
@@ -491,10 +503,8 @@ class SceneRenderer {
         val daylight = if (curtainsBlockLight) 0f else WindowScene.daylight(System.currentTimeMillis())
         val target = if (on) 0f else daylight
         windowGlow += (target - windowGlow) * (1f - kotlin.math.exp(-dt * 1.4f))
-        val floorLamp = th("room_lamp", 0) == 2
         SceneLighting.draw(c, w.toFloat(), h.toFloat(), floorY,
-            if (floorLamp) floorY - unit * 4.5f else 26f * density, on,
-            windowGlow.coerceAtMost(daylight), if (floorLamp) unit * 23f else w / 2f)
+            26f * density, on, windowGlow.coerceAtMost(daylight), w / 2f)
     }
 
     // ------------------------------------------------------------- захват
@@ -806,6 +816,10 @@ class SceneRenderer {
             sy = pose.sy
             rot = pose.angle
             dx = pose.offset * unit
+            if (st == PetSim.State.PULL && th("room_lamp", 0) != 0) {
+                sx = 1f; sy = 1f
+                rot = buttonPress(sim) * 0.035f
+            }
         }
 
         // ---- сглаживание: поза тянется к целевой (кратчайшая дуга по углу)
@@ -1490,10 +1504,10 @@ class SceneRenderer {
                 // рука держит бусину шнура
                 val (tipX, tipY) = pullCordPos(sim, unit, floorY)
                 val press = if (th("room_lamp", 0) == 0) 1f else
-                    sin((sim.stateTime / PetSim.PULL_DUR.toFloat()).coerceIn(0f, 1f) * PI.toFloat())
+                    smooth(sim.stateTime / 520f) * (1f - smooth((sim.stateTime - 1000f) / 400f))
                 arm(cx + r * 0.35f, cy - r * 0.30f,
                     lerp(cx + r * 0.45f, tipX, press),
-                    lerp(cy + r * 0.1f, tipY + unit * 0.1f, press), true)
+                    lerp(cy + r * 0.1f, tipY + unit * (0.06f * buttonPress(sim)), press), true)
             }
 
             PetSim.State.INTERACT -> {

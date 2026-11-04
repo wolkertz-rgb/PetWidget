@@ -14,7 +14,8 @@ object ThemePresets {
         "chair_back1", "chair_back2", "chair_seat1", "chair_seat2",
         "chair_roll1", "chair_roll2",
         "look_mouth", "look_grin", "look_eyes", "look_eyecolor",
-        "look_blush", "look_antenna", "look_ante", "wall_pattern", "wall_pattern_color"
+        "look_blush", "look_antenna", "look_ante", "wall_pattern", "wall_pattern_color",
+        "rug_color", "curtain_color", "decor_accent"
     )
 
     /** hex → Int */
@@ -184,6 +185,9 @@ object ThemePresets {
         val sp = context.getSharedPreferences("pet_state", android.content.Context.MODE_PRIVATE)
         val ed = sp.edit()
         preset.forEach { (k, v) -> ed.putInt(k, v) }
+        ed.putInt("rug_color", preset["pet_mid"] ?: MINT.getValue("pet_mid"))
+        ed.putInt("curtain_color", preset["pet_bottom"] ?: MINT.getValue("pet_bottom"))
+        ed.putInt("decor_accent", preset["chair_back1"] ?: MINT.getValue("chair_back1"))
         ed.apply()
     }
 

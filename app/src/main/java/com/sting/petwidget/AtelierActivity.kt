@@ -347,11 +347,11 @@ class AtelierActivity : Activity() {
             getThemePrefs().edit().putInt("room_bed", it).apply(); refreshAll()
         })
         card.addView(label("СВЕТИЛЬНИК"))
-        card.addView(chipRow(listOf("Подвес · шнурок", "Люстра · кнопка", "Торшер · кнопка"), getThemePrefs().getInt("room_lamp", 0)) {
+        card.addView(chipRow(listOf("Подвес · шнурок", "Модерн · кнопка", "Плафон · кнопка"), getThemePrefs().getInt("room_lamp", 0)) {
             getThemePrefs().edit().putInt("room_lamp", it).apply(); refreshAll()
         })
         card.addView(label("ШТОРЫ"))
-        card.addView(chipRow(listOf("Без штор", "Классические", "С ламбрекеном", "Римская штора"), getThemePrefs().getInt("room_curtain", -1) + 1) {
+        card.addView(chipRow(listOf("Без штор", "Классические", "С подхватами", "Римская штора"), getThemePrefs().getInt("room_curtain", -1) + 1) {
             getThemePrefs().edit().putInt("room_curtain", it - 1).apply(); refreshAll()
         })
         card.addView(chipRow(listOf("Открыты", "Закрыты"), getThemePrefs().getInt("curtain_closed", 0)) {
@@ -361,6 +361,14 @@ class AtelierActivity : Activity() {
             putColor("curtain_color", it)
         })
         card.addView(label("КАТАЛОГ ДЕКОРА"))
+        card.addView(label("ЦВЕТ КОВРИКА"))
+        card.addView(swatchRow(listOf(0xFF7FA89D, 0xFFC99F83, 0xFFA494BC, 0xFFC68D9C, 0xFF779EB7, 0xFFD6C6A6, 0xFF737985), getThemePrefs().getInt("rug_color", 0xFF7FA89D.toInt())) {
+            putColor("rug_color", it)
+        })
+        card.addView(label("ГОРШОК И ПОЛКА"))
+        card.addView(swatchRow(listOf(0xFFD18F6C, 0xFFAD8D65, 0xFF8DA79B, 0xFF9586AB, 0xFFB77F93, 0xFF668BA4, 0xFFD8CBB1), getThemePrefs().getInt("decor_accent", 0xFFD18F6C.toInt())) {
+            putColor("decor_accent", it)
+        })
         listOf("Коврик" to "decor_rug", "Телевизор" to "decor_tv", "Растение" to "decor_plant").forEach { (title, key) ->
             card.addView(label(title))
             card.addView(chipRow(listOf("Убрать", "Добавить"), getThemePrefs().getInt(key, 0)) {
