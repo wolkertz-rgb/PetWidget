@@ -170,10 +170,13 @@ class SceneRenderer {
 
         // Мягкая смена времени суток и окно в свободной левой части стены.
         c.drawColor(((night * 30).toInt() shl 24) or 0x002E3A55)
+        c.save()
+        c.translate(unit * 15f, 0f)
         WindowScene.draw(c, unit, floorY, worldTime)
         val curtainStyle = th("room_curtain", -1)
         if (curtainStyle >= 0) furniture.curtains(c, unit, floorY, curtainStyle,
             th("curtain_closed", 0) == 1, th("curtain_color", 0xFF8AAFA3.toInt()))
+        c.restore()
         furniture.decor(c, unit, floorY, th("decor_rug", 0) == 1,
             th("decor_tv", 0) == 1, th("decor_plant", 0) == 1,
             th("rug_color", 0xFF7FA89D.toInt()), th("decor_accent", 0xFFD18F6C.toInt()))
@@ -258,10 +261,11 @@ class SceneRenderer {
         val inter = readInteract(sim, itemX, r = unit * 1.55f)
         val a = sim.outing.swingAngle
         c.save()
-        c.translate(sin(a)*unit*3.4f, -unit*.65f*sim.outing.mount-(1f-cos(a))*unit*3.4f)
+        c.translate(sin(a)*unit*4.2f, -unit*.65f*sim.outing.mount-(1f-cos(a))*unit*4.2f)
         drawPet(c, sim, itemX(sim.x), floor, unit, inter)
         drawArms(c, sim, inter, unit, floor, itemX)
         c.restore()
+        yardScene.swingFront(c, w.toFloat(), floor, unit)
         for (item in sim.items) {
             if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), floor, unit)
             if (item.ageMs in 0L..1700L) drawSpawnLabel(c, item.def.name, itemX(item.x), floor, unit, item.ageMs)

@@ -13,7 +13,7 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
     private var swingDue = 25_000L
     private val roomItems = ArrayList<PetSim.SpawnedItem>()
     private val yardItems = ArrayList<PetSim.SpawnedItem>()
-    val doorX get() = if (yard) 0.16f else 0.62f
+    val doorX get() = 0.16f
     val doorOpen get() = if (phase == 2) PetMotion.ease(time / 650f) else if (phase == 3) 1f - PetMotion.ease(time / 700f) else 0f
     val fade get() = if (phase == 2) PetMotion.ease((time - 650f) / 650f) else if (phase == 3) 1f - PetMotion.ease(time / 850f) else 0f
     val swinging get() = phase == 5
@@ -35,7 +35,7 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
         }
         time += dt
         if (phase == 1 || phase == 4) {
-            val target = if (phase == 1) doorX else 0.60f
+            val target = if (phase == 1) doorX else 0.80f
             sim.state = PetSim.State.WALK; sim.walkMode = PetSim.WalkMode.NONE
             sim.dir = if (target > sim.x) 1 else -1
             val step = dt / 1000f * 0.10f

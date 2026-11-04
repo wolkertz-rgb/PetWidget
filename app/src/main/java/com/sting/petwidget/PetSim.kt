@@ -30,7 +30,7 @@ class PetSim(
 
     /** У новых светильников настенная кнопка рядом со спальным местом. */
     val switchX: Float
-        get() = if (prefs.getInt("room_lamp", 0) == 0) SWITCH_X else 0.64f
+        get() = if (prefs.getInt("room_lamp", 0) == 0) SWITCH_X else 0.27f
 
     /** Предмет в комнате */
     class SpawnedItem(
@@ -729,7 +729,7 @@ class PetSim(
         const val WALK_SPEED = 0.075f
         const val X_MIN = 0.09f
         const val X_MAX = 0.91f
-        const val BED_X = 0.80f
+        const val BED_X = 0.49f
         const val SWITCH_X = 0.40f          // где висит шнур выключателя
 
         const val PULL_TOGGLE_MS = 700L     // момент в тяге, когда свет щёлкает

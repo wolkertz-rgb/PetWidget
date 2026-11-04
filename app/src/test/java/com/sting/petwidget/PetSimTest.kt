@@ -74,7 +74,7 @@ class PetSimTest {
             prefs.map["room_lamp"] = style
             val sim = PetSim(prefs, ::clock, Random(2026))
             sim.beginPull()
-            assertEquals(if (style == 0) PetSim.SWITCH_X else 0.64f, sim.x, 0.001f)
+            assertEquals(if (style == 0) PetSim.SWITCH_X else 0.27f, sim.x, 0.001f)
             live(sim, 750)
             assertEquals(false, prefs.getBoolean("light_on", true))
             live(sim, 250)

@@ -21,10 +21,10 @@ internal object SceneLighting {
             if (windowGlow > 0.001f) {
                 val alpha = (windowGlow.coerceIn(0f, 1f) * 44).toInt()
                 // Свет затухает до середины комнаты, не осветляя её целиком.
-                paint.shader = RadialGradient(width * 0.18f, floor * 0.53f, width * 0.46f,
+                paint.shader = RadialGradient(width * 0.80f, floor * 0.53f, width * 0.46f,
                     intArrayOf((alpha shl 24) or 0x00FFE7AA, 0x00FFE7AA),
                     null, Shader.TileMode.CLAMP)
-                c.drawRect(0f, 0f, width * 0.64f, height, paint)
+                c.drawRect(width * 0.36f, 0f, width, height, paint)
                 paint.shader = null
             }
             return
