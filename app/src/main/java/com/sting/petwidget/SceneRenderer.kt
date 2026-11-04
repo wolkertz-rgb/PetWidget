@@ -492,8 +492,7 @@ class SceneRenderer {
     private var windowGlow = 0f
     private fun buttonPress(sim: PetSim): Float {
         if (sim.state != PetSim.State.PULL) return 0f
-        val t = sim.stateTime.toFloat()
-        return smooth((t - 520f) / 160f) * (1f - smooth((t - 840f) / 220f))
+        return SwitchMotion.pose(sim.stateTime).press
     }
     private var lastLightFrame = 0L
 
@@ -1483,13 +1482,17 @@ class SceneRenderer {
             }
 
             PetSim.State.PULL -> {
-                // рука держит бусину шнура
                 val (tipX, tipY) = pullCordPos(sim, unit, floorY)
-                val press = if (th("room_lamp", 0) == 0) 1f else
-                    smooth(sim.stateTime / 520f) * (1f - smooth((sim.stateTime - 1000f) / 400f))
-                arm(cx + r * 0.35f, cy - r * 0.30f,
-                    lerp(cx + r * 0.45f, tipX, press),
-                    lerp(cy + r * 0.1f, tipY + unit * (0.06f * buttonPress(sim)), press), true)
+                if (th("room_lamp", 0) == 0) {
+                    arm(cx + r * 0.35f, cy - r * 0.30f, tipX, tipY, true)
+                } else {
+                    val motion = SwitchMotion.pose(sim.stateTime)
+                    // Те же координаты клавиши, что в её отрисовке на стене.
+                    val handX = lerp(cx + r * 0.55f, tipX, motion.reach)
+                    val handY = lerp(cy + r * 0.16f,
+                        tipY + unit * 0.06f * motion.press, motion.reach)
+                    arm(cx + r * 0.48f, cy - r * 0.12f, handX, handY, true)
+                }
             }
 
             PetSim.State.INTERACT -> {
@@ -1753,7 +1756,7 @@ class SceneRenderer {
         return pad + xN.coerceIn(0f, 1f) * (w - 2 * pad)
     }
 
-    private fun smooth(p: Float): Float = p * p * (3f - 2f * p)
+    private fun smooth(p: Float): Float = PetMotion.ease(p)
 
     private fun circleAt(c: Canvas, x: Float, y: Float, r: Float, col: Int) {
         pF.color = col
