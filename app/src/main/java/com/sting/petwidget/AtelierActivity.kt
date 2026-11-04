@@ -1,7 +1,6 @@
 package com.sting.petwidget
 
 import android.app.Activity
-import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -24,11 +23,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
-/**
- * КАСТОМИЗАЦИЯ: полный дизайн-макет всех разделов.
- * Рабочие функции: живой превью + пресеты тем.
- * Остальное — визуальные выборы (макет, логика подключится позже).
- */
+/** Экран ателье: живой предпросмотр и все рабочие настройки внешности. */
 class AtelierActivity : Activity() {
 
     private lateinit var previewView: PreviewView
@@ -52,12 +47,12 @@ class AtelierActivity : Activity() {
     /** индекс текущего значения лука (для подсветки чипа) */
     private fun lookIdx(key: String, def: String): Int {
         val cur = try { getThemePrefs().getString(key, def) ?: def } catch (_: Throwable) { def }
-        return when (def) {
-            "smile" -> when (cur) { "wide" -> 0; "dimples" -> 1; "tooth" -> 2; else -> 0 }
-            "circles" -> when (cur) { "circles" -> 0; "stripes" -> 1; else -> 2 }
-            "classic" -> when (cur) { "classic" -> 0; "shine" -> 1; "sleepy" -> 2; else -> 3 }
-            "open" -> when (cur) { "smile" -> 0; "open" -> 1; "neutral" -> 2; else -> 3 }
-            "ball" -> when (cur) { "ball" -> 0; "flower" -> 1; "string" -> 2; else -> 3 }
+        return when (key) {
+            "look_mouth" -> when (cur) { "wide" -> 0; "dimples" -> 1; "tooth" -> 2; else -> 3 }
+            "look_blush" -> when (cur) { "circles" -> 0; "stripes" -> 1; else -> 2 }
+            "look_eyes" -> when (cur) { "classic" -> 0; "shine" -> 1; "sleepy" -> 2; else -> 3 }
+            "look_grin" -> when (cur) { "smile" -> 0; "open" -> 1; "neutral" -> 2; else -> 3 }
+            "look_antenna" -> when (cur) { "ball" -> 0; "flower" -> 1; "string" -> 2; else -> 3 }
             else -> 0
         }
     }
@@ -76,7 +71,21 @@ class AtelierActivity : Activity() {
         private var bmp: Bitmap? = null
         private var lastTick = 0L
 
+        private val ticker = object : Runnable {
+            override fun run() {
+                if (!isShown) return
+                renderFrame()
+                postDelayed(this, 240)
+            }
+        }
+
         fun refresh() {
+            removeCallbacks(ticker)
+            renderFrame()
+            if (isShown) postDelayed(ticker, 240)
+        }
+
+        private fun renderFrame() {
             renderer.lastPrefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
             renderer.density = resources.displayMetrics.density
             renderer.font = font()
@@ -91,7 +100,16 @@ class AtelierActivity : Activity() {
             sim.tick(dt)
             bmp = renderer.render(sim, width, height)
             invalidate()
-            postDelayed({ if (isShown) refresh() }, 240)
+        }
+
+        override fun onAttachedToWindow() {
+            super.onAttachedToWindow()
+            refresh()
+        }
+
+        override fun onDetachedFromWindow() {
+            removeCallbacks(ticker)
+            super.onDetachedFromWindow()
         }
 
         override fun onDraw(canvas: Canvas) {
@@ -127,176 +145,291 @@ class AtelierActivity : Activity() {
 
         try { PetWidgetProvider.scheduleKeepAlive(this) } catch (_: Exception) {}
 
+        window.statusBarColor = 0xFFF5F2EC.toInt()
+        window.navigationBarColor = 0xFFF5F2EC.toInt()
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+
         // ================================================= РАЗМЕТКА
-        val screen = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val screen = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(8), 0, dp(28))
+        }
         val scroll = android.widget.ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(MATCH, MATCH)
             isVerticalScrollBarEnabled = false
+            setBackgroundColor(0xFFF5F2EC.toInt())
             addView(screen)
         }
-        scroll.setBackgroundColor(Color.parseColor("#F2F2EF"))
         setContentView(scroll)
 
-        // шапка
+        screen.addView(appHeader())
         screen.addView(gap(18))
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        header.setPadding(dp(22), 0, dp(22), 0)
-        header.addView(ImageView(this).apply {
-            setImageResource(R.drawable.ic_blob_avatar)
-            layoutParams = LinearLayout.LayoutParams(dp(46), dp(46))
-        })
-        header.addView(gapW(dp(12)))
-        header.addView(column(
-            text("Кастомизация", 25f, bold = true, vertical = dp(2)),
-            text("Одеваем твоего питомца 🎨", 13f, color = 0xFF6B7280.toInt())
-        ))
-        screen.addView(header)
+        screen.addView(previewHero())
         screen.addView(gap(16))
 
-        // ------------------------------------------------ ПРЕВЬЮ
-        val previewCard = sectionCard("Предпросмотр")
+        val contentHost = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
+        }
+        screen.addView(segmentBar(contentHost))
+        screen.addView(gap(14))
+        screen.addView(contentHost)
+        screen.addView(gap(14))
+        screen.addView(serviceStatus())
+    }
+
+    private fun appHeader(): View {
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val avatar = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFFE2EFE7.toInt())
+                setStroke(dp(1), 0xFFD2E3D8.toInt())
+            }
+            addView(ImageView(this@AtelierActivity).apply {
+                setImageResource(R.drawable.ic_blob_avatar)
+                setPadding(dp(8), dp(8), dp(8), dp(8))
+            }, FrameLayout.LayoutParams(MATCH, MATCH))
+        }
+        header.addView(avatar, LinearLayout.LayoutParams(dp(50), dp(50)))
+        header.addView(gapW(13))
+        header.addView(column(
+            text("Ателье", 27f, bold = true, color = 0xFF26332E.toInt()),
+            text("Создай своего питомца", 13f, color = 0xFF7B817D.toInt(), vertical = dp(2))
+        ), LinearLayout.LayoutParams(0, WRAP, 1f))
+        header.addView(TextView(this).apply {
+            text = "LIVE"
+            textSize = 10f
+            gravity = Gravity.CENTER
+            setTextColor(0xFF2B7254.toInt())
+            styleFont(this, bold = true)
+            background = GradientDrawable().apply {
+                setColor(0xFFDCEFE4.toInt())
+                cornerRadius = dp(11).toFloat()
+            }
+        }, LinearLayout.LayoutParams(dp(48), dp(24)))
+        return header
+    }
+
+    private fun previewHero(): View {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(0xFF263A34.toInt(), 0xFF182823.toInt())
+            ).apply { cornerRadius = dp(28).toFloat() }
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply {
+                setMargins(dp(16), 0, dp(16), 0)
+            }
+            elevation = dp(5).toFloat()
+        }
+        val caption = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), 0, dp(4), dp(11))
+        }
+        caption.addView(text("Живой предпросмотр", 14f, bold = true, color = Color.WHITE),
+            LinearLayout.LayoutParams(0, WRAP, 1f))
+        caption.addView(text("Изменения сразу в виджете", 11f, color = 0xFFB9CBC3.toInt()))
+        card.addView(caption)
+
         val previewHolder = FrameLayout(this).apply {
             background = GradientDrawable().apply {
-                setColor(0xFFF7F7F4.toInt())
-                cornerRadius = dp(18).toFloat()
+                setColor(0xFFF4F3EE.toInt())
+                cornerRadius = dp(20).toFloat()
             }
-            layoutParams = LinearLayout.LayoutParams(MATCH, dp(216))
+            clipToOutline = true
+            elevation = dp(1).toFloat()
+            layoutParams = LinearLayout.LayoutParams(MATCH, dp(232))
         }
-        previewView = PreviewView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(MATCH, MATCH)
-        }
+        previewView = PreviewView(this).apply { layoutParams = FrameLayout.LayoutParams(MATCH, MATCH) }
         previewHolder.addView(previewView)
-        previewCard.addView(previewHolder)
-        screen.addView(previewCard)
-        screen.addView(gap(12))
+        card.addView(previewHolder)
+        return card
+    }
 
-        // ------------------------------------------------ ПИТОМЕЦ
-        val petCard = sectionCard("🦠 Питомец")
-        petCard.addView(label("🎨 Цвет тела — верх"))
-        petCard.addView(swatchRow(listOf(0xFFA8E6C3, 0xFF9ADDC8, 0xFFB4EBCF, 0xFF8EE0C4, 0xFF63CFA3, 0xFFF58C8C, 0xFFF7B27A, 0xFFB8A6F5), getThemePrefs().getInt("pet_top", 0xFFA8E6C3.toInt())) { col ->
-            putColor("pet_top", col)
-        })
-        petCard.addView(label("🎨 Цвет тела — низ"))
-        petCard.addView(swatchRow(listOf(0xFF4FA379, 0xFF5FAE88, 0xFF3F9E77, 0xFF2C93A0, 0xFFB94E4E, 0xFFD97E4E, 0xFF7B62C4, 0xFF5E6B75), getThemePrefs().getInt("pet_bottom", 0xFF4FA379.toInt())) { col ->
-            putColor("pet_bottom", col)
-        })
-        petCard.addView(label("🎨 Животик"))
-        petCard.addView(swatchRow(listOf(0xFFBDEBCF, 0xFFD3F4F0, 0xFFFFE9DC, 0xFFFFF0D6, 0xFFF7F9F7, 0xFFF1E4E7), getThemePrefs().getInt("pet_belly", 0xFFBDEBCF.toInt())) { col ->
-            putColor("pet_belly", col)
-        })
-        petCard.addView(label("😊 Улыбка"))
-        petCard.addView(chipRow(listOf("Широкая", "Ямочки", "Один зубик", "Скромная"), lookIdx("look_mouth", "smile")) { i ->
+    private fun segmentBar(host: LinearLayout): View {
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = GradientDrawable().apply {
+                setColor(0xFFE8E5DE.toInt())
+                cornerRadius = dp(20).toFloat()
+            }
+            layoutParams = LinearLayout.LayoutParams(MATCH, dp(48)).apply {
+                setMargins(dp(16), 0, dp(16), 0)
+            }
+        }
+        val tabs = listOf("Питомец", "Комната", "Темы")
+        val views = ArrayList<TextView>()
+
+        fun select(index: Int) {
+            views.forEachIndexed { i, tab ->
+                tab.setTextColor(if (i == index) 0xFF26332E.toInt() else 0xFF777B78.toInt())
+                tab.background = GradientDrawable().apply {
+                    setColor(if (i == index) Color.WHITE else Color.TRANSPARENT)
+                    cornerRadius = dp(16).toFloat()
+                }
+                tab.elevation = if (i == index) dp(2).toFloat() else 0f
+            }
+            host.removeAllViews()
+            host.addView(when (index) {
+                0 -> petControls()
+                1 -> roomControls()
+                else -> themeControls()
+            })
+        }
+
+        tabs.forEachIndexed { index, title ->
+            val tab = TextView(this).apply {
+                text = title
+                textSize = 13.5f
+                gravity = Gravity.CENTER
+                styleFont(this, bold = true)
+                setOnClickListener { select(index) }
+            }
+            views.add(tab)
+            bar.addView(tab, LinearLayout.LayoutParams(0, MATCH, 1f).apply {
+                setMargins(dp(2), 0, dp(2), 0)
+            })
+        }
+        select(0)
+        return bar
+    }
+
+    private fun petControls(): View {
+        val card = sectionCard("Внешность питомца", "Цвет, характер и детали лица")
+        card.addView(label("ОКРАС · ВЕРХ"))
+        card.addView(swatchRow(listOf(0xFFA8E6C3, 0xFF9ADDC8, 0xFFB4EBCF, 0xFF8EE0C4, 0xFF63CFA3, 0xFFF58C8C, 0xFFF7B27A, 0xFFB8A6F5), getThemePrefs().getInt("pet_top", 0xFFA8E6C3.toInt())) { putColor("pet_top", it) })
+        card.addView(label("ОКРАС · НИЗ"))
+        card.addView(swatchRow(listOf(0xFF4FA379, 0xFF5FAE88, 0xFF3F9E77, 0xFF2C93A0, 0xFFB94E4E, 0xFFD97E4E, 0xFF7B62C4, 0xFF5E6B75), getThemePrefs().getInt("pet_bottom", 0xFF4FA379.toInt())) { putColor("pet_bottom", it) })
+        card.addView(label("ЖИВОТИК"))
+        card.addView(swatchRow(listOf(0xFFBDEBCF, 0xFFD3F4F0, 0xFFFFE9DC, 0xFFFFF0D6, 0xFFF7F9F7, 0xFFF1E4E7), getThemePrefs().getInt("pet_belly", 0xFFBDEBCF.toInt())) { putColor("pet_belly", it) })
+        card.addView(divider())
+        card.addView(label("УЛЫБКА"))
+        card.addView(chipRow(listOf("Широкая", "Ямочки", "Зубик", "Скромная"), lookIdx("look_mouth", "smile")) { i ->
             putLook("look_mouth", when (i) { 0 -> "wide"; 1 -> "dimples"; 2 -> "tooth"; else -> "small" })
         })
-        petCard.addView(label("😳 Румяшки"))
-        petCard.addView(chipRow(listOf("Кружки", "Полоски", "Сердечки"), lookIdx("look_blush", "circles")) { i ->
-            putLook("look_blush", when (i) { 0 -> "circles"; 1 -> "stripes"; else -> "hearts" })
-        })
-        petCard.addView(swatchRow(listOf(0xFFF3A9A0, 0xFFF17A85, 0xFFF5B791, 0xFFE5687B), getThemePrefs().getInt("pet_blush", 0xFFF3A9A0.toInt())) { col ->
-            putColor("pet_blush", col)
-        })
-        petCard.addView(label("👀 Глаза"))
-        petCard.addView(chipRow(listOf("Классика", "Блеск+", "Сонные", "Круглые"), lookIdx("look_eyes", "classic")) { i ->
+        card.addView(label("ГЛАЗА"))
+        card.addView(chipRow(listOf("Классика", "Блеск", "Сонные", "Круглые"), lookIdx("look_eyes", "classic")) { i ->
             putLook("look_eyes", when (i) { 0 -> "classic"; 1 -> "shine"; 2 -> "sleepy"; else -> "round" })
         })
-        petCard.addView(swatchRow(listOf(0xFF22333B, 0xFF2B2233, 0xFF20455F, 0xFF3B2233), getThemePrefs().getInt("look_eyecolor", 0xFF22333B.toInt())) { col ->
-            putColor("look_eyecolor", col)
+        card.addView(swatchRow(listOf(0xFF22333B, 0xFF2B2233, 0xFF20455F, 0xFF3B2233), getThemePrefs().getInt("look_eyecolor", 0xFF22333B.toInt())) { putColor("look_eyecolor", it) })
+        card.addView(label("РУМЯНЕЦ"))
+        card.addView(chipRow(listOf("Кружки", "Полоски", "Сердечки"), lookIdx("look_blush", "circles")) { i ->
+            putLook("look_blush", when (i) { 0 -> "circles"; 1 -> "stripes"; else -> "hearts" })
         })
-        petCard.addView(label("👄 Рот — форма при радости"))
-        petCard.addView(chipRow(listOf("Улыбка", "Открытый", "Нейтральный", "«Оо»"), lookIdx("look_grin", "smile")) { i ->
+        card.addView(swatchRow(listOf(0xFFF3A9A0, 0xFFF17A85, 0xFFF5B791, 0xFFE5687B), getThemePrefs().getInt("pet_blush", 0xFFF3A9A0.toInt())) { putColor("pet_blush", it) })
+        card.addView(label("НАСТРОЕНИЕ"))
+        card.addView(chipRow(listOf("Улыбка", "Открытый", "Спокойный", "Удивлён"), lookIdx("look_grin", "smile")) { i ->
             putLook("look_grin", when (i) { 0 -> "smile"; 1 -> "open"; 2 -> "neutral"; else -> "ooh" })
         })
-        petCard.addView(label("📡 Антенна"))
-        petCard.addView(chipRow(listOf("Шарик", "Цветочек", "Нить", "Ничего"), lookIdx("look_antenna", "ball")) { i ->
+        card.addView(label("АНТЕННА"))
+        card.addView(chipRow(listOf("Шарик", "Цветок", "Нить", "Без неё"), lookIdx("look_antenna", "ball")) { i ->
             putLook("look_antenna", when (i) { 0 -> "ball"; 1 -> "flower"; 2 -> "string"; else -> "none" })
         })
-        petCard.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFF60A5FA, 0xFF7FC9A6), getThemePrefs().getInt("look_ante", 0xFFF4C95D.toInt())) { col ->
-            putColor("look_ante", col)
-        })
-        screen.addView(petCard)
-        screen.addView(gap(12))
+        card.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFF60A5FA, 0xFF7FC9A6), getThemePrefs().getInt("look_ante", 0xFFF4C95D.toInt())) { putColor("look_ante", it) })
+        return card
+    }
 
-        // ------------------------------------------------ КОМНАТА
-        val roomCard = sectionCard("🏠 Комната")
-        roomCard.addView(label("🎨 Обои — цвет"))
-        roomCard.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFEFF7F3, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF151A2A, 0xFF232840), getThemePrefs().getInt("room_bg_top", 0xFFF2F2EF.toInt())) { col ->
-            putColor("room_bg_top", col, mirror = "room_bg_bottom", mirrorShade = 0.94f)
+    private fun roomControls(): View {
+        val card = sectionCard("Интерьер комнаты", "Настрой фон и любимое кресло")
+        card.addView(label("ОБОИ"))
+        card.addView(swatchRow(listOf(0xFFF2F2EF, 0xFFFDF1EA, 0xFFEFF7F3, 0xFFEFF3F9, 0xFFF8F2E4, 0xFF151A2A, 0xFF232840), getThemePrefs().getInt("room_bg_top", 0xFFF2F2EF.toInt())) {
+            putColor("room_bg_top", it, mirror = "room_bg_bottom", mirrorShade = 0.94f)
         })
-        roomCard.addView(label("🧩 Узор обоев"))
-        roomCard.addView(chipRow(listOf("Нет", "Точки", "Полоски", "Зигзаг", "Клетка", "Звёзды"), getThemePrefs().getInt("wall_pattern", 0)) { i ->
-            getThemePrefs().edit().putInt("wall_pattern", i).apply()
-            refreshAll()
+        card.addView(label("УЗОР"))
+        card.addView(chipRow(listOf("Чисто", "Точки", "Полосы", "Зигзаг", "Клетка", "Звёзды"), getThemePrefs().getInt("wall_pattern", 0)) { i ->
+            getThemePrefs().edit().putInt("wall_pattern", i).apply(); refreshAll()
         })
-        roomCard.addView(label("🎨 Пол"))
-        roomCard.addView(swatchRow(listOf(0xFFE1E1DC, 0xFFEAD9CC, 0xFFCFE7E6, 0xFFD8E3D0, 0xFF232840, 0xFF3C3428), getThemePrefs().getInt("floor_top", 0xFFE1E1DC.toInt())) { col ->
-            putColor("floor_top", col, mirror = "floor_bottom", mirrorShade = 0.95f)
+        card.addView(divider())
+        card.addView(label("ПОЛ"))
+        card.addView(swatchRow(listOf(0xFFE1E1DC, 0xFFEAD9CC, 0xFFCFE7E6, 0xFFD8E3D0, 0xFF232840, 0xFF3C3428), getThemePrefs().getInt("floor_top", 0xFFE1E1DC.toInt())) {
+            putColor("floor_top", it, mirror = "floor_bottom", mirrorShade = 0.95f)
         })
-        roomCard.addView(label("🎨 Плинтус и панель"))
-        roomCard.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFC8E2E0, 0xFFD6E1C2, 0xFF2A2F4A), getThemePrefs().getInt("room_skirt", 0xFFDCDCD6.toInt())) { col ->
-            putColor("room_skirt", col, mirror = "room_panel", mirrorShade = 0.97f)
+        card.addView(label("ПАНЕЛЬ И ПЛИНТУС"))
+        card.addView(swatchRow(listOf(0xFFDCDCD6, 0xFFEBD9C9, 0xFFC8E2E0, 0xFFD6E1C2, 0xFF2A2F4A), getThemePrefs().getInt("room_skirt", 0xFFDCDCD6.toInt())) {
+            putColor("room_skirt", it, mirror = "room_panel", mirrorShade = 0.97f)
         })
-        roomCard.addView(label("🛋 Кресло"))
-        roomCard.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFF94A3B8, 0xFF2C5875, 0xFF7B62C4, 0xFFB45309), getThemePrefs().getInt("chair_back1", 0xFFAB7B44.toInt())) { col ->
+        card.addView(label("КРЕСЛО"))
+        card.addView(swatchRow(listOf(0xFFAB7B44, 0xFF8A5A2E, 0xFF94A3B8, 0xFF2C5875, 0xFF7B62C4, 0xFFB45309), getThemePrefs().getInt("chair_back1", 0xFFAB7B44.toInt())) { col ->
             putColor("chair_back1", col, mirror = "chair_back2", mirrorShade = 0.7f)
             putColor("chair_seat1", shade(col, 1.08f), mirror = "chair_seat2", mirrorShade = 0.72f)
             putColor("chair_roll1", shade(col, 1.05f), mirror = "chair_roll2", mirrorShade = 0.7f)
         })
-        screen.addView(roomCard)
-        screen.addView(gap(12))
-
-        // ------------------------------------------------ ТЕМЫ (применяются сразу)
-        val themeCard = sectionCard("🧸 Темы")
-        val presetRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        ThemePresets.PRESETS.forEach { (name, tokens) ->
-            presetRow.addView(presetCard(name, tokens))
-        }
-        themeCard.addView(HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(presetRow)
-        })
-        val btnRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(10), 0, dp(2)) }
-        btnRow.addView(actionButton("Вернуть мятную 🌿", 0xFFB9B9B2.toInt()) {
-            ThemePresets.reset(this)
-            previewView.refresh()
-            PetWidgetProvider.burst(this, frames = 1, everyMs = 60)
-            Toast.makeText(this, "Мятная тема вернулась 🌿", Toast.LENGTH_SHORT).show()
-        }, weights(2f))
-        themeCard.addView(btnRow)
-        screen.addView(themeCard)
-        screen.addView(gap(12))
-
-        // ------------------------------------------------ ЗАПАС (макет «скоро»)
-        val soonCard = sectionCard("✨ Скоро в ателье")
-        soonCard.addView(label("🕯 Свой цвет лампы и света"))
-        soonCard.addView(label("🖼 Фото-обои"))
-        soonCard.addView(label("🧣 Шарфик и шапочка питомцу"))
-        soonCard.addView(label("🐾 Второй питомец"))
-        screen.addView(soonCard)
-        screen.addView(gap(12))
-
-        // ------------------------------------------------ УХОД
-        val careCard = sectionCard("🌱 Уход")
-        careCard.addView(actionButton("Запустить жизнь питомца", 0xFFE3ECE6.toInt()) {
-            try {
-                startForegroundService(
-                    Intent(this@AtelierActivity, PetService::class.java).setAction(PetService.ACTION_SHOW)
-                )
-            } catch (_: Exception) {}
-            Toast.makeText(this@AtelierActivity, "Питомец на связи 🌱", Toast.LENGTH_SHORT).show()
-        })
-        screen.addView(careCard)
-        screen.addView(gap(30))
+        return card
     }
 
-    // ---------------------------------------------------------- уход-макет удалён
+    private fun themeControls(): View {
+        val card = sectionCard("Готовые образы", "Один выбор меняет питомца и комнату")
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        ThemePresets.PRESETS.entries.chunked(2).forEach { pair ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            pair.forEach { (name, tokens) -> row.addView(presetCard(name, tokens), LinearLayout.LayoutParams(0, dp(112), 1f).apply { setMargins(dp(4), dp(4), dp(4), dp(4)) }) }
+            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+            grid.addView(row)
+        }
+        card.addView(grid)
+        card.addView(gap(12))
+        card.addView(actionButton("Вернуть исходный мятный образ", 0xFFDEE8E1.toInt()) {
+            ThemePresets.reset(this)
+            refreshAll()
+            Toast.makeText(this, "Исходный образ восстановлен", Toast.LENGTH_SHORT).show()
+        })
+        return card
+    }
+
+    private fun serviceStatus(): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(18), dp(14), dp(14), dp(14))
+            background = GradientDrawable().apply {
+                setColor(0xFFE8EFEA.toInt())
+                cornerRadius = dp(20).toFloat()
+            }
+            layoutParams = LinearLayout.LayoutParams(MATCH, WRAP).apply { setMargins(dp(16), 0, dp(16), 0) }
+        }
+        row.addView(View(this).apply {
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xFF55A773.toInt()) }
+        }, LinearLayout.LayoutParams(dp(9), dp(9)).apply { setMargins(0, 0, dp(11), 0) })
+        row.addView(column(
+            text("Питомец на связи", 13.5f, bold = true, color = 0xFF2B4037.toInt()),
+            text("Жизнь в виджете активна", 11.5f, color = 0xFF708078.toInt(), vertical = dp(1))
+        ), LinearLayout.LayoutParams(0, WRAP, 1f))
+        row.addView(TextView(this).apply {
+            text = "Запустить"
+            textSize = 12f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            styleFont(this, bold = true)
+            background = GradientDrawable().apply { setColor(0xFF3D765E.toInt()); cornerRadius = dp(14).toFloat() }
+            setOnClickListener {
+                try { startForegroundService(Intent(this@AtelierActivity, PetService::class.java).setAction(PetService.ACTION_SHOW)) } catch (_: Exception) {}
+                Toast.makeText(this@AtelierActivity, "Питомец на связи", Toast.LENGTH_SHORT).show()
+            }
+        }, LinearLayout.LayoutParams(dp(88), dp(34)))
+        return row
+    }
 
     private fun actionButton(label: String, color: Int, onClick: () -> Unit): LinearLayout {
         val b = Button(this).apply {
             text = label
             isAllCaps = false
-            textSize = 15f
-            setTextColor(if (color == 0xFFE3ECE6.toInt()) 0xFF2E3B34.toInt() else Color.WHITE)
-            background = GradientDrawable().apply { setColor(color); cornerRadius = dp(18).toFloat() }
+            textSize = 13.5f
+            setTextColor(if (Color.luminance(color) > 0.58f) 0xFF2E3B34.toInt() else Color.WHITE)
+            minHeight = dp(48)
+            background = GradientDrawable().apply {
+                setColor(color)
+                cornerRadius = dp(16).toFloat()
+                if (Color.luminance(color) > 0.7f) setStroke(dp(1), 0xFFD1DAD4.toInt())
+            }
             styleButton(this)
         }
         val l = LinearLayout(this)
@@ -370,26 +503,35 @@ class AtelierActivity : Activity() {
 
     private fun label(s: String): TextView = TextView(this).apply {
         text = s
-        textSize = 13.5f
-        setTextColor(0xFF4B5563.toInt())
-        setPadding(0, dp(10), 0, dp(4))
-        styleFont(this)
+        textSize = 10.5f
+        letterSpacing = 0.08f
+        setTextColor(0xFF7A817D.toInt())
+        setPadding(dp(2), dp(15), 0, dp(7))
+        styleFont(this, bold = true)
     }
 
-    /** белая скруглённая карточка-секция с заголовком */
-    private fun sectionCard(title: String): LinearLayout {
+    /** Светлая рабочая поверхность с заголовком и кратким пояснением. */
+    private fun sectionCard(title: String, subtitle: String? = null): LinearLayout {
         val l = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         l.background = GradientDrawable().apply {
-            setColor(Color.WHITE)
-            cornerRadius = dp(24).toFloat()
+            setColor(0xFFFFFEFB.toInt())
+            cornerRadius = dp(26).toFloat()
+            setStroke(dp(1), 0xFFE8E3D9.toInt())
         }
-        l.setPadding(dp(18), dp(16), dp(18), dp(16))
+        l.elevation = dp(2).toFloat()
+        l.setPadding(dp(18), dp(18), dp(18), dp(20))
         val lp = LinearLayout.LayoutParams(MATCH, WRAP)
-        lp.setMargins(dp(16), dp(4), dp(16), dp(4))
+        lp.setMargins(dp(16), 0, dp(16), 0)
         l.layoutParams = lp
-        l.addView(text(title, 17.5f, bold = true))
-        l.addView(gap(6))
+        l.addView(text(title, 19f, bold = true, color = 0xFF28342F.toInt()))
+        subtitle?.let { l.addView(text(it, 12.5f, color = 0xFF858985.toInt(), vertical = dp(3))) }
+        l.addView(gap(4))
         return l
+    }
+
+    private fun divider(): View = View(this).apply {
+        setBackgroundColor(0xFFEDE9E1.toInt())
+        layoutParams = LinearLayout.LayoutParams(MATCH, dp(1)).apply { setMargins(0, dp(18), 0, dp(2)) }
     }
 
     /** вертикальная колонка из двух текстов */
@@ -426,15 +568,16 @@ class AtelierActivity : Activity() {
             val g = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(col)
-                setStroke(dp(3), if (isSel) 0xFF7FC9A6.toInt() else Color.TRANSPARENT)
+                setStroke(dp(3), if (isSel) 0xFF315F4D.toInt() else 0xFFE4E1DA.toInt())
             }
             v.background = g
-            v.layoutParams = LinearLayout.LayoutParams(dp(30), dp(30)).apply { setMargins(0, 0, dp(10), dp(4)) }
+            v.elevation = dp(1).toFloat()
+            v.layoutParams = LinearLayout.LayoutParams(dp(38), dp(38)).apply { setMargins(dp(1), dp(1), dp(10), dp(3)) }
             v.setOnClickListener {
                 circles.forEach { c2 ->
-                    (c2.background as GradientDrawable).setStroke(dp(3), Color.TRANSPARENT)
+                    (c2.background as GradientDrawable).setStroke(dp(3), 0xFFE4E1DA.toInt())
                 }
-                (v.background as GradientDrawable).setStroke(dp(3), 0xFF7FC9A6.toInt())
+                (v.background as GradientDrawable).setStroke(dp(3), 0xFF315F4D.toInt())
                 onPick?.invoke(col)
             }
             circles.add(v)
@@ -450,29 +593,28 @@ class AtelierActivity : Activity() {
         options.forEachIndexed { i, opt ->
             val chip = TextView(this).apply {
                 text = opt
-                textSize = 13f
-                setTextColor(if (i == initial) 0xFF2E3B34.toInt() else 0xFF4B5563.toInt())
+                textSize = 12.5f
+                setTextColor(if (i == initial) 0xFFFFFFFF.toInt() else 0xFF59615D.toInt())
                 gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
-                    setColor(if (i == initial) 0xFFE3F4EB.toInt() else Color.WHITE)
-                    setStroke(dp(2), if (i == initial) 0xFF7FC9A6.toInt() else 0xFFE5E7EB.toInt())
-                    cornerRadius = dp(16).toFloat()
+                    setColor(if (i == initial) 0xFF3D705B.toInt() else 0xFFF2F0EA.toInt())
+                    cornerRadius = dp(15).toFloat()
                 }
-                setPadding(dp(12), 0, dp(12), 0)
-                layoutParams = LinearLayout.LayoutParams(WRAP, dp(32)).apply {
-                    setMargins(0, 0, dp(8), dp(4))
+                setPadding(dp(14), 0, dp(14), 0)
+                layoutParams = LinearLayout.LayoutParams(WRAP, dp(36)).apply {
+                    setMargins(0, 0, dp(8), dp(3))
                 }
-                styleFont(this)
+                styleFont(this, bold = i == initial)
             }
             chip.setOnClickListener {
                 chips.forEach { ch ->
-                    (ch.background as GradientDrawable).setColor(Color.WHITE)
-                    (ch.background as GradientDrawable).setStroke(dp(2), 0xFFE5E7EB.toInt())
-                    ch.setTextColor(0xFF4B5563.toInt())
+                    (ch.background as GradientDrawable).setColor(0xFFF2F0EA.toInt())
+                    ch.setTextColor(0xFF59615D.toInt())
+                    styleFont(ch)
                 }
-                (chip.background as GradientDrawable).setColor(0xFFE3F4EB.toInt())
-                (chip.background as GradientDrawable).setStroke(dp(2), 0xFF7FC9A6.toInt())
-                chip.setTextColor(0xFF2E3B34.toInt())
+                (chip.background as GradientDrawable).setColor(0xFF3D705B.toInt())
+                chip.setTextColor(Color.WHITE)
+                styleFont(chip, bold = true)
                 onPick?.invoke(i)
             }
             chips.add(chip)
@@ -484,37 +626,41 @@ class AtelierActivity : Activity() {
     // ------------------------------------------------ прочее
 
     private fun presetCard(name: String, tokens: Map<String, Int>): LinearLayout {
-        val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
+        val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         wrap.background = GradientDrawable().apply {
-            setColor(Color.WHITE)
+            setColor(tokens["room_bg_top"] ?: Color.WHITE)
             cornerRadius = dp(18).toFloat()
-            setStroke(dp(2), tokens["pet_top"] ?: Color.WHITE)
+            setStroke(dp(1), 0x1F26332E)
         }
-        wrap.layoutParams = LinearLayout.LayoutParams(dp(84), dp(116)).apply { setMargins(dp(4), 0, dp(4), 0) }
-        wrap.setPadding(dp(6), dp(10), dp(6), dp(8))
-
-        listOf("pet_top", "pet_mid", "pet_bottom").forEach { k ->
-            wrap.addView(View(this).apply {
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(tokens[k] ?: Color.WHITE)
-                }
-                layoutParams = LinearLayout.LayoutParams(dp(18), dp(18)).apply {
-                    gravity = Gravity.CENTER_HORIZONTAL
-                    setMargins(0, dp(2), 0, 0)
-                }
-            })
+        wrap.setPadding(dp(12), dp(11), dp(12), dp(10))
+        val scene = FrameLayout(this).apply {
+            background = GradientDrawable().apply {
+                setColor(tokens["floor_top"] ?: 0xFFE7E3DB.toInt())
+                cornerRadius = dp(13).toFloat()
+            }
         }
-        wrap.addView(text(name, 12f, vertical = dp(6)).apply { gravity = Gravity.CENTER })
+        scene.addView(View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(tokens["pet_top"] ?: 0xFFA8E6C3.toInt())
+                setStroke(dp(3), tokens["pet_bottom"] ?: 0xFF4FA379.toInt())
+            }
+        }, FrameLayout.LayoutParams(dp(40), dp(40), Gravity.CENTER))
+        scene.addView(View(this).apply {
+            background = GradientDrawable().apply {
+                setColor(tokens["chair_back1"] ?: 0xFFAB7B44.toInt())
+                cornerRadius = dp(5).toFloat()
+            }
+        }, FrameLayout.LayoutParams(dp(19), dp(30), Gravity.RIGHT or Gravity.BOTTOM).apply { setMargins(0, 0, dp(9), dp(7)) })
+        wrap.addView(scene, LinearLayout.LayoutParams(MATCH, 0, 1f))
+        wrap.addView(text(name, 12.5f, bold = true, color = 0xFF2D3733.toInt(), vertical = dp(7)))
         wrap.setOnClickListener {
             ThemePresets.apply(this, tokens)
-            previewView.refresh()
+            refreshAll()
+            Toast.makeText(this, "Образ «$name» применён", Toast.LENGTH_SHORT).show()
         }
         return wrap
     }
-
-    private fun weights(w: Float): LinearLayout.LayoutParams =
-        LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, w)
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 }
