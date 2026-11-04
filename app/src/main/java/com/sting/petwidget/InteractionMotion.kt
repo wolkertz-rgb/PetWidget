@@ -37,8 +37,9 @@ internal object InteractionMotion {
             }
             "top" -> {
                 val spin = smooth(p / 0.22f) * smooth((1f - p) / 0.18f)
-                FloorPose(rotation = p * 1080f * dir, scaleX = 1f + 0.05f * spin,
-                    scaleY = 1f - 0.05f * spin)
+                // Юла вращается вокруг вертикальной оси, а не кувыркается целиком.
+                FloorPose(rotation = sin(p * PI.toFloat() * 12f) * 3f * spin,
+                    scaleX = 1f - 0.04f * spin)
             }
             "ball", "block" -> {
                 val press = sin(smooth(p / 0.55f) * PI.toFloat())

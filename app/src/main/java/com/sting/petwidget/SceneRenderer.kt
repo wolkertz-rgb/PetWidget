@@ -857,8 +857,8 @@ class SceneRenderer {
         }
         rect.set(px - r * sx, cy - r * sy, px + r * sx, cy + r * sy)
         c.drawOval(rect, body)
-        pS.color = th("pet_outline", 0x7A35684E.toInt())
-        pS.strokeWidth = unit * 0.11f
+        pS.color = th("pet_outline", 0xFF4A4038.toInt())
+        pS.strokeWidth = unit * 0.12f
         c.drawOval(rect, pS)
 
         // обводка-кромка слоя света (rim-light)
@@ -1435,7 +1435,7 @@ class SceneRenderer {
             pS.strokeWidth = unit * 0.22f
             c.drawPath(path, pS)
             circleAt(c, hx, hy, grip, palmColor)
-            pS.color = th("pet_outline", 0x6E3C7A63.toInt())
+            pS.color = th("pet_outline", 0xFF4A4038.toInt())
             pS.strokeWidth = unit * 0.08f
             c.drawCircle(hx, hy, grip, pS)
         }
@@ -1662,8 +1662,9 @@ class SceneRenderer {
         rect.set(bx + unit * 1.02f, floorY - unit * 1.82f, bx + unit * 1.78f, floorY - unit * 0.12f)
         c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll); c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, pS)
         pF.color = th("chair_seat1", 0xFFC08A57.toInt())
-        rect.set(bx - unit * 1.72f, floorY - unit * 1.92f, bx - unit * 1.08f, floorY - unit * 1.55f); c.drawOval(rect, pF)
-        rect.set(bx + unit * 1.08f, floorY - unit * 1.92f, bx + unit * 1.72f, floorY - unit * 1.55f); c.drawOval(rect, pF)
+        pS.color = outline; pS.strokeWidth = unit * 0.09f
+        rect.set(bx - unit * 1.72f, floorY - unit * 1.92f, bx - unit * 1.08f, floorY - unit * 1.55f); c.drawOval(rect, pF); c.drawOval(rect, pS)
+        rect.set(bx + unit * 1.08f, floorY - unit * 1.92f, bx + unit * 1.72f, floorY - unit * 1.55f); c.drawOval(rect, pF); c.drawOval(rect, pS)
         pS.color = 0x66F2D0A4; pS.strokeWidth = unit * 0.055f
         c.drawLine(bx - unit * 1.43f, floorY - unit * 1.5f, bx - unit * 1.39f, floorY - unit * 0.32f, pS)
         c.drawLine(bx + unit * 1.39f, floorY - unit * 1.5f, bx + unit * 1.43f, floorY - unit * 0.32f, pS)
@@ -1672,6 +1673,8 @@ class SceneRenderer {
         pF.color = th("chair_roll2", 0xFF8A5A2E.toInt())
         rect.set(bx - unit * 1.2f, floorY - unit * 0.42f, bx + unit * 1.2f, floorY - unit * 0.1f)
         c.drawRoundRect(rect, unit * 0.13f, unit * 0.13f, pF)
+        pS.color = outline; pS.strokeWidth = unit * 0.08f
+        c.drawRoundRect(rect, unit * 0.13f, unit * 0.13f, pS)
         pF.color = 0xFF493327.toInt()
         path.reset(); path.moveTo(bx - unit * 1.08f, floorY - unit * 0.16f); path.lineTo(bx - unit * 0.82f, floorY - unit * 0.16f)
         path.lineTo(bx - unit * 0.9f, floorY); path.lineTo(bx - unit * 1.14f, floorY); path.close(); c.drawPath(path, pF)

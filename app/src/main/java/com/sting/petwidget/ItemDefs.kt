@@ -349,7 +349,7 @@ object ItemDefs {
 
     /** Юла — жёлтая шапочка, фиолетовый диск, наконечник */
     private fun top() = Def("top", "Юла", Kind.TOY, Reaction.PLAY, 2.2f) { c, cx, fy, s, t ->
-        val tilt = sin(t * 5.0f) * s * 0.1f
+        val tilt = 0f
         contactShadow(c, cx, fy, s * 0.88f, s)
         line(c, cx + tilt, fy - s * 3.0f, cx + tilt * 0.3f, fy - s * 2.35f, s * 0.16f, 0xFF6B4D8D.toInt())
         roundRect(c, cx - s * 0.34f + tilt, fy - s * 3.25f, cx + s * 0.34f + tilt, fy - s * 2.94f, s * 0.13f, 0xFFFFD166.toInt())
@@ -365,8 +365,19 @@ object ItemDefs {
         path.lineTo(cx + s * 0.85f, fy - s * 1.38f)
         path.quadTo(cx, fy - s * 0.9f, cx - s * 0.85f, fy - s * 1.38f); path.close(); fillPath(c, 0xFF5FC2B0.toInt())
         ellipse(c, cx, fy - s * 1.52f, s * 0.9f, s * 0.23f, 0x4DFFFFFF)
-        path.reset(); path.moveTo(cx - s * 0.28f, fy - s * 1.08f); path.lineTo(cx, fy - s * 0.08f)
-        path.lineTo(cx + s * 0.28f, fy - s * 1.08f); path.close(); fillPath(c, 0xFF6B4D8D.toInt()); inkPath(c, s * 0.07f)
+        // Нижняя чаша плавно сходится к короткому острию.
+        path.reset(); path.moveTo(cx - s * 0.92f, fy - s * 1.4f)
+        path.quadTo(cx - s * 0.6f, fy - s * 0.65f, cx, fy - s * 0.25f)
+        path.quadTo(cx + s * 0.6f, fy - s * 0.65f, cx + s * 0.92f, fy - s * 1.4f)
+        path.quadTo(cx, fy - s * 0.96f, cx - s * 0.92f, fy - s * 1.4f); path.close()
+        fillPath(c, 0xFF6B4D8D.toInt()); inkPath(c, s * 0.09f)
+        line(c, cx, fy - s * 0.28f, cx, fy - s * 0.06f, s * 0.12f, INK)
+        // Светлая метка на корпусе показывает осевое вращение.
+        val phase = t * 8f
+        if (cos(phase) > 0f) {
+            ellipse(c, cx + sin(phase) * s * 0.72f, fy - s * 1.85f,
+                s * 0.09f * cos(phase), s * 0.17f, 0xA6FFFFFF.toInt())
+        }
     }
 
     // --------------------------------------------------------------- еда
@@ -499,19 +510,29 @@ object ItemDefs {
         path.close()
         pF.color = 0xFFD97706.toInt()
         c.drawPath(path, pF)
-        // вафельная сетка
-        line(c, cx - s * 0.44f, topY + s * 0.1f, cx + s * 0.2f, fy - s * 0.15f, s * 0.06f, 0xFF8A4A08.toInt())
-        line(c, cx - s * 0.1f, topY + s * 0.05f, cx + s * 0.45f, fy - s * 0.25f, s * 0.06f, 0xFF8A4A08.toInt())
-        line(c, cx + s * 0.4f, topY + s * 0.15f, cx - s * 0.18f, fy - s * 0.18f, s * 0.06f, 0xFF8A4A08.toInt())
+        // Сетка обрезается силуэтом рожка и не торчит за его края.
+        c.save()
+        c.clipPath(path)
+        for (i in -3..3) {
+            val x = cx + i * s * 0.4f
+            line(c, x - s, topY, x + s * 0.5f, fy, s * 0.055f, 0xFFB77A3F.toInt())
+            line(c, x + s, topY, x - s * 0.5f, fy, s * 0.055f, 0xFFB77A3F.toInt())
+        }
+        c.restore()
         pS.color = INK
         pS.strokeWidth = s * 0.1f
         c.drawPath(path, pS)
-        // шар
-        circle(c, cx, topY - s * 0.45f, s * 0.85f, 0xFFBFE8CF.toInt())
-        ink(c, cx, topY - s * 0.45f, s * 0.85f, s * 0.1f)
+        // Шар с мягким неровным краем плотно лежит на рожке.
+        path.reset(); path.moveTo(cx - s * 0.78f, topY)
+        path.cubicTo(cx - s * 1.05f, topY - s * 1.2f, cx + s * 1.05f, topY - s * 1.2f, cx + s * 0.78f, topY)
+        path.quadTo(cx + s * 0.55f, topY + s * 0.18f, cx + s * 0.3f, topY + s * 0.05f)
+        path.quadTo(cx, topY + s * 0.25f, cx - s * 0.3f, topY + s * 0.05f)
+        path.quadTo(cx - s * 0.55f, topY + s * 0.18f, cx - s * 0.78f, topY); path.close()
+        fillPath(c, 0xFFF6C4D6.toInt()); inkPath(c, s * 0.1f)
         // вишня с ножкой
-        line(c, cx + s * 0.05f, topY - s * 1.52f, cx + s * 0.2f, topY - s * 1.85f, s * 0.06f, 0xFF16A34A.toInt())
-        circle(c, cx + s * 0.05f, topY - s * 1.42f, s * 0.2f, 0xFFE05B5B.toInt())
+        line(c, cx + s * 0.05f, topY - s * 1.05f, cx + s * 0.2f, topY - s * 1.3f, s * 0.06f, 0xFF538859.toInt())
+        circle(c, cx + s * 0.05f, topY - s * 0.95f, s * 0.17f, 0xFFE05B5B.toInt())
+        ink(c, cx + s * 0.05f, topY - s * 0.95f, s * 0.17f, s * 0.06f)
         // блик
         circle(c, cx - s * 0.3f, topY - s * 0.7f, s * 0.18f, 0x73FFFFFF.toInt())
     }
