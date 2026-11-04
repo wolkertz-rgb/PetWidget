@@ -125,7 +125,7 @@ class SceneRenderer {
         // узор обоев (читается из кастомизации)
         drawWallPattern(c, unit, pad, floorY)
         pF.color = 0xFF555550.toInt()
-        pF.alpha = 14
+        pF.alpha = 5
         val grainStep = unit * 1.5f
         var gy = pad + grainStep
         while (gy < floorY - unit * 2.1f) {
@@ -161,9 +161,9 @@ class SceneRenderer {
         c.drawLine(pad + 1, floorY + 1, w - pad - 1, floorY + 1, pS)
 
         // рамка
-        pS.color = 0x66C9C9C3.toInt()
+        pS.color = 0x24C9C9C3.toInt()
         pS.strokeWidth = unit * 0.12f
-        c.drawRect(pad, pad, w - pad, h - pad, pS)
+        c.drawRoundRect(pad, pad, w - pad, h - pad, unit * 0.65f, unit * 0.65f, pS)
 
         // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
         drawChairBack(c, unit, floorY)
@@ -228,27 +228,6 @@ class SceneRenderer {
         drawBulb(c, unit, floorY)
         drawPullCord(c, sim, unit, floorY)
 
-        // god-rays: мягкие размытые световые конусы из лампы (без жёстких краёв)
-        if (lightNow()) {
-            val rayBx = w / 2f
-            val rayBy = 26f * density
-            val drift = sin(sim.animPhase * 0.15f) * 8f
-            val beamPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                shader = RadialGradient(
-                    0f, 0f, w * 0.55f,
-                    intArrayOf(0x30FFD98E.toInt(), 0x00FFD98E.toInt()),
-                    null, Shader.TileMode.CLAMP
-                )
-            }
-            for (dirDeg in floatArrayOf(-30f, 30f)) {
-                c.save()
-                c.translate(rayBx, rayBy)
-                c.rotate(dirDeg + drift)
-                c.scale(0.42f, 1.5f)
-                c.drawCircle(0f, w * 0.38f, w * 0.5f, beamPaint)
-                c.restore()
-            }
-        }
     }
 
     // ------------------------------------------------------- свет и лампа
@@ -410,43 +389,7 @@ class SceneRenderer {
     }
 
     private fun applyLightOverlay(c: Canvas, unit: Float, floorY: Float) {
-        val bx = w / 2f
-        val by = 26f * density
-        if (!lightNow()) {
-            // ПОЛУМРАК: сцена читается, но без освещения (верх темнее, низ светлее)
-            val dark = Paint().apply {
-                shader = LinearGradient(
-                    0f, 0f, 0f, h.toFloat(),
-                    0xC0202838.toInt(), 0x66202838.toInt(),
-                    Shader.TileMode.CLAMP
-                )
-            }
-            c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), dark)
-            // лунный отсвет на полу под лампочкой (намёк)
-            pF.color = 0x14202C48.toInt()
-            rect.set(bx - w * 0.22f, floorY - unit * 0.3f, bx + w * 0.22f, floorY + unit * 0.6f)
-            c.drawOval(rect, pF)
-            return
-        }
-        // ТЁПЛЫЙ СВЕТ: радиальное сияние вокруг лампы
-        val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            shader = RadialGradient(
-                bx, by, w * 0.95f,
-                intArrayOf(0x54FFD98E.toInt(), 0x2AFFD98E.toInt(), 0x00FFD98E.toInt()),
-                floatArrayOf(0f, 0.35f, 1f),
-                Shader.TileMode.CLAMP
-            )
-        }
-        c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), glow)
-        // тёплый тон всей комнате
-        c.drawColor(0x14FFC97A.toInt())
-        // световое пятно на полу
-        pF.color = 0x2EFFE2A0.toInt()
-        rect.set(bx - w * 0.30f, floorY - unit * 0.5f, bx + w * 0.30f, floorY + unit * 0.7f)
-        c.drawOval(rect, pF)
-        // пульс-дыхание света
-        val pulse = 0x10 + ((sin(System.currentTimeMillis() / 900.0) + 1f) * 0.5f * 0x14).toInt()
-        c.drawColor((pulse shl 24) or 0x00FFD98E)
+        SceneLighting.draw(c, w.toFloat(), h.toFloat(), floorY, 26f * density, lightNow())
     }
 
     // ------------------------------------------------------------- захват
@@ -479,7 +422,7 @@ class SceneRenderer {
 
         val reach = (t.toFloat() / 700f).coerceIn(0f, 1f)
         val rel = if (t >= dur - PetSim.RELEASE_MS)
-            ((dur - t).toFloat() / PetSim.RELEASE_MS).coerceIn(0f, 1f) else 1f
+            smooth(((dur - t).toFloat() / PetSim.RELEASE_MS).coerceIn(0f, 1f)) else 1f
         info.prog = (smooth(reach) * rel).coerceIn(0f, 1f)
         info.armReach = (smooth((t.toFloat() / 380f).coerceIn(0f, 1f)) * rel).coerceIn(0f, 1f)
 
@@ -513,6 +456,12 @@ class SceneRenderer {
             }
             else -> {} // PUSH/PLAY: предмет на полу, руки сами
         }
+        // Единая дуга предмета и ладоней: захват начинается на полу.
+        val u = r / 1.55f
+        val active = PetMotion.envelope((t.toFloat() / dur.coerceAtLeast(1)).coerceIn(0f, 1f))
+        info.holdX = lerp(info.fromX, info.holdX, info.prog)
+        info.holdYExtra = -sin(info.prog * PI.toFloat()) * u * 0.35f
+        info.holdYExtra += HeldMotion.pose(ti.def.id, t / 1000f, info.eatProgress, active).lift * u
         return info
     }
 
@@ -686,19 +635,9 @@ class SceneRenderer {
     private fun petCy(sim: PetSim, floorY: Float, unit: Float, r: Float): Float {
         val onBed = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
         var cy = floorY - r * 0.92f - if (onBed) unit * 0.62f else 0f
-        if (sim.state == PetSim.State.HAPPY) {
-            val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-            cy -= sin((p * PI).toFloat()) * (r * 1.5f)
-        }
+        if (sim.state != PetSim.State.WALK) cy -= PetMotion.pose(sim).lift * r
         if (sim.state == PetSim.State.WALK) {
             cy -= abs(sin(sim.animPhase * 5.5f)) * r * 0.14f
-        }
-        if (sim.state == PetSim.State.ROLL) {
-            val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-            cy -= sin((p * PI).toFloat()) * r * 0.3f
-        }
-        if (sim.state == PetSim.State.WAVE) {
-            cy -= abs(sin(sim.stateTime / 280f)) * r * 0.12f
         }
         if (sim.state == PetSim.State.PULL) {
             // подпрыгивает, чтобы схватить шнур
@@ -742,11 +681,11 @@ class SceneRenderer {
             if (lastPosePhase < 0f) lastPosePhase = sim.animPhase
         }
         val dtAnim = (sim.animPhase - lastPosePhase).coerceIn(0f, 3f)
-        val k = (dtAnim * 9f).coerceIn(0.18f, 1f)
+        val k = (1f - kotlin.math.exp(-12f * dtAnim)).coerceIn(0f, 1f)
 
         // смена действия = мягкая «вспышка-облако» вместо резкого скачка лица
         if (lastStName != st.name) {
-            facePuff = 1f
+            facePuff = 0f
             lastStName = st.name
         }
         facePuff = (facePuff - dtAnim * 6f).coerceIn(0f, 1f)
@@ -761,71 +700,15 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-        when (st) {
-            PetSim.State.WALK -> {
-                sx = 1f + 0.05f * sin(sim.animPhase * 11f)
-                sy = 1f - 0.035f * sin(sim.animPhase * 11f)
-            }
-            PetSim.State.SLEEP -> {
-                // лежит в кресле: расплющен (шире и ниже), мелко дышит —
-                // раньше «стоял столбиком» и выглядел неестественно
-                sx = 1.16f + 0.022f * sin(sim.animPhase * 1.2f)
-                sy = 0.70f - 0.018f * sin(sim.animPhase * 1.2f)
-            }
-            PetSim.State.INTERACT -> sx = 1f + 0.03f * sin(sim.stateTime / 160f)
-            PetSim.State.ROLL -> {
-                // антиципация: приседает (0..0.14) → кувырок → приземление с отскоком
-                if (p < 0.14f) {
-                    sy = 1f - 0.16f * smooth(p / 0.14f)
-                } else if (p < 0.86f) {
-                    val rp = smooth((p - 0.14f) / 0.72f)
-                    rot = rp * 2f * PI.toFloat() * sim.dir
-                    cy -= sin((rp * PI).toFloat()) * r * 0.5f
-                } else {
-                    sy = 1f - 0.14f * sin((smooth((p - 0.86f) / 0.14f) * PI).toFloat())
-                }
-            }
-            PetSim.State.SWAY -> {
-                val osc = sin(p * PI.toFloat() * 4f)   // два полных покачивания
-                rot = osc * 0.30f
-                dx = osc * unit * 1.1f
-            }
-            PetSim.State.LOOK -> {
-                headTilt = sin(p * PI.toFloat() * 1.2f) * 0.10f
-            }
-            PetSim.State.WAVE -> {
-                sx = 1f + 0.04f * sin(sim.stateTime / 240f)
-                sy = 1f + 0.03f * sin(sim.stateTime / 240f)
-            }
-            PetSim.State.SMUG -> {
-                // хитро наклоняется и чуть надувается (плавный въезд)
-                sx = 1f + 0.05f * sin(sim.stateTime / 300f)
-                dx = unit * 0.15f * sim.dir * smooth((sim.stateTime / 300f).coerceIn(0f, 1f))
-            }
-            PetSim.State.BLUSH -> {
-                // стесняется: слегка съёживается
-                sx = 1f + 0.04f * sin(sim.stateTime / 250f)
-                sy = 1f - 0.04f * sin(sim.stateTime / 250f)
-            }
-            PetSim.State.SQUEEZE -> {
-                // блаженное сжатие-расжатие
-                sx = 1f - 0.07f * sin(sim.stateTime / 130f)
-                sy = 1f + 0.07f * sin(sim.stateTime / 130f)
-            }
-            PetSim.State.TICKLE -> {
-                // пружинистые подпрыгивания от щекотки
-                cy -= abs(sin(sim.stateTime / 120f)) * r * 0.9f
-                sx = 1f + 0.08f * sin(sim.stateTime / 60f)
-            }
-            PetSim.State.HUNGRY -> {
-                // хнычет и потирает животик: лёгкая дрожь
-                sx = 1f + 0.04f * sin(sim.stateTime / 90f)
-                sy = 1f - 0.03f * sin(sim.stateTime / 90f)
-            }
-            else -> {
-                sx = 1f + 0.02f * sin(sim.animPhase * 1.5f)
-                sy = 1f - 0.015f * sin(sim.animPhase * 1.5f)
-            }
+        if (st == PetSim.State.WALK) {
+            sx = 1f + 0.05f * sin(sim.animPhase * 11f)
+            sy = 1f - 0.035f * sin(sim.animPhase * 11f)
+        } else {
+            val pose = PetMotion.pose(sim)
+            sx = pose.sx
+            sy = pose.sy
+            rot = pose.angle
+            dx = pose.offset * unit
         }
 
         // ---- сглаживание: поза тянется к целевой (кратчайшая дуга по углу)
@@ -900,7 +783,7 @@ class SceneRenderer {
         val body = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = LinearGradient(
                 px - r * 0.4f, cy - r * sy, px + r * 0.2f, cy + r * sy,
-                intArrayOf(th("pet_top", 0xFFA8E6C3.toInt()), th("pet_bottom", 0xFF4FA379.toInt())),
+                intArrayOf(th("pet_top", 0xFFA8E6C3.toInt()), th("pet_mid", 0xFF6FBE97.toInt()), th("pet_bottom", 0xFF4FA379.toInt())),
                 null, Shader.TileMode.CLAMP
             )
         }
@@ -911,19 +794,19 @@ class SceneRenderer {
         c.drawOval(rect, pS)
 
         // обводка-кромка слоя света (rim-light)
-        pS.color = 0x30FFFFFF.toInt()
+        pS.color = 0x20FFFFFF.toInt()
         pS.strokeWidth = unit * 0.07f
         rect.set(px - r * sx - unit * 0.07f, cy - r * sy - unit * 0.07f, px + r * sx + unit * 0.07f, cy + r * sy + unit * 0.07f)
-        c.drawOval(rect, pS)
+        c.drawArc(rect, 205f, 115f, false, pS)
 
         // «пятки-няшки» убраны по решению: чистый силуэт выглядит круче
 
 
         // двойной блик (стеклянность)
-        pF.color = 0x59FFFFFF.toInt()
+        pF.color = 0x32FFFFFF.toInt()
         rect.set(px - r * 0.66f * sx, cy - r * sy * 0.98f, px + r * 0.10f * sx, cy - r * sy * 0.42f)
         c.drawOval(rect, pF)
-        pF.color = 0x30FFFFFF.toInt()
+        pF.color = 0x20FFFFFF.toInt()
         rect.set(px + r * 0.16f * sx, cy - r * sy * 0.80f, px + r * 0.42f * sx, cy - r * sy * 0.52f)
         c.drawOval(rect, pF)
 
@@ -1052,8 +935,8 @@ class SceneRenderer {
                         circleAt(c, px + eyeDx, eyeY, er, eyeCol)
                         circleAt(c, px - eyeDx + lookX * er, eyeY + lookY * er - er * 0.28f, er * 0.42f, 0xFFFFFFFF.toInt())
                         circleAt(c, px + eyeDx + lookX * er, eyeY + lookY * er - er * 0.25f, er * 0.40f, 0xFFFFFFFF.toInt())
-                        circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
-                        circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x30FFFFFF.toInt())
+                        circleAt(c, px - eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x20FFFFFF.toInt())
+                        circleAt(c, px + eyeDx + lookX * er * 0.6f, eyeY + er * 0.38f, er * 0.16f, 0x20FFFFFF.toInt())
                     }
                 }
             }
@@ -1300,40 +1183,17 @@ class SceneRenderer {
         val ti = inter.target ?: return
         val prog = inter.prog
         val x = inter.holdX                                   // всегда у рук
-        val y = floorY + inter.liftPx * prog
+        val y = floorY + inter.liftPx * prog + inter.holdYExtra
 
         // ---- Индивидуальность еды: масштаб/наклон/боб/крошки по типу
         // Жевание: боб ~1.7 Гц — предел глазомера при 20 FPS (выше уже дрожь),
         // усушка мягкая («откус» передаёт крошка + фейд, а не таяние)
         val ep = inter.eatProgress
-        var sc = 1f
-        var tilt = 0f
-        var bob = 0f
-        when (ti.def.id) {
-            "pizza" -> { sc = 1f - 0.16f * ep; bob = sin(sim.animPhase * 10.7f) * unit * 0.05f * ep }
-            "cookie" -> { sc = 1f - 0.18f * ep; bob = sin(sim.animPhase * 10.7f) * unit * 0.06f * ep }
-            "donut" -> { sc = 1f - 0.12f * ep; tilt = ep * 60f }
-            "apple" -> { sc = 1f - 0.16f * ep; tilt = ep * 12f }
-            "icecream" -> { bob = sin(sim.animPhase / 180f) * unit * 0.12f; tilt = ep * 16f }
-            "coffee" -> { tilt = ep * 26f }
-            "sushi" -> { bob = sin(sim.animPhase * 10.7f) * unit * 0.05f * ep }
-            // ---- игрушки в руках (LIFT-игры)
-            "dice" -> tilt = sin(sim.animPhase * 10.7f) * 10f * (0.6f + 0.4f * ep)   // трясёт кости
-            "plushie" -> bob = sin(sim.animPhase * 6f) * unit * 0.06f                // мягко пружинит в лапках
-            "balloon" -> {                                                        // шарик рвётся в небо
-                bob = -unit * 0.45f * ep + sin(sim.animPhase * 3f) * unit * 0.12f
-                tilt = sin(sim.animPhase * 2f) * 6f
-            }
-            "rocket" -> {                                                          // пытается улететь
-                bob = -unit * 0.5f * ep
-                tilt = sin(sim.animPhase * 5f) * 4f
-            }
-            "boat" -> {                                                            // качается на волнах
-                bob = sin(sim.animPhase * 3.4f) * unit * 0.09f
-                tilt = sin(sim.animPhase * 2.6f) * 7f
-            }
-        }
-        val yb = y + bob
+        val held = HeldMotion.pose(ti.def.id, sim.stateTime / 1000f, ep,
+            PetMotion.envelope((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)))
+        val sc = held.scale
+        val tilt = held.tilt
+        val yb = y // положение хвата общее для предмета и ладоней
 
         c.save()
         c.rotate(sin(sim.animPhase * 3f) * 4f * prog, x, yb)
@@ -1347,7 +1207,7 @@ class SceneRenderer {
         // ---- крошки/капли по типу еды
         if (ti.def.id == "rocket" && inter.prog > 0.3f) {
             // пламя ракеты — при попытке улететь
-            val fl = sin(sim.animPhase * 30f) * 0.5f + 0.5f
+            val fl = sin(sim.stateTime / 1000f * 10f) * 0.5f + 0.5f
             path.reset()
             path.moveTo(x - unit * 0.30f, yb + unit * 1.0f)
             path.quadTo(x, yb + unit * (1.6f + fl * 0.5f), x + unit * 0.30f, yb + unit * 1.0f)
@@ -1467,11 +1327,11 @@ class SceneRenderer {
             }
 
             PetSim.State.WAVE -> {
-                val sw = sin(sim.stateTime / 230f) * unit * 0.6f
-                val reach = (sim.stateTime / 260f).coerceIn(0f, 1f)
+                val reach = PetMotion.envelope((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f))
+                val sw = sin(sim.stateTime / 1000f * 7f) * unit * 0.35f * reach
                 arm(
                     cx + r * 0.5f, cy - r * 0.35f,
-                    cx + r * 1.1f + sw, cy - r * 1.9f - unit * 0.2f * reach,
+                    cx + r * (0.55f + 0.55f * reach) + sw, cy - r * (0.15f + 1.45f * reach),
                     true
                 )
             }
