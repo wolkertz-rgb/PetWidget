@@ -9,7 +9,7 @@
 
     <application
         android:label="@string/app_name"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@drawable/ic_pet_studio"
         android:allowBackup="true"
         android:theme="@android:style/Theme.Material.NoActionBar">
 

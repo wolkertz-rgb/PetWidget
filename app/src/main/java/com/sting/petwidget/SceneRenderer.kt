@@ -8,7 +8,6 @@ import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
-import java.util.Calendar
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -106,13 +105,8 @@ class SceneRenderer {
         c.drawRect(0f, floorY, w.toFloat(), h.toFloat(), bg)
 
         // время суток
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-        when {
-            hour >= 22 || hour <= 5 -> c.drawColor(0x242E3A55)
-            hour >= 20 -> c.drawColor(0x18FFBE86)
-            hour <= 8 -> c.drawColor(0x12FFE9C4)
-            else -> {}
-        }
+        val worldTime = System.currentTimeMillis()
+        val night = WindowScene.night(worldTime)
 
         // стены/потолок
         val wallL = Paint().apply { shader = LinearGradient(0f, 0f, pad * 2.4f, 0f, 0x1E555550, 0x00555550, Shader.TileMode.CLAMP) }
@@ -164,6 +158,10 @@ class SceneRenderer {
         pS.color = 0x24C9C9C3.toInt()
         pS.strokeWidth = unit * 0.12f
         c.drawRoundRect(pad, pad, w - pad, h - pad, unit * 0.65f, unit * 0.65f, pS)
+
+        // Мягкая смена времени суток и окно в свободной левой части стены.
+        c.drawColor(((night * 30).toInt() shl 24) or 0x002E3A55)
+        WindowScene.draw(c, unit, floorY, worldTime)
 
         // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
         drawChairBack(c, unit, floorY)
@@ -413,11 +411,12 @@ class SceneRenderer {
                     val shift = if (row % 2 == 1) st / 2f else 0f
                     while (xx < right) {
                         val x = xx + shift
-                        c.drawCircle(x - unit * 0.22f, yy, unit * 0.23f, pF)
-                        c.drawCircle(x + unit * 0.08f, yy - unit * 0.12f, unit * 0.3f, pF)
-                        c.drawCircle(x + unit * 0.38f, yy, unit * 0.2f, pF)
-                        rect.set(x - unit * 0.42f, yy, x + unit * 0.55f, yy + unit * 0.2f)
-                        c.drawRoundRect(rect, unit * 0.1f, unit * 0.1f, pF)
+                        // Один замкнутый силуэт, без наложения полупрозрачных кругов.
+                        path.reset(); path.moveTo(x - unit * 0.4f, yy + unit * 0.2f)
+                        path.cubicTo(x - unit * 0.78f, yy + unit * 0.18f, x - unit * 0.65f, yy - unit * 0.3f, x - unit * 0.3f, yy - unit * 0.22f)
+                        path.cubicTo(x - unit * 0.24f, yy - unit * 0.72f, x + unit * 0.48f, yy - unit * 0.65f, x + unit * 0.43f, yy - unit * 0.16f)
+                        path.cubicTo(x + unit * 0.86f, yy - unit * 0.2f, x + unit * 0.85f, yy + unit * 0.2f, x + unit * 0.5f, yy + unit * 0.2f)
+                        path.close(); c.drawPath(path, pF)
                         xx += st
                     }
                     yy += st; row++
@@ -434,11 +433,13 @@ class SceneRenderer {
                     val shift = if (row % 2 == 1) st / 2f else 0f
                     while (xx < right) {
                         val x = xx + shift
-                        c.drawLine(x - unit * 0.35f, yy + unit * 0.3f, x + unit * 0.35f, yy - unit * 0.3f, pS)
-                        rect.set(x - unit * 0.42f, yy - unit * 0.18f, x - unit * 0.05f, yy + unit * 0.12f)
-                        c.drawOval(rect, pF)
-                        rect.set(x + unit * 0.03f, yy - unit * 0.24f, x + unit * 0.4f, yy + unit * 0.06f)
-                        c.drawOval(rect, pF)
+                        path.reset(); path.moveTo(x - unit * 0.36f, yy + unit * 0.42f)
+                        path.cubicTo(x - unit * 0.7f, yy - unit * 0.1f, x - unit * 0.1f, yy - unit * 0.54f, x + unit * 0.48f, yy - unit * 0.42f)
+                        path.cubicTo(x + unit * 0.58f, yy + unit * 0.12f, x + unit * 0.08f, yy + unit * 0.58f, x - unit * 0.36f, yy + unit * 0.42f)
+                        path.close(); c.drawPath(path, pS)
+                        c.drawLine(x - unit * 0.43f, yy + unit * 0.5f, x + unit * 0.32f, yy - unit * 0.27f, pS)
+                        c.drawLine(x - unit * 0.12f, yy + unit * 0.19f, x - unit * 0.3f, yy - unit * 0.04f, pS)
+                        c.drawLine(x + unit * 0.07f, yy, x + unit * 0.3f, yy + unit * 0.12f, pS)
                         xx += st
                     }
                     yy += st; row++
@@ -615,11 +616,12 @@ class SceneRenderer {
     /** мини-сердечко (для мишки и компании) */
     private fun drawMiniHeart(c: Canvas, cx: Float, cy: Float, s: Float, col: Int, alpha: Int) {
         path.reset()
-        path.moveTo(cx, cy + s)
-        path.quadTo(cx - s, cy, cx - s * 0.4f, cy - s * 0.5f)
-        path.quadTo(cx, cy - s, cx, cy - s * 0.3f)
-        path.quadTo(cx, cy - s, cx + s * 0.4f, cy - s * 0.5f)
-        path.quadTo(cx + s, cy, cx, cy + s)
+        path.moveTo(cx, cy + s * 0.85f)
+        path.cubicTo(cx - s * 0.4f, cy + s * 0.45f, cx - s, cy, cx - s * 0.82f, cy - s * 0.46f)
+        path.cubicTo(cx - s * 0.64f, cy - s * 0.95f, cx - s * 0.15f, cy - s * 0.86f, cx, cy - s * 0.4f)
+        path.cubicTo(cx + s * 0.15f, cy - s * 0.86f, cx + s * 0.64f, cy - s * 0.95f, cx + s * 0.82f, cy - s * 0.46f)
+        path.cubicTo(cx + s, cy, cx + s * 0.4f, cy + s * 0.45f, cx, cy + s * 0.85f)
+        path.close()
         pF.color = col
         pF.alpha = alpha
         c.drawPath(path, pF)
@@ -967,31 +969,16 @@ class SceneRenderer {
                         circleAt(c, px + eyeDx + lookX * er * 0.9f, eyeY + er * 0.3f, er * 0.14f, 0x50FFFFFF.toInt())
                     }
                     "sleepy" -> {
-                        // сонные: полузакрытые веки — «крышка» цветом тела (не прямоугольник!)
-                        val eyeCol2 = eyeCol
-                        c.save()
-                        rect.set(px - eyeDx - er - 1f, eyeY + er * 0.25f - er * 0.8f, px - eyeDx + er + 1f, eyeY + er * 0.25f + er * 0.8f)
-                        c.clipPath(android.graphics.Path().apply {
-                            addOval(rect, android.graphics.Path.Direction.CW)
-                        })
-                        circleAt(c, px - eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol2)
-                        c.restore()
-                        c.save()
-                        rect.set(px + eyeDx - er - 1f, eyeY + er * 0.25f - er * 0.8f, px + eyeDx + er + 1f, eyeY + er * 0.25f + er * 0.8f)
-                        c.clipPath(android.graphics.Path().apply {
-                            addOval(rect, android.graphics.Path.Direction.CW)
-                        })
-                        circleAt(c, px + eyeDx, eyeY + er * 0.25f, er * 0.8f, eyeCol2)
-                        c.restore()
-                        // веко: полукруг цвета тела, сглаженный по краям
-                        pF.color = th("pet_body_lid", th("pet_top", 0xFFA8E6C3.toInt()))
-                        rect.set(px - eyeDx - er - unit * 0.06f, eyeY - er * 1.15f, px - eyeDx + er + unit * 0.06f, eyeY + er * 0.02f)
-                        c.drawOval(rect, pF)
-                        rect.set(px + eyeDx - er - unit * 0.06f, eyeY - er * 1.15f, px + eyeDx + er + unit * 0.06f, eyeY + er * 0.02f)
-                        c.drawOval(rect, pF)
-                        pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.08f
-                        c.drawLine(px - eyeDx - er, eyeY, px - eyeDx + er, eyeY, pS)
-                        c.drawLine(px + eyeDx - er, eyeY, px + eyeDx + er, eyeY, pS)
+                        // Полуприкрытый глаз рисуется собственной формой без цветной маски.
+                        for (ex in floatArrayOf(px - eyeDx, px + eyeDx)) {
+                            path.reset(); path.moveTo(ex - er, eyeY)
+                            path.lineTo(ex + er, eyeY)
+                            path.cubicTo(ex + er, eyeY + er * 1.05f, ex - er, eyeY + er * 1.05f, ex - er, eyeY)
+                            path.close(); pF.color = eyeCol; c.drawPath(path, pF)
+                            circleAt(c, ex - er * 0.24f, eyeY + er * 0.27f, er * 0.18f, 0xFFFFFFFF.toInt())
+                            pS.color = eyeCol; pS.strokeWidth = unit * 0.09f
+                            c.drawLine(ex - er * 1.05f, eyeY, ex + er * 1.05f, eyeY, pS)
+                        }
                     }
                     "round" -> {
                         // круглые: умиротворённые
@@ -1077,15 +1064,11 @@ class SceneRenderer {
         // хитрец-прищур (поверх глаз) + голодные бровки
         when {
             st == PetSim.State.SMUG -> {
-                // прищур хитреца: полукруглые «веки» цвета тела (не прямоугольники!)
-                pF.color = th("pet_top", 0xFFA8E6C3.toInt())
-                rect.set(px - eyeDx - r * 0.1f, eyeY - r * 0.26f, px - eyeDx + r * 0.1f, eyeY - r * 0.08f)
-                c.drawOval(rect, pF)
-                rect.set(px + eyeDx - r * 0.1f, eyeY - r * 0.26f, px + eyeDx + r * 0.1f, eyeY - r * 0.08f)
-                c.drawOval(rect, pF)
+                // Одна поднятая бровь располагается над глазом, не перекрывая его.
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f
-                c.drawLine(px - eyeDx - r * 0.16f, eyeY - r * 0.07f, px - eyeDx + r * 0.16f, eyeY - r * 0.07f, pS)
-                c.drawLine(px + eyeDx - r * 0.16f, eyeY - r * 0.07f, px + eyeDx + r * 0.16f, eyeY - r * 0.07f, pS)
+                path.reset(); path.moveTo(px - eyeDx - r * 0.18f, eyeY - r * 0.37f)
+                path.quadTo(px - eyeDx, eyeY - r * 0.56f, px - eyeDx + r * 0.18f, eyeY - r * 0.44f)
+                c.drawPath(path, pS)
                 pS.strokeWidth = unit * 0.16f
             }
             sim.hunger > 70f && !sleeping && !stretching && !waving -> {

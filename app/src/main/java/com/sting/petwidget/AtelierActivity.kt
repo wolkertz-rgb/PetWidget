@@ -191,7 +191,7 @@ class AtelierActivity : Activity() {
                 setStroke(dp(1), 0xFFD2E3D8.toInt())
             }
             addView(ImageView(this@AtelierActivity).apply {
-                setImageResource(R.drawable.ic_blob_avatar)
+                setImageResource(R.drawable.ic_pet_studio)
                 setPadding(dp(8), dp(8), dp(8), dp(8))
             }, FrameLayout.LayoutParams(MATCH, MATCH))
         }
