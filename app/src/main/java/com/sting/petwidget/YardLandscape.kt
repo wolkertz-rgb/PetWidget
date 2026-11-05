@@ -21,6 +21,8 @@ internal class YardLandscape {
     private data class Ramp(val top: Float, val bottom: Float, val a: Int, val b: Int, val shader: Shader)
     private val ramps = HashMap<String,Ramp>()
     private val cloudIds = arrayOf("cloud0","cloud1","cloud2")
+    private val pineIds = arrayOf("pine0","pine1","pine2","pine3")
+    private val stoneIds = arrayOf("stone0","stone1","stone2")
     private var night = 0f
     private fun mix(a: Int,b: Int,t: Float) = Color.argb(
         (Color.alpha(a)*(1-t)+Color.alpha(b)*t).toInt(),
@@ -79,37 +81,53 @@ internal class YardLandscape {
         path.reset();path.moveTo(0f,f-3f);path.cubicTo(4f,f-6.8f,9f,f-6.8f,13f,f-3.8f)
         path.cubicTo(17f,f-7f,21f,f-6f,w,f-4.3f);path.lineTo(w,f);path.lineTo(0f,f);path.close()
         ramp("hills",f-6f,f,tone(0xFF91BB80,0xFF40685C),tone(0xFFCAE0A3,0xFF6C8A69));shape(c,Color.WHITE)
-        // Извилистая река с двумя берегами и бликами, а не линия на горизонте.
+        // Дальний лес на верхнем берегу, ближняя группа только слева от русла.
+        for(i in 0..13)tree(c,7f+i*1.25f,f-5.35f,.38f+(i%3)*.06f,outline)
+        for(i in 0..4)tree(c,7.5f+i*1.15f,f-2.65f+(i%2)*.12f,.66f+(i%3)*.09f,outline)
+        // Вода рисуется после леса и маскирует кромки дальнего берега.
         path.reset();path.moveTo(14f,f-5.1f);path.cubicTo(12f,f-4.1f,23f,f-4.6f,17f,f-2.7f)
         path.cubicTo(15f,f-2f,15f,f-1.5f,24f,f-.9f);path.lineTo(24f,f-2f)
         path.cubicTo(17f,f-2.6f,19f,f-2.8f,21f,f-3.5f);path.cubicTo(25f,f-5.1f,15f,f-4.5f,14.7f,f-5.1f);path.close()
         ramp("river",f-5.1f,f-.8f,tone(0xFF90C6C3,0xFF4C7E92),tone(0xFFC3E9DE,0xFF799FAD));shape(c,Color.WHITE,tone(0xFF7CA57F,0xFF3C645C),.07f)
         for(i in 0..8){val x=15.5f+(i*1.37f)%8f;val y=f-3.6f+(i%3)*.65f;line(c,x,y,x+.45f,y,tone(0xBFFFFFF0,0x668AAEB8),.035f)}
-        for(i in 0..13)tree(c,7f+i*1.25f,f-2.6f+(i%3)*.18f,.64f+(i%3)*.12f,outline)
         path.reset();path.moveTo(0f,f-.3f);path.cubicTo(7f,f-.9f,16f,f-.4f,24f,f-.65f);path.lineTo(w,h);path.lineTo(0f,h);path.close()
         ramp("lawn",f-.7f,h,tone(0xFF8DBB78,0xFF486E54),tone(0xFFBDD78F,0xFF678464));shape(c,Color.WHITE,outline,.06f)
         fence(c,f,outline,prefs?.getInt("yard_fence",0xFFD8BB8B.toInt())?:0xFFD8BB8B.toInt())
         house(c,f,outline,prefs?.getInt("yard_house",0xFFE9D9BB.toInt())?:0xFFE9D9BB.toInt())
         // Плиты у крыльца, травяные островки и цветы в глубине участка.
-        for(i in 0..3){val x=4.3f+i*1.1f;box(c,x-.8f,f+.05f+i*.10f,x+.7f,f+.25f+i*.10f,tone(0xFFC9C6AE,0xFF778474),.13f,outline)}
+        steppingStones(c,f,outline)
         for(i in 0..27){val x=7.4f+(i*1.71f)%16f;val y=f-.35f+(i%3)*.32f;line(c,x,y,x-.07f,y-.13f,tone(0x8861864D,0x88517250),.025f)}
         val decor=prefs?.getInt("yard_decor",1)?:1
         if(decor==1)flowerbed(c,10.7f,f,outline)
-        if(decor==2){for(i in 0..4)box(c,9f+i*.5f,f-.2f-i%2*.15f,9.7f+i*.5f,f+.16f,tone(0xFFAFB6A0,0xFF71847D),.24f,outline);tree(c,10.2f,f-.12f,.6f,outline)}
-        if(decor==3){box(c,10.3f,f-1.5f,10.65f,f,0xFFA8B1A0.toInt(),.1f,outline);fill.color=tone(0xFFCBD4BF,0xFF788F88);c.drawOval(9.65f,f-1.75f,11.3f,f-1.25f,fill);line(c,9.8f,f-1.5f,11.15f,f-1.5f,tone(0xFF92C6CB,0xFF627F97),.12f)}
+        if(decor==2)rockGarden(c,10.7f,f,outline)
+        if(decor==3)birdbath(c,10.7f,f,outline)
         if(prefs?.getInt("yard_butterflies",1)!=0 && night<.65f)butterflies(c,f,now)
         if(prefs?.getInt("yard_nightlife",1)!=0)nightGarden(c,f,now,outline)
     }
 
     private fun tree(c: Canvas,x: Float,y: Float,s: Float,outline: Int){
-        line(c,x,y,x,y-2.1f*s,tone(0xFF6C7250,0xFF374F44),.1f*s)
-        path.reset();path.moveTo(x,y-3.6f*s)
-        for(i in 0..3){val yy=y-(2.9f-i*.66f)*s;val spread=(.42f+i*.18f)*s
-            path.lineTo(x+spread,yy);path.lineTo(x+spread*.52f,yy+.04f*s)}
-        path.lineTo(x+.27f*s,y-.48f*s);path.lineTo(x-.27f*s,y-.48f*s)
-        for(i in 3 downTo 0){val yy=y-(2.9f-i*.66f)*s;val spread=(.42f+i*.18f)*s;path.lineTo(x-spread*.52f,yy+.04f*s);path.lineTo(x-spread,yy)}
-        path.close();shape(c,tone(0xFF578D6C,0xFF2F554F),outline,.035f)
-        line(c,x,y-3.1f*s,x+.43f*s,y-1.1f*s,tone(0x557DB78A,0x334F7968),.06f*s)
+        c.save();c.translate(x,y);c.scale(s,s)
+        box(c,-.11f,-2.3f,.11f,.08f,tone(0xFF8B7954,0xFF41594F),.03f,outline)
+        for(tier in 0..3) {
+            val tip=-3.65f+tier*.68f
+            val spread=.34f+tier*.23f
+            val base=tip+1.18f
+            path.reset();path.moveTo(0f,tip)
+            path.cubicTo(spread*.18f,tip+.37f,spread*.62f,base-.46f,spread,base-.12f)
+            path.quadTo(spread*.72f,base+.01f,spread*.42f,base-.04f)
+            path.quadTo(0f,base+.17f,-spread*.42f,base-.04f)
+            path.quadTo(-spread*.72f,base+.01f,-spread,base-.12f)
+            path.cubicTo(-spread*.58f,base-.46f,-spread*.18f,tip+.37f,0f,tip);path.close()
+            ramp(pineIds[tier],tip,base,tone(0xFF77AB85,0xFF426B61),tone(0xFF3D765B,0xFF294D49))
+            shape(c,Color.WHITE,outline,.035f)
+            // Освещённая левая грань и тёмные кончики ветвей каждого яруса.
+            path.reset();path.moveTo(-.035f,tip+.19f)
+            path.quadTo(-spread*.28f,base-.43f,-spread*.77f,base-.15f)
+            path.quadTo(-spread*.35f,base-.20f,-.035f,tip+.19f);path.close()
+            shape(c,tone(0x558FC79A,0x335C8F79))
+            line(c,-spread*.67f,base-.13f,-spread*.32f,base-.18f,tone(0x88406C51,0x88304D45),.025f)
+        }
+        c.restore()
     }
     private fun fence(c: Canvas,f: Float,outline: Int,color: Int){
         val wood=mix(color,0xFF455D59.toInt(),night*.55f)
@@ -133,18 +151,96 @@ internal class YardLandscape {
         box(c,6.8f,f-.2f,7.34f,f+.15f,tone(0xFFCEC09A,0xFF8A947A),.04f,outline)
         box(c,6.81f,f-6.76f,7.33f,f-6.46f,tone(0xFFCEC09A,0xFF8A947A),.04f,outline)
         line(c,7f,f-6.3f,7f,f-.4f,0x55FFFFFF,.04f)
-        // Небольшое боковое окно подчёркивает масштаб полноценного дома.
-        box(c,.12f,f-5.5f,1.72f,f-3.45f,tone(0xFFE4D5B6,0xFF9AA68E),.08f,outline)
-        box(c,.28f,f-5.34f,1.56f,f-3.6f,tone(0xFF9BC6C5,0xFF597889),.03f,outline)
-        line(c,.92f,f-5.3f,.92f,f-3.65f,0xFFD9D2B5.toInt(),.065f)
-        box(c,-.02f,f-3.5f,1.88f,f-3.32f,0xFF9E9B79.toInt(),.03f,outline)
+        birdhouse(c,.92f,f-3.65f,outline)
+    }
+    private fun steppingStones(c: Canvas,f: Float,outline: Int) {
+        // Между независимыми плитами остаётся трава, а нижняя грань даёт толщину.
+        for(i in 0..3) {
+            val x=4.3f+i*1.35f;val y=f+.15f+i*.14f
+            fill.color=0x223B513B;c.drawOval(x-.6f,y-.04f,x+.62f,y+.26f,fill)
+            path.reset();path.moveTo(x-.48f,y-.07f);path.lineTo(x-.22f,y-.17f)
+            path.lineTo(x+.39f,y-.12f);path.lineTo(x+.53f,y+.04f)
+            path.lineTo(x+.22f,y+.17f);path.lineTo(x-.43f,y+.13f);path.close()
+            shape(c,tone(0xFF9DA58E,0xFF61796E),outline,.035f)
+            path.reset();path.moveTo(x-.48f,y-.13f);path.lineTo(x-.22f,y-.23f)
+            path.lineTo(x+.39f,y-.18f);path.lineTo(x+.53f,y-.02f)
+            path.lineTo(x+.22f,y+.09f);path.lineTo(x-.43f,y+.05f);path.close()
+            shape(c,tone(0xFFCFD0B9,0xFF8CA093),outline,.03f)
+            line(c,x-.29f,y-.13f,x+.21f,y-.15f,tone(0xAFFFF2D4,0x668EA89A),.03f)
+        }
+    }
+    private fun birdhouse(c: Canvas,x: Float,y: Float,outline: Int) {
+        // Скворечник на кронштейнах заменяет несуществующее окно фасада.
+        box(c,x-.96f,y+.1f,x+1.03f,y+.28f,tone(0xFFB89C70,0xFF7C8C74),.035f,outline)
+        line(c,x-.60f,y+.29f,x-.60f,y+.68f,outline,.09f)
+        line(c,x-.60f,y+.64f,x-.22f,y+.29f,outline,.08f)
+        path.reset();path.moveTo(x-.65f,y+.1f);path.lineTo(x-.65f,y-1.18f)
+        path.lineTo(x,y-1.69f);path.lineTo(x+.65f,y-1.18f);path.lineTo(x+.65f,y+.1f);path.close()
+        ramp("birdhouse",y-1.6f,y+.1f,tone(0xFFE1C89A,0xFFA0AB8C),tone(0xFFB99968,0xFF718773));shape(c,Color.WHITE,outline,.055f)
+        path.reset();path.moveTo(x+.65f,y-1.18f);path.lineTo(x+.84f,y-1.04f)
+        path.lineTo(x+.84f,y+.02f);path.lineTo(x+.65f,y+.1f);path.close();shape(c,tone(0xFF9A825E,0xFF5E7868),outline,.035f)
+        path.reset();path.moveTo(x-.83f,y-1.12f);path.lineTo(x,y-1.86f);path.lineTo(x+.88f,y-1.12f)
+        path.lineTo(x+.72f,y-.99f);path.lineTo(x,y-1.59f);path.lineTo(x-.7f,y-.99f);path.close()
+        shape(c,tone(0xFF9E7561,0xFF677B73),outline,.055f)
+        disc(c,x,y-.82f,.23f,outline)
+        line(c,x-.18f,y-.29f,x+.22f,y-.29f,tone(0xFFE4D0A0,0xFF9FAE8E),.09f)
+        for(i in 0..1)line(c,x-.4f,y-.09f-i*.12f,x+.42f,y-.09f-i*.12f,0x44705F44,.025f)
     }
     private fun flowerbed(c: Canvas,x: Float,f: Float,outline: Int){
-        box(c,x-1.3f,f-.3f,x+1.3f,f+.08f,tone(0xFF9D7957,0xFF65715D),.12f,outline)
-        for(i in 0..6){val xx=x-1f+i*.34f;val yy=f-.55f-(i%3)*.19f
-            line(c,xx,f-.2f,xx,yy,0xFF4D7B51.toInt(),.035f)
-            for(j in 0..4){val a=j*PI.toFloat()*2f/5;disc(c,xx+cos(a)*.12f,yy+sin(a)*.12f,.10f,tone(if(i%2==0)0xFFF3BC88 else 0xFFD89DAF,0xFF979B87))}
-            disc(c,xx,yy,.06f,0xFFF3D78D.toInt())}
+        fill.color=0x223B513B;c.drawOval(x-1.55f,f-.07f,x+1.55f,f+.3f,fill)
+        box(c,x-1.4f,f-.48f,x+1.4f,f+.14f,tone(0xFFAD805B,0xFF64796A),.08f,outline)
+        fill.color=tone(0xFF604E38,0xFF3F5348);c.drawOval(x-1.32f,f-.62f,x+1.32f,f-.29f,fill)
+        for(i in 0..4){
+            val xx=x-1.02f+i*.51f;val yy=f-.83f-(i%3)*.26f
+            line(c,xx,f-.35f,xx,yy,tone(0xFF54794B,0xFF476957),.045f)
+            for(side in -1..1 step 2){
+                path.reset();path.moveTo(xx,f-.56f)
+                path.quadTo(xx+side*.45f,f-1.05f,xx+side*.43f,f-.76f)
+                path.quadTo(xx+side*.3f,f-.51f,xx,f-.56f);path.close()
+                shape(c,tone(0xFF7EA566,0xFF506F5A),outline,.025f)
+            }
+            for(j in 0..5){val a=j*PI.toFloat()/3f;val px=xx+cos(a)*.17f;val py=yy+sin(a)*.17f
+                fill.color=tone(if(i%2==0)0xFFEDB779 else 0xFFD599AD,0xFF8F9B86)
+                c.drawOval(px-.11f,py-.13f,px+.11f,py+.13f,fill)}
+            disc(c,xx,yy,.09f,tone(0xFFF6DC9A,0xFFB7BD8D))
+            disc(c,xx-.025f,yy-.03f,.035f,0x88FFF6DD.toInt())
+        }
+        box(c,x-1.48f,f-.38f,x+1.48f,f-.19f,tone(0xFFC8A478,0xFF899980),.05f,outline)
+        line(c,x-1.24f,f-.02f,x+1.24f,f-.02f,0x557B654A,.025f)
+        for(side in -1..1 step 2)disc(c,x+side*1.23f,f-.28f,.035f,outline)
+    }
+    private fun pebble(c: Canvas,x: Float,y: Float,size: Float,outline: Int,variant: Int) {
+        path.reset();path.moveTo(x-size*.64f,y)
+        path.cubicTo(x-size*.7f,y-size*.37f,x-size*.20f,y-size*.7f,x+size*.14f,y-size*.59f)
+        path.cubicTo(x+size*.53f,y-size*.65f,x+size*.8f,y-size*.13f,x+size*.6f,y)
+        path.quadTo(x,y+size*.17f,x-size*.64f,y);path.close()
+        ramp(stoneIds[variant],y-size*.65f,y+size*.17f,tone(0xFFCDD0BC,0xFF9BAC9D),tone(0xFF879887,0xFF536D62))
+        shape(c,Color.WHITE,outline,.035f)
+        line(c,x-size*.32f,y-size*.38f,x+size*.16f,y-size*.46f,tone(0x99FFF2D4,0x668DA99A),.04f)
+    }
+    private fun rockGarden(c: Canvas,x: Float,f: Float,outline: Int) {
+        fill.color=tone(0xFFB9BE9B,0xFF73876C);c.drawOval(x-1.65f,f-.25f,x+1.65f,f+.25f,fill)
+        pebble(c,x-.75f,f+.03f,.75f,outline,0)
+        pebble(c,x+.25f,f-.04f,1.15f,outline,1)
+        pebble(c,x+1.12f,f+.11f,.55f,outline,2)
+        for(i in 0..4){val xx=x-.95f+i*.45f
+            path.reset();path.moveTo(xx,f-.1f);path.quadTo(xx-.28f,f-.65f,xx-.37f,f-.5f)
+            path.moveTo(xx,f-.1f);path.quadTo(xx+.06f,f-.8f,xx+.17f,f-.68f)
+            ink.color=tone(0xFF6F955E,0xFF52765E);ink.strokeWidth=.045f;c.drawPath(path,ink)}
+    }
+    private fun birdbath(c: Canvas,x: Float,f: Float,outline: Int) {
+        fill.color=0x223B513B;c.drawOval(x-.85f,f-.02f,x+.85f,f+.25f,fill)
+        box(c,x-.6f,f-.12f,x+.6f,f+.09f,tone(0xFFB2BBA4,0xFF758E7C),.09f,outline)
+        path.reset();path.moveTo(x-.3f,f-.15f);path.quadTo(x-.15f,f-.8f,x-.28f,f-1.35f)
+        path.lineTo(x+.28f,f-1.35f);path.quadTo(x+.15f,f-.8f,x+.3f,f-.15f);path.close()
+        ramp("pedestal",f-1.4f,f,tone(0xFFD5D8BF,0xFFA0B29B),tone(0xFF9EAF96,0xFF6E8978));shape(c,Color.WHITE,outline,.04f)
+        path.reset();path.moveTo(x-.94f,f-1.54f);path.quadTo(x-.7f,f-.96f,x,f-1.05f)
+        path.quadTo(x+.7f,f-.96f,x+.94f,f-1.54f);path.close()
+        shape(c,tone(0xFFB8C2AA,0xFF829C8A),outline,.045f)
+        fill.color=tone(0xFFE0E0C6,0xFFB0C2AC);c.drawOval(x-.94f,f-1.74f,x+.94f,f-1.34f,fill)
+        ink.color=outline;ink.strokeWidth=.04f;c.drawOval(x-.94f,f-1.74f,x+.94f,f-1.34f,ink)
+        fill.color=tone(0xFF9DCFD0,0xFF749CA9);c.drawOval(x-.72f,f-1.66f,x+.72f,f-1.41f,fill)
+        line(c,x-.43f,f-1.54f,x+.20f,f-1.58f,tone(0xCCF1F8E2,0x889CB8B3),.035f)
     }
     private fun butterflies(c: Canvas,f: Float,now: Long){
         val t=(now%60_000L)/1000f
