@@ -59,8 +59,10 @@ internal object PetMotion {
                 val giggle = sin(t * 8f) * e
                 Pose(1f + 0.035f * giggle, 1f - 0.03f * giggle, giggle * 0.045f)
             }
-            PetSim.State.HUNGRY -> Pose(1f + 0.025f * e, 1f - 0.045f * e,
-                sin(t * 3f) * 0.035f * e)
+            PetSim.State.HUNGRY -> {
+                val sob=sin(t*5f)*e
+                Pose(1f+.012f*sob,1f-.018f*sob,angle=sin(t*2.3f)*.018f*e)
+            }
             PetSim.State.INTERACT -> when (sim.targetItem?.defId) {
                 "robot", "top", "ball", "block" ->
                     Pose(1f + 0.06f * e, 1f - 0.09f * e, 0.045f * e * sim.dir)

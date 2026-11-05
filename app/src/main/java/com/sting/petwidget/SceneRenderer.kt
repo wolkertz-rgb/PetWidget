@@ -344,6 +344,8 @@ class SceneRenderer {
     private fun drawPullCord(c: Canvas, sim: PetSim, unit: Float, floorY: Float) {
         val (sx, tipY) = pullCordPos(sim, unit, floorY)
         if (th("room_lamp", 0) != 0) {
+            pF.color=0x26000000
+            c.drawRoundRect(sx-unit*.33f,tipY-unit*.39f,sx+unit*.38f,tipY+unit*.49f,unit*.11f,unit*.11f,pF)
             pF.color = 0xFFF2E7D5.toInt()
             rect.set(sx - unit * 0.32f, tipY - unit * 0.42f, sx + unit * 0.32f, tipY + unit * 0.42f)
             c.drawRoundRect(rect, unit * 0.1f, unit * 0.1f, pF)
@@ -351,8 +353,14 @@ class SceneRenderer {
             c.drawRoundRect(rect, unit * 0.1f, unit * 0.1f, pS)
             pF.color = if (lightNow()) 0xFF7FAE87.toInt() else 0xFF8A9290.toInt()
             val press = buttonPress(sim)
+            // Два винта и углублённая рамка: клавиша читается как настенная деталь.
+            circleAt(c,sx,tipY-unit*.33f,unit*.025f,0xFF9F947D.toInt())
+            circleAt(c,sx,tipY+unit*.33f,unit*.025f,0xFF9F947D.toInt())
+            pF.color=0xFF5E6C61.toInt()
+            c.drawRoundRect(sx-unit*.22f,tipY-unit*.29f,sx+unit*.22f,tipY+unit*.29f,unit*.04f,unit*.04f,pF)
             rect.inset(unit * (0.14f + press * 0.025f), unit * 0.15f)
             rect.offset(0f, unit * 0.06f * press)
+            pF.color = if (lightNow()) 0xFF7FAE87.toInt() else 0xFF8A9290.toInt()
             c.drawRoundRect(rect, unit * 0.04f, unit * 0.04f, pF)
             pS.color = 0x77524C43; pS.strokeWidth = unit * 0.045f
             c.drawLine(rect.left, rect.bottom, rect.right, rect.bottom, pS)
@@ -853,7 +861,9 @@ class SceneRenderer {
             dx = pose.offset * unit
             if (st == PetSim.State.PULL && th("room_lamp", 0) != 0) {
                 sx = 1f; sy = 1f
-                rot = buttonPress(sim) * 0.035f
+                val reach = SwitchMotion.pose(sim.stateTime).reach
+                sx = 1f-buttonPress(sim)*.015f; sy=1f+reach*.012f
+                rot = reach*.025f+buttonPress(sim)*.02f
             }
         }
 
@@ -1022,6 +1032,7 @@ class SceneRenderer {
                 }
                 pZ.alpha = 255
             }
+            st == PetSim.State.HUNGRY -> drawHungryEyes(c,sim,px,eyeY,r,eyeDx)
             stretching || waving || st == PetSim.State.SQUEEZE || st == PetSim.State.TICKLE || st == PetSim.State.HAPPY -> {
                 // РАДОСТЬ: дужки-глаза — читается мгновенно
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.21f
@@ -1164,7 +1175,7 @@ class SceneRenderer {
                 c.drawPath(path, pS)
                 pS.strokeWidth = unit * 0.16f
             }
-            sim.hunger > 70f && !sleeping && !stretching && !waving -> {
+            sim.hunger > 70f && st != PetSim.State.HUNGRY && !sleeping && !stretching && !waving -> {
                 // голоден: бровки «домиком»
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f; pS.alpha = 215
                 c.drawLine(px - eyeDx - r * 0.15f, eyeY - r * 0.44f, px - eyeDx - r * 0.02f, eyeY - r * 0.31f, pS)
@@ -1214,51 +1225,18 @@ class SceneRenderer {
                 c.drawArc(rect, 0f, 180f, true, pF)
             }
             st == PetSim.State.PULL -> {
-                if (sim.stateTime < PetSim.PULL_TOGGLE_MS) {
-                    // сосредоточенная гримаса: полуприкрытые глаза
-                    pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f
-                    c.drawLine(px - eyeDx - r * 0.12f, eyeY - r * 0.02f, px - eyeDx + r * 0.12f, eyeY - r * 0.02f, pS)
-                    c.drawLine(px + eyeDx - r * 0.12f, eyeY - r * 0.02f, px + eyeDx + r * 0.12f, eyeY - r * 0.02f, pS)
-                    pS.color = 0xFF2E3B34.toInt()
-                    c.drawLine(px - r * 0.10f, mouthY, px + r * 0.10f, mouthY, pS)
-                } else {
-                    // щёлк! — довольный
-                    pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.16f
-                    rect.set(px - eyeDx - r * 0.16f, eyeY - r * 0.12f, px - eyeDx + r * 0.16f, eyeY + r * 0.06f)
-                    c.drawArc(rect, 200f, 140f, false, pS)
-                    rect.set(px + eyeDx - r * 0.16f, eyeY - r * 0.12f, px + eyeDx + r * 0.16f, eyeY + r * 0.06f)
-                    c.drawArc(rect, 200f, 140f, false, pS)
-                    pS.color = 0xFF2E3B34.toInt()
-                    rect.set(px - r * 0.24f, mouthY - r * 0.18f, px + r * 0.24f, mouthY + r * 0.06f)
-                    c.drawArc(rect, 15f, 150f, false, pS)
-                }
+                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.12f
+                val relax = PetMotion.ease((sim.stateTime-820f)/400f)
+                path.reset();path.moveTo(px-r*.13f,mouthY)
+                path.quadTo(px,mouthY+r*.16f*relax,px+r*.13f,mouthY)
+                c.drawPath(path,pS)
             }
             st == PetSim.State.HUNGRY -> {
-                // голодная жалоба
-                pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.14f
-                // грустные глаза с вверх бегающей слезинкой
-                c.drawLine(px - eyeDx - r * 0.13f, eyeY + r * 0.02f, px - eyeDx + r * 0.13f, eyeY + r * 0.02f, pS)
-                c.drawLine(px + eyeDx - r * 0.13f, eyeY + r * 0.02f, px + eyeDx + r * 0.13f, eyeY + r * 0.02f, pS)
-                val tearP = (sim.stateTime % 900f) / 900f
-                pF.color = 0xFF7EB7F2.toInt()
-                pF.alpha = ((1f - tearP) * 180f).toInt().coerceIn(0, 255)
-                c.drawCircle(px - eyeDx - r * 0.18f, eyeY + r * 0.10f + tearP * r * 0.5f, unit * 0.07f, pF)
-                pF.alpha = 255
-                // волнистый ротик «жалуется»
-                rect.set(px - r * 0.18f, mouthY - r * 0.04f, px + r * 0.18f, mouthY + r * 0.08f)
-                c.drawArc(rect, 200f, 140f, false, pS)
-                // живо-бурчащий "буль" у животика
-                pS.color = 0x80D98C5A.toInt()
-                pS.strokeWidth = unit * 0.07f
-                val bx2 = px - sim.dir * r * 0.75f
-                val byy = cy + r * sy * 0.25f
-                for (i in 0..1) {
-                    val ph2 = sim.stateTime / 260f + i * 1.8f
-                    val zz = sin(ph2 * 8f) * unit * 0.16f
-                    val zy2 = byy + sin(ph2) * unit * 0.1f
-                    c.drawLine(bx2 - unit * 0.3f, zy2, bx2 + unit * 0.3f, zy2 + zz * 0.6f, pS)
-                }
-                pS.strokeWidth = unit * 0.16f
+                pS.color = 0xFF2E3B34.toInt();pS.strokeWidth=unit*.12f
+                val sob=sin(sim.stateTime/1000f*5f)*r*.012f
+                path.reset();path.moveTo(px-r*.15f,mouthY+r*.06f)
+                path.quadTo(px,mouthY-r*.12f+sob,px+r*.15f,mouthY+r*.06f)
+                c.drawPath(path,pS)
             }
             happy && (sim.reaction == ItemDefs.Reaction.EAT || sim.reaction == ItemDefs.Reaction.SMELL) && st == PetSim.State.INTERACT -> {
                 pF.color = 0xFF2E3B34.toInt()
@@ -1461,6 +1439,36 @@ class SceneRenderer {
 
     // --------------------------------------------------------------- руки
 
+    private fun drawHungryEyes(c: Canvas,sim: PetSim,x: Float,y: Float,r: Float,dx: Float) {
+        val envelope=PetMotion.envelope((sim.stateTime.toFloat()/sim.stateDur.coerceAtLeast(1)).coerceIn(0f,1f))
+        for(side in -1..1 step 2) {
+            val ex=x+side*dx
+            pF.color=th("look_eyecolor",0xFF22333B.toInt())
+            rect.set(ex-r*.22f,y-r*.22f,ex+r*.22f,y+r*.23f);c.drawOval(rect,pF)
+            circleAt(c,ex-r*.055f,y-r*.075f,r*.075f,0xFFFFFFFF.toInt())
+            circleAt(c,ex+r*.06f,y+r*.02f,r*.035f,0x99FFFFFF.toInt())
+            // Приподнятые внутренние края бровей, водянистый нижний край глаза.
+            pS.color=0xFF2E3B34.toInt();pS.strokeWidth=r*.065f
+            path.reset();path.moveTo(ex-side*r*.18f,y-r*.37f)
+            path.quadTo(ex,y-r*.40f,ex+side*r*.21f,y-r*.29f);c.drawPath(path,pS)
+            pF.color=0xFF9DD7E8.toInt()
+            rect.set(ex-r*.20f,y+r*.12f,ex+r*.20f,y+r*.26f);c.drawOval(rect,pF)
+            pS.color=0xFFC9F0ED.toInt();pS.strokeWidth=r*.025f
+            c.drawLine(ex-r*.13f,y+r*.16f,ex+r*.10f,y+r*.16f,pS)
+            val q=((sim.stateTime+(if(side<0) 0L else 380L))%1000L)/1000f
+            val grow=PetMotion.ease(q/.18f)
+            val opacity=envelope*PetMotion.ease((1f-q)/.24f)*grow
+            val tx=ex+side*r*.12f;val ty=y+r*(.21f+.62f*q*q)
+            val radius=r*(.035f+.035f*grow)
+            path.reset();path.moveTo(tx,ty-radius*1.8f)
+            path.cubicTo(tx-radius*.45f,ty-radius*.5f,tx-radius*1.25f,ty+radius*.1f,tx-radius*.75f,ty+radius*.75f)
+            path.cubicTo(tx,ty+radius*1.4f,tx+radius*1.25f,ty+radius*.6f,tx+radius*.65f,ty-radius*.25f)
+            path.close();pF.color=((opacity*235).toInt() shl 24) or 0x0069BCDD;c.drawPath(path,pF)
+            circleAt(c,tx-radius*.2f,ty+radius*.2f,radius*.22f,((opacity*220).toInt() shl 24) or 0x00F0FFFF)
+        }
+        pF.alpha=255;pS.alpha=255
+    }
+
     private fun drawArms(
         c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float, itemX: (Float) -> Float
     ) {
@@ -1530,11 +1538,25 @@ class SceneRenderer {
                 } else {
                     val motion = SwitchMotion.pose(sim.stateTime)
                     // Те же координаты клавиши, что в её отрисовке на стене.
-                    val handX = lerp(cx + r * 0.55f, tipX, motion.reach)
+                    val handX = lerp(cx + r * 0.55f, tipX-unit*.18f, motion.reach)
                     val handY = lerp(cy + r * 0.16f,
-                        tipY + unit * 0.06f * motion.press, motion.reach)
+                        tipY + unit*.18f + unit * 0.06f * motion.press, motion.reach)
                     arm(cx + r * 0.48f, cy - r * 0.12f, handX, handY, true)
+                    // Пальчик отдельно от ладони касается центра клавиши.
+                    val fingerX=lerp(handX,tipX,motion.reach)
+                    val fingerY=lerp(handY,tipY+unit*.06f*motion.press,motion.reach)
+                    pS.color=palmColor;pS.strokeWidth=unit*.15f
+                    c.drawLine(handX,handY,fingerX,fingerY,pS)
+                    circleAt(c,fingerX,fingerY,unit*.095f,palmColor)
+                    arm(cx-r*.44f,cy+r*.05f,cx-r*.52f,cy+r*(.30f-.05f*motion.reach),false)
                 }
+            }
+
+            PetSim.State.HUNGRY -> {
+                val e=PetMotion.envelope((sim.stateTime.toFloat()/sim.stateDur.coerceAtLeast(1)).coerceIn(0f,1f))
+                val sob=sin(sim.stateTime/1000f*5f)*unit*.035f*e
+                arm(cx-r*.55f,cy+r*.05f,cx-r*.20f,cy+r*.48f+sob,false)
+                arm(cx+r*.55f,cy+r*.05f,cx+r*.20f,cy+r*.48f-sob,false)
             }
 
             PetSim.State.INTERACT -> {
