@@ -8,16 +8,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -28,6 +25,9 @@ class AtelierActivity : Activity() {
 
     private lateinit var previewView: PreviewView
     private var cachedFont: Typeface? = null
+    private var catalog: AtelierCatalog? = null
+    private lateinit var editorScroll: android.widget.ScrollView
+    private var selectedTab = 0
 
     /** округлый фирменный шрифт (Rubik, кириллица) */
     private fun font(): Typeface? {
@@ -101,7 +101,13 @@ class AtelierActivity : Activity() {
             val now = android.os.SystemClock.uptimeMillis()
             val dt = if (lastTick == 0L) 240L else (now - lastTick).coerceIn(120L, 400L)
             lastTick = now
-            sim.tick(dt)
+            // Предпросмотр показывает внешность, а не запускает второго автономного питомца.
+            sim.animPhase += dt / 1000f
+            sim.state = PetSim.State.IDLE
+            sim.stateTime += dt
+            sim.x = 0.5f
+            sim.targetItem = null
+            sim.sleepingInBed = false
             bmp = renderer.render(sim, width, height)
             invalidate()
         }
@@ -132,6 +138,22 @@ class AtelierActivity : Activity() {
         super.onPause()
     }
 
+    override fun onDestroy() {
+        uiTick.removeCallbacksAndMessages(null)
+        super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("atelier_tab", selectedTab)
+        super.onSaveInstanceState(outState)
+    }
+
+    @Deprecated("Activity back navigation")
+    override fun onBackPressed() {
+        catalog?.back?.let { it(); return }
+        super.onBackPressed()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -142,21 +164,6 @@ class AtelierActivity : Activity() {
             )
         } catch (_: Exception) {}
 
-        val prefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
-
-        if (Build.VERSION.SDK_INT >= 23 && !prefs.getBoolean("battery_asked", false)) {
-            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                prefs.edit().putBoolean("battery_asked", true).apply()
-                try {
-                    startActivity(
-                        Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                            .setData(Uri.parse("package:$packageName"))
-                    )
-                } catch (_: Exception) {}
-            }
-        }
-
         try { PetWidgetProvider.scheduleKeepAlive(this) } catch (_: Exception) {}
 
         window.statusBarColor = 0xFFF5F2EC.toInt()
@@ -166,30 +173,36 @@ class AtelierActivity : Activity() {
         // ================================================= РАЗМЕТКА
         val screen = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(8), 0, dp(28))
+            setPadding(0, dp(8), 0, 0)
+            setBackgroundColor(0xFFF3F7F3.toInt())
         }
-        val scroll = android.widget.ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(MATCH, MATCH)
-            isVerticalScrollBarEnabled = false
-            setBackgroundColor(0xFFF5F2EC.toInt())
-            addView(screen)
+        setContentView(screen)
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.setDecorFitsSystemWindows(false)
+            screen.setOnApplyWindowInsetsListener { view, insets ->
+                val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
+                view.setPadding(bars.left,bars.top+dp(8),bars.right,bars.bottom)
+                insets
+            }
+            screen.requestApplyInsets()
         }
-        setContentView(scroll)
 
         screen.addView(appHeader())
-        screen.addView(gap(18))
+        screen.addView(gap(12))
         screen.addView(previewHero())
-        screen.addView(gap(16))
+        screen.addView(gap(12))
 
         val contentHost = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
+        selectedTab = savedInstanceState?.getInt("atelier_tab", 0)?.coerceIn(0,3) ?: 0
+        editorScroll = android.widget.ScrollView(this).apply {
+            isFillViewport = true
+            addView(contentHost)
+        }
         screen.addView(segmentBar(contentHost))
-        screen.addView(gap(14))
-        screen.addView(contentHost)
-        screen.addView(gap(14))
-        screen.addView(serviceStatus())
+        screen.addView(editorScroll, LinearLayout.LayoutParams(MATCH,0,1f))
     }
 
     private fun appHeader(): View {
@@ -213,10 +226,10 @@ class AtelierActivity : Activity() {
         header.addView(gapW(13))
         header.addView(column(
             text("Ателье", 27f, bold = true, color = 0xFF26332E.toInt()),
-            text("Создай своего питомца", 13f, color = 0xFF7B817D.toInt(), vertical = dp(2))
+            text("Внешность и уют твоего пета", 13f, color = 0xFF7B817D.toInt(), vertical = dp(2))
         ), LinearLayout.LayoutParams(0, WRAP, 1f))
         header.addView(TextView(this).apply {
-            text = "LIVE"
+            text = "V4"
             textSize = 10f
             gravity = Gravity.CENTER
             setTextColor(0xFF2B7254.toInt())
@@ -249,7 +262,6 @@ class AtelierActivity : Activity() {
         }
         caption.addView(text("Живой предпросмотр", 14f, bold = true, color = Color.WHITE),
             LinearLayout.LayoutParams(0, WRAP, 1f))
-        caption.addView(text("Изменения сразу в виджете", 11f, color = 0xFFB9CBC3.toInt()))
         card.addView(caption)
 
         val previewHolder = FrameLayout(this).apply {
@@ -259,7 +271,7 @@ class AtelierActivity : Activity() {
             }
             clipToOutline = true
             elevation = dp(1).toFloat()
-            layoutParams = LinearLayout.LayoutParams(MATCH, dp(232))
+            layoutParams = LinearLayout.LayoutParams(MATCH, dp(if (resources.configuration.screenHeightDp < 650) 120 else 170))
         }
         previewView = PreviewView(this).apply { layoutParams = FrameLayout.LayoutParams(MATCH, MATCH) }
         previewHolder.addView(previewView)
@@ -280,10 +292,12 @@ class AtelierActivity : Activity() {
                 setMargins(dp(16), 0, dp(16), 0)
             }
         }
-        val tabs = listOf("Питомец", "Комната", "Темы")
+        val tabs = listOf("Питомец", "Комната", "Темы", "Помощь")
         val views = ArrayList<TextView>()
 
         fun select(index: Int) {
+            selectedTab = index
+            catalog = null
             views.forEachIndexed { i, tab ->
                 tab.setTextColor(if (i == index) 0xFF26332E.toInt() else 0xFF777B78.toInt())
                 tab.background = GradientDrawable().apply {
@@ -296,8 +310,10 @@ class AtelierActivity : Activity() {
             host.addView(when (index) {
                 0 -> petControls()
                 1 -> roomControls()
-                else -> themeControls()
+                2 -> themeControls()
+                else -> helpControls()
             })
+            editorScroll.post { editorScroll.scrollTo(0,0) }
         }
 
         tabs.forEachIndexed { index, title ->
@@ -313,7 +329,7 @@ class AtelierActivity : Activity() {
                 setMargins(dp(2), 0, dp(2), 0)
             })
         }
-        select(0)
+        select(selectedTab)
         return bar
     }
 
@@ -351,7 +367,7 @@ class AtelierActivity : Activity() {
             putLook("look_antenna", when (i) { 0 -> "ball"; 1 -> "flower"; 2 -> "string"; 3 -> "leaf"; 4 -> "star"; else -> "none" })
         })
         card.addView(swatchRow(listOf(0xFFF4C95D, 0xFFF472B6, 0xFFEF6570, 0xFF60A5FA, 0xFF7FC9A6, 0xFF72BB78, 0xFFA78BFA, 0xFFF59E5B), getThemePrefs().getInt("look_ante", 0xFFF4C95D.toInt())) { putColor("look_ante", it) })
-        return card
+        return catalogControls(card, true)
     }
 
     private fun roomControls(): View {
@@ -418,6 +434,33 @@ class AtelierActivity : Activity() {
             putColor("chair_seat1", shade(col, 1.08f), mirror = "chair_seat2", mirrorShade = 0.72f)
             putColor("chair_roll1", shade(col, 1.05f), mirror = "chair_roll2", mirrorShade = 0.7f)
         })
+        return catalogControls(card, false)
+    }
+
+    private fun catalogControls(card: LinearLayout, pet: Boolean): View {
+        val next = AtelierCatalog(this, font()) { editorScroll.post { editorScroll.scrollTo(0,0) } }
+        catalog = next
+        return next.build(card, pet)
+    }
+
+    private fun helpControls(): View {
+        val card = sectionCard("Виджет на рабочем столе", "Настрой один раз — питомец останется рядом")
+        card.addView(text("Зажми свободное место на рабочем столе → Виджеты → Питомец. Перетащи виджет и выбери удобный размер.",15f,vertical=dp(16)))
+        card.addView(gap(18))
+        card.addView(serviceStatus())
+        card.addView(gap(18))
+        card.addView(actionButton("Настроить работу в фоне",0xFFDEE8E1.toInt()) {
+            try {
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            } catch (_: Exception) { Toast.makeText(this,"Настройки недоступны",Toast.LENGTH_SHORT).show() }
+        })
+        if (Build.VERSION.SDK_INT >= 33) {
+            card.addView(gap(10))
+            card.addView(actionButton("Разрешить уведомления",0xFFDEE8E1.toInt()) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),41)
+            })
+        }
+        card.addView(text("Версия ${packageManager.getPackageInfo(packageName,0).versionName}",12f,vertical=dp(18)))
         return card
     }
 
@@ -455,8 +498,8 @@ class AtelierActivity : Activity() {
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0xFF55A773.toInt()) }
         }, LinearLayout.LayoutParams(dp(9), dp(9)).apply { setMargins(0, 0, dp(11), 0) })
         row.addView(column(
-            text("Питомец на связи", 13.5f, bold = true, color = 0xFF2B4037.toInt()),
-            text("Жизнь в виджете активна", 11.5f, color = 0xFF708078.toInt(), vertical = dp(1))
+            text(if (PetService.running) "Питомец на связи" else "Добавь виджет на экран", 13.5f, bold = true, color = 0xFF2B4037.toInt()),
+            text(if (PetService.running) "Служба виджета работает" else "После добавления он оживёт", 11.5f, color = 0xFF708078.toInt(), vertical = dp(1))
         ), LinearLayout.LayoutParams(0, WRAP, 1f))
         row.addView(TextView(this).apply {
             text = "Запустить"
@@ -469,7 +512,7 @@ class AtelierActivity : Activity() {
                 try { startForegroundService(Intent(this@AtelierActivity, PetService::class.java).setAction(PetService.ACTION_SHOW)) } catch (_: Exception) {}
                 Toast.makeText(this@AtelierActivity, "Питомец на связи", Toast.LENGTH_SHORT).show()
             }
-        }, LinearLayout.LayoutParams(dp(88), dp(34)))
+        }, LinearLayout.LayoutParams(dp(88), dp(48)))
         return row
     }
 
@@ -557,6 +600,7 @@ class AtelierActivity : Activity() {
     }
 
     private fun label(s: String): TextView = TextView(this).apply {
+        tag = "atelier-label"
         text = s
         textSize = 10.5f
         letterSpacing = 0.08f
@@ -598,19 +642,27 @@ class AtelierActivity : Activity() {
         return l
     }
 
-    /** горизонтальный ряд, который листается, если не влезает */
-    private fun hScroll(v: View): HorizontalScrollView {
-        val h = HorizontalScrollView(this)
-        h.isHorizontalScrollBarEnabled = false
-        h.addView(v, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.WRAP_CONTENT,
-            FrameLayout.LayoutParams.WRAP_CONTENT
-        ))
-        return h
+    /** Все варианты видны: переносим кнопки и палитры в сетку без скрытого скролла. */
+    private fun choiceGrid(source: LinearLayout, colors: Boolean): LinearLayout {
+        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val columns = if (colors) ((resources.configuration.screenWidthDp-64)/58).coerceIn(2,6) else 2
+        val children = (0 until source.childCount).map { source.getChildAt(it) }
+        source.removeAllViews()
+        children.chunked(columns).forEach { chunk ->
+            val row = LinearLayout(this)
+            chunk.forEach { child ->
+                row.addView(child, LinearLayout.LayoutParams(if (colors) dp(48) else 0,dp(48),if (colors) 0f else 1f).apply {
+                    setMargins(0,dp(3),dp(8),dp(5))
+                })
+            }
+            if (!colors && chunk.size == 1) row.addView(View(this),LinearLayout.LayoutParams(0,1,1f))
+            grid.addView(row)
+        }
+        return grid
     }
 
     /** ряд цветовых свотчей с выбором; начальный — по цвету из prefs */
-    private fun swatchRow(colors: List<Long>, selectedCol: Int? = null, onPick: ((Int) -> Unit)? = null): HorizontalScrollView {
+    private fun swatchRow(colors: List<Long>, selectedCol: Int? = null, onPick: ((Int) -> Unit)? = null): View {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -627,22 +679,27 @@ class AtelierActivity : Activity() {
             }
             v.background = g
             v.elevation = dp(1).toFloat()
-            v.layoutParams = LinearLayout.LayoutParams(dp(38), dp(38)).apply { setMargins(dp(1), dp(1), dp(10), dp(3)) }
+            v.contentDescription = "Цвет #${Integer.toHexString(col).takeLast(6).uppercase()}"
+            v.isFocusable = true
+            v.isSelected = isSel
+            v.layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { setMargins(dp(1), dp(1), dp(10), dp(3)) }
             v.setOnClickListener {
                 circles.forEach { c2 ->
+                    c2.isSelected = false
                     (c2.background as GradientDrawable).setStroke(dp(3), 0xFFE4E1DA.toInt())
                 }
                 (v.background as GradientDrawable).setStroke(dp(3), 0xFF315F4D.toInt())
+                v.isSelected = true
                 onPick?.invoke(col)
             }
             circles.add(v)
             row.addView(v)
         }
-        return hScroll(row)
+        return choiceGrid(row, true)
     }
 
     /** чип + опциональный живой выбор (пишет значение в prefs и обновляет виджет) */
-    private fun chipRow(options: List<String>, initial: Int = 0, onPick: ((Int) -> Unit)? = null): HorizontalScrollView {
+    private fun chipRow(options: List<String>, initial: Int = 0, onPick: ((Int) -> Unit)? = null): View {
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         val chips = ArrayList<TextView>()
         options.forEachIndexed { i, opt ->
@@ -656,18 +713,22 @@ class AtelierActivity : Activity() {
                     cornerRadius = dp(15).toFloat()
                 }
                 setPadding(dp(14), 0, dp(14), 0)
-                layoutParams = LinearLayout.LayoutParams(WRAP, dp(36)).apply {
+                isSelected = i == initial
+                isFocusable = true
+                layoutParams = LinearLayout.LayoutParams(WRAP, dp(48)).apply {
                     setMargins(0, 0, dp(8), dp(3))
                 }
                 styleFont(this, bold = i == initial)
             }
             chip.setOnClickListener {
                 chips.forEach { ch ->
+                    ch.isSelected = false
                     (ch.background as GradientDrawable).setColor(0xFFF2F0EA.toInt())
                     ch.setTextColor(0xFF59615D.toInt())
                     styleFont(ch)
                 }
                 (chip.background as GradientDrawable).setColor(0xFF3D705B.toInt())
+                chip.isSelected = true
                 chip.setTextColor(Color.WHITE)
                 styleFont(chip, bold = true)
                 onPick?.invoke(i)
@@ -675,7 +736,7 @@ class AtelierActivity : Activity() {
             chips.add(chip)
             row.addView(chip)
         }
-        return hScroll(row)
+        return choiceGrid(row, false)
     }
 
     // ------------------------------------------------ прочее
@@ -708,7 +769,8 @@ class AtelierActivity : Activity() {
             }
         }, FrameLayout.LayoutParams(dp(19), dp(30), Gravity.RIGHT or Gravity.BOTTOM).apply { setMargins(0, 0, dp(9), dp(7)) })
         wrap.addView(scene, LinearLayout.LayoutParams(MATCH, 0, 1f))
-        wrap.addView(text(name, 12.5f, bold = true, color = 0xFF2D3733.toInt(), vertical = dp(7)))
+        val titleColor = if (Color.luminance(tokens["room_bg_top"] ?: Color.WHITE) < 0.35) Color.WHITE else 0xFF2D3733.toInt()
+        wrap.addView(text(name, 12.5f, bold = true, color = titleColor, vertical = dp(7)))
         wrap.setOnClickListener {
             ThemePresets.apply(this, tokens)
             refreshAll()
