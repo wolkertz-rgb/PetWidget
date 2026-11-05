@@ -24,14 +24,18 @@ internal class AtelierCatalog(
     var back: (() -> Unit)? = null
         private set
 
-    fun build(source: LinearLayout, pet: Boolean): View {
+    fun build(source: LinearLayout, pet: Boolean, yard: Boolean = false): View {
         val groups = linkedMapOf<String, LinearLayout>()
         var group: LinearLayout? = null
         val children = (3 until source.childCount).map { source.getChildAt(it) }
         for (child in children) {
             if (child.tag == "atelier-label" && child is TextView) {
                 val label = child.text.toString()
-                val key = if (pet) when (label) {
+                val key = if (yard) when(label) {
+                    "ФАСАД", "ЗАБОР", "КАЧЕЛИ" -> "Оформление двора"
+                    "САДОВЫЙ ДЕКОР" -> "Садовые декорации"
+                    else -> "Живой сад"
+                } else if (pet) when (label) {
                     "ОКРАС · ВЕРХ", "ОКРАС · СЕРЕДИНА", "ОКРАС · НИЗ", "ЖИВОТИК" -> "Окрас"
                     "УЛЫБКА", "НАСТРОЕНИЕ" -> "Улыбка и настроение"
                     "ГЛАЗА" -> "Глаза"
@@ -53,7 +57,7 @@ internal class AtelierCatalog(
         val host = column().apply { setPadding(dp(20), dp(8), dp(20), dp(24)) }
         fun showMenu() {
             host.removeAllViews(); back = null
-            host.addView(title(if (pet) "Твой питомец" else "Твоя комната", 23f, true))
+            host.addView(title(if (yard) "Твой двор" else if (pet) "Твой питомец" else "Твоя комната", 23f, true))
             host.addView(title("Выбери, что настроить", 14f).apply { setPadding(0,dp(7),0,dp(18)) })
             groups.forEach { (name, body) ->
                 val row = column().apply {
@@ -67,6 +71,9 @@ internal class AtelierCatalog(
                 }
                 row.addView(title("$name  ›", 17f, true))
                 val hint = when(name) {
+                    "Оформление двора" -> "Цвет фасада, забора и качелей"
+                    "Садовые декорации" -> "Клумба, каменный сад или поилка"
+                    "Живой сад" -> "Бабочки, фонарики и светлячки"
                     "Окрас" -> "Основные оттенки и животик"
                     "Улыбка и настроение" -> "Выражение лица и форма улыбки"
                     "Глаза" -> "Форма и цвет глаз"

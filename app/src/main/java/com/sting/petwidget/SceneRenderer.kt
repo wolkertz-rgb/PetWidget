@@ -41,6 +41,7 @@ class SceneRenderer {
     private fun gradientPaint(name: String): Paint = gradientPaints.getOrPut(name) { Paint(Paint.ANTI_ALIAS_FLAG) }
     /** Превью не должно записывать общую позу живого питомца. */
     var persistPose = true
+    var previewYard = false
 
     fun render(sim: PetSim, newW: Int, newH: Int): Bitmap? {
         if (newW <= 0 || newH <= 0) return null
@@ -101,7 +102,7 @@ class SceneRenderer {
         val pad = unit * 0.7f
         val floorY = h - h * 0.115f
         val itemX: (Float) -> Float = { pad + it.coerceIn(0f, 1f) * (w - 2 * pad) }
-        if (sim.outing.yard) {
+        if (sim.outing.yard || previewYard) {
             drawYard(c, sim, unit, floorY, itemX)
             return
         }
@@ -257,7 +258,7 @@ class SceneRenderer {
     }
 
     private fun drawYard(c: Canvas, sim: PetSim, unit: Float, floor: Float, itemX: (Float) -> Float) {
-        yardScene.draw(c, w.toFloat(), h.toFloat(), floor, unit, System.currentTimeMillis(), sim.outing)
+        yardScene.draw(c, w.toFloat(), h.toFloat(), floor, unit, System.currentTimeMillis(), sim.outing, lastPrefs)
         val inter = readInteract(sim, itemX, r = unit * 1.55f)
         val a = sim.outing.swingAngle
         c.save()
@@ -265,7 +266,7 @@ class SceneRenderer {
         drawPet(c, sim, itemX(sim.x), floor, unit, inter)
         drawArms(c, sim, inter, unit, floor, itemX)
         c.restore()
-        yardScene.swingFront(c, w.toFloat(), floor, unit)
+        yardScene.swingFront(c, w.toFloat(), floor, unit, a)
         for (item in sim.items) {
             if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), floor, unit)
             if (item.ageMs in 0L..1700L) drawSpawnLabel(c, item.def.name, itemX(item.x), floor, unit, item.ageMs)

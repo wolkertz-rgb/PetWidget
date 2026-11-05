@@ -91,6 +91,7 @@ class AtelierActivity : Activity() {
 
         private fun renderFrame() {
             renderer.lastPrefs = context.getSharedPreferences("pet_state", Context.MODE_PRIVATE)
+            renderer.previewYard = selectedTab == 2
             renderer.density = resources.displayMetrics.density
             renderer.font = font()
             if (width < 20 || height < 20) {
@@ -196,7 +197,7 @@ class AtelierActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(MATCH, WRAP)
         }
-        selectedTab = savedInstanceState?.getInt("atelier_tab", 0)?.coerceIn(0,3) ?: 0
+        selectedTab = savedInstanceState?.getInt("atelier_tab", 0)?.coerceIn(0,4) ?: 0
         editorScroll = android.widget.ScrollView(this).apply {
             isFillViewport = true
             addView(contentHost)
@@ -292,7 +293,7 @@ class AtelierActivity : Activity() {
                 setMargins(dp(16), 0, dp(16), 0)
             }
         }
-        val tabs = listOf("Питомец", "Комната", "Темы", "Помощь")
+        val tabs = listOf("Питомец", "Комната", "Двор", "Темы", "Помощь")
         val views = ArrayList<TextView>()
 
         fun select(index: Int) {
@@ -310,16 +311,18 @@ class AtelierActivity : Activity() {
             host.addView(when (index) {
                 0 -> petControls()
                 1 -> roomControls()
-                2 -> themeControls()
+                2 -> yardControls()
+                3 -> themeControls()
                 else -> helpControls()
             })
             editorScroll.post { editorScroll.scrollTo(0,0) }
+            previewView.refresh()
         }
 
         tabs.forEachIndexed { index, title ->
             val tab = TextView(this).apply {
                 text = title
-                textSize = 13.5f
+                textSize = 12f
                 gravity = Gravity.CENTER
                 styleFont(this, bold = true)
                 setOnClickListener { select(index) }
@@ -441,6 +444,32 @@ class AtelierActivity : Activity() {
         val next = AtelierCatalog(this, font()) { editorScroll.post { editorScroll.scrollTo(0,0) } }
         catalog = next
         return next.build(card, pet)
+    }
+
+    private fun yardControls(): View {
+        val card = sectionCard("Твой сад", "Оформление, декор и маленькая жизнь во дворе")
+        card.addView(label("ФАСАД"))
+        card.addView(swatchRow(listOf(0xFFE9D9BB,0xFFD3DFCB,0xFFD6DEEB,0xFFE8CFC3),getThemePrefs().getInt("yard_house",0xFFE9D9BB.toInt())) { putColor("yard_house",it) })
+        card.addView(label("ЗАБОР"))
+        card.addView(swatchRow(listOf(0xFFD8BB8B,0xFFE9E4CF,0xFF94B4A0,0xFFA2B3C3),getThemePrefs().getInt("yard_fence",0xFFD8BB8B.toInt())) { putColor("yard_fence",it) })
+        card.addView(label("КАЧЕЛИ"))
+        card.addView(swatchRow(listOf(0xFFB58B5F,0xFF8EAA94,0xFF9EADBF,0xFFC8998E),getThemePrefs().getInt("yard_swing",0xFFB58B5F.toInt())) { putColor("yard_swing",it) })
+        card.addView(label("САДОВЫЙ ДЕКОР"))
+        card.addView(chipRow(listOf("Без декора","Клумба","Каменный сад","Поилка для птиц"),getThemePrefs().getInt("yard_decor",1)) {
+            getThemePrefs().edit().putInt("yard_decor",it).apply();refreshAll()
+        })
+        card.addView(label("БАБОЧКИ ДНЁМ"))
+        card.addView(chipRow(listOf("Выключены","Включены"),getThemePrefs().getInt("yard_butterflies",1)) {
+            getThemePrefs().edit().putInt("yard_butterflies",it).apply();refreshAll()
+        })
+        card.addView(label("НОЧНОЙ САД"))
+        card.addView(text("Садовые фонарики и светлячки появляются с наступлением сумерек.",13f))
+        card.addView(chipRow(listOf("Выключен","Включён"),getThemePrefs().getInt("yard_nightlife",1)) {
+            getThemePrefs().edit().putInt("yard_nightlife",it).apply();refreshAll()
+        })
+        val next=AtelierCatalog(this,font()){editorScroll.post { editorScroll.scrollTo(0,0) }}
+        catalog=next
+        return next.build(card,false,yard=true)
     }
 
     private fun helpControls(): View {
