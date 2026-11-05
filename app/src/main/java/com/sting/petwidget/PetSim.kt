@@ -531,6 +531,7 @@ class PetSim(
     }
 
     private fun toggleLight() {
+        if (!autoSave) return
         prefs.edit()
             .putBoolean("light_on", !prefs.getBoolean("light_on", true))
             .apply()
@@ -618,6 +619,7 @@ class PetSim(
     // ---------------------------------------------------------- сохранение
 
     fun save() {
+        if (!autoSave) return
         outing.save()
         val ed = prefs.edit()
         ed.putFloat(KEY_X, x)

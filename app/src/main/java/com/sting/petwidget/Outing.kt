@@ -6,11 +6,11 @@ import kotlin.math.sin
 
 /** Переходы используют активное время симуляции; незавершённые действия ждём. */
 class Outing(private val prefs: SharedPreferences, private val persist: Boolean) {
-    var yard = prefs.getBoolean("outing_yard", false); private set
+    var yard = persist && prefs.getBoolean("outing_yard", false); private set
     private var elapsed = prefs.getLong("outing_elapsed", 0L).coerceIn(0L, 120_000L)
-    private var phase = 0 // прогулка, подход, дверь, проявление, подход к качелям, качание
-    private var time = 0L
-    private var swingDue = 25_000L
+    private var phase = if (persist) prefs.getInt("outing_phase",0).coerceIn(0,5) else 0
+    private var time = if (persist) prefs.getLong("outing_time",0L).coerceAtLeast(0L) else 0L
+    private var swingDue = prefs.getLong("outing_swing_due",25_000L).coerceAtLeast(0L)
     private val roomItems = ArrayList<PetSim.SpawnedItem>()
     private val yardItems = ArrayList<PetSim.SpawnedItem>()
     val doorX get() = 0.16f
@@ -59,5 +59,11 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
         return true
     }
 
-    fun save() { if (persist) prefs.edit().putBoolean("outing_yard", yard).putLong("outing_elapsed", elapsed.coerceAtMost(120_000L)).apply() }
+    fun save() {
+        if (!persist) return
+        prefs.edit().putBoolean("outing_yard",yard)
+            .putLong("outing_elapsed",elapsed.coerceAtMost(120_000L))
+            .putInt("outing_phase",phase).putLong("outing_time",time)
+            .putLong("outing_swing_due",swingDue).apply()
+    }
 }
