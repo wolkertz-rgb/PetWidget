@@ -23,6 +23,9 @@ internal class YardLandscape {
     private val cloudIds = arrayOf("cloud0","cloud1","cloud2")
     private val pineIds = arrayOf("pine0","pine1","pine2","pine3")
     private val stoneIds = arrayOf("stone0","stone1","stone2")
+    private val forestX = floatArrayOf(8.3f,9.15f,10.4f,14.6f,15.7f,21.1f,22.35f)
+    private val forestScale = floatArrayOf(.37f,.49f,.40f,.36f,.46f,.42f,.34f)
+    private fun meadowEdge(x: Float,f: Float) = f-2.55f+sin(x*.45f)*.18f
     private var night = 0f
     private fun mix(a: Int,b: Int,t: Float) = Color.argb(
         (Color.alpha(a)*(1-t)+Color.alpha(b)*t).toInt(),
@@ -71,28 +74,29 @@ internal class YardLandscape {
             path.cubicTo(x+1.65f,y-.65f,x+2.15f,y+.4f,x+1.25f,y+.4f)
             path.lineTo(x-1.2f,y+.4f);path.close();shape(c,Color.WHITE)
         }
-        // Силуэты гор, освещённые грани и снежные вершины.
-        path.reset();path.moveTo(3f,f-3.8f);path.lineTo(9.1f,f-8.1f);path.lineTo(12.1f,f-5.8f)
-        path.lineTo(16.2f,f-9.2f);path.lineTo(23.8f,f-3.7f);path.close()
-        ramp("mountain",f-9.2f,f-3.6f,tone(0xFF95B9B0,0xFF41596B),tone(0xFFAAC8A4,0xFF516E78));shape(c,Color.WHITE)
-        path.reset();path.moveTo(16.2f,f-9.2f);path.lineTo(15.6f,f-6.4f);path.lineTo(18.4f,f-5.8f);path.lineTo(23.8f,f-3.7f);path.close();shape(c,tone(0xFF7DA79E,0xFF354F60))
-        path.reset();path.moveTo(14.7f,f-7.94f);path.lineTo(16.2f,f-9.2f);path.lineTo(18.1f,f-7.83f)
-        path.lineTo(16.9f,f-8.1f);path.lineTo(16.2f,f-7.85f);path.lineTo(15.7f,f-8.25f);path.close();shape(c,tone(0xFFE7EBDD,0xFF819BA9))
-        path.reset();path.moveTo(0f,f-3f);path.cubicTo(4f,f-6.8f,9f,f-6.8f,13f,f-3.8f)
-        path.cubicTo(17f,f-7f,21f,f-6f,w,f-4.3f);path.lineTo(w,f);path.lineTo(0f,f);path.close()
-        ramp("hills",f-6f,f,tone(0xFF91BB80,0xFF40685C),tone(0xFFCAE0A3,0xFF6C8A69));shape(c,Color.WHITE)
-        // Дальний лес на верхнем берегу, ближняя группа только слева от русла.
-        for(i in 0..13)tree(c,7f+i*1.25f,f-5.35f,.38f+(i%3)*.06f,outline)
-        for(i in 0..4)tree(c,7.5f+i*1.15f,f-2.65f+(i%2)*.12f,.66f+(i%3)*.09f,outline)
-        // Вода рисуется после леса и маскирует кромки дальнего берега.
-        path.reset();path.moveTo(14f,f-5.1f);path.cubicTo(12f,f-4.1f,23f,f-4.6f,17f,f-2.7f)
-        path.cubicTo(15f,f-2f,15f,f-1.5f,24f,f-.9f);path.lineTo(24f,f-2f)
-        path.cubicTo(17f,f-2.6f,19f,f-2.8f,21f,f-3.5f);path.cubicTo(25f,f-5.1f,15f,f-4.5f,14.7f,f-5.1f);path.close()
-        ramp("river",f-5.1f,f-.8f,tone(0xFF90C6C3,0xFF4C7E92),tone(0xFFC3E9DE,0xFF799FAD));shape(c,Color.WHITE,tone(0xFF7CA57F,0xFF3C645C),.07f)
-        for(i in 0..8){val x=15.5f+(i*1.37f)%8f;val y=f-3.6f+(i%3)*.65f;line(c,x,y,x+.45f,y,tone(0xBFFFFFF0,0x668AAEB8),.035f)}
+        // Спокойные холмы без отдельной горной гряды и обрывающегося русла.
+        path.reset();path.moveTo(0f,f-3.4f)
+        path.cubicTo(4f,f-5.1f,8f,f-5.3f,13f,f-3.9f)
+        path.cubicTo(17f,f-5.2f,21f,f-4.9f,w,f-3.8f)
+        path.lineTo(w,f);path.lineTo(0f,f);path.close()
+        ramp("farMeadow",f-5.1f,f,tone(0xFFAFCDB2,0xFF476A70),tone(0xFFD0E1B7,0xFF627F72))
+        shape(c,Color.WHITE)
+        path.reset();path.moveTo(0f,meadowEdge(0f,f))
+        for(i in 1..24)path.lineTo(i.toFloat(),meadowEdge(i.toFloat(),f))
+        path.lineTo(w,f+.2f);path.lineTo(0f,f+.2f);path.close()
+        ramp("nearMeadow",f-2.7f,f,tone(0xFF93B77E,0xFF486D5B),tone(0xFFB9D292,0xFF658260))
+        shape(c,Color.WHITE)
+        // Каждая группа стоит на одной поверхности, с корнями ниже её верхнего края.
+        for(i in forestX.indices) {
+            val x=forestX[i]
+            tree(c,x,meadowEdge(x,f)+.28f,forestScale[i],outline)
+            fill.color=tone(0x55698E57,0x55465F4B)
+            c.drawOval(x-.25f,meadowEdge(x,f)+.23f,x+.25f,meadowEdge(x,f)+.33f,fill)
+        }
         path.reset();path.moveTo(0f,f-.3f);path.cubicTo(7f,f-.9f,16f,f-.4f,24f,f-.65f);path.lineTo(w,h);path.lineTo(0f,h);path.close()
         ramp("lawn",f-.7f,h,tone(0xFF8DBB78,0xFF486E54),tone(0xFFBDD78F,0xFF678464));shape(c,Color.WHITE,outline,.06f)
-        fence(c,f,outline,prefs?.getInt("yard_fence",0xFFD8BB8B.toInt())?:0xFFD8BB8B.toInt())
+        fence(c,f,outline,prefs?.getInt("yard_fence",0xFFD8BB8B.toInt())?:0xFFD8BB8B.toInt(),
+            (prefs?.getInt("yard_fence_style",0)?:0).coerceIn(0,2))
         house(c,f,outline,prefs?.getInt("yard_house",0xFFE9D9BB.toInt())?:0xFFE9D9BB.toInt())
         // Плиты у крыльца, травяные островки и цветы в глубине участка.
         steppingStones(c,f,outline)
@@ -129,11 +133,43 @@ internal class YardLandscape {
         }
         c.restore()
     }
-    private fun fence(c: Canvas,f: Float,outline: Int,color: Int){
+    private fun fence(c: Canvas,f: Float,outline: Int,color: Int,style: Int){
         val wood=mix(color,0xFF455D59.toInt(),night*.55f)
-        box(c,7f,f-2.12f,24f,f-1.94f,wood,.02f,outline);box(c,7f,f-1.16f,24f,f-.98f,wood,.02f,outline)
-        for(i in 0..20){val x=7.2f+i*.84f;path.reset();path.moveTo(x,f-.45f);path.lineTo(x,f-2.27f);path.lineTo(x+.25f,f-2.48f);path.lineTo(x+.5f,f-2.27f);path.lineTo(x+.5f,f-.45f);path.close();shape(c,wood,outline,.04f);line(c,x+.11f,f-2.13f,x+.11f,f-.7f,0x33FFFFFF,.03f)}
-        for(i in 0..4){val x=7f+i*4.2f;box(c,x,f-2.75f,x+.35f,f-.25f,wood,.03f,outline);box(c,x-.09f,f-2.8f,x+.44f,f-2.63f,wood,.055f,outline)}
+        val light=mix(wood,Color.WHITE,.16f)
+        val dark=mix(wood,outline,.18f)
+        if(style==1) {
+            // Широкие горизонтальные доски, регулярные стойки одной высоты.
+            for(i in 0..3){
+                val y=f-2.45f+i*.51f
+                box(c,7f,y,24f,y+.40f,wood,.035f,outline)
+                line(c,7.08f,y+.07f,24f,y+.07f,light,.035f)
+            }
+        } else if(style==2) {
+            // Решётка замкнута рамой: диагонали не выходят за панель.
+            c.save();c.clipRect(7f,f-2.45f,24f,f-.5f)
+            for(i in 0..31){val x=5f+i*.65f
+                line(c,x,f-.45f,x+2f,f-2.55f,dark,.10f)
+                line(c,x,f-2.55f,x+2f,f-.45f,wood,.10f)}
+            c.restore()
+            box(c,7f,f-2.53f,24f,f-2.32f,wood,.03f,outline)
+            box(c,7f,f-.64f,24f,f-.43f,wood,.03f,outline)
+        } else {
+            // Штакетник с мягкими верхушками и узкими одинаковыми промежутками.
+            box(c,7f,f-2.08f,24f,f-1.90f,dark,.02f,outline)
+            box(c,7f,f-1.04f,24f,f-.86f,dark,.02f,outline)
+            for(i in 0..28) {
+                val x=7f+i*.60f
+                box(c,x,f-2.47f,x+.52f,f-.43f,wood,.15f,outline)
+                line(c,x+.09f,f-2.22f,x+.09f,f-.67f,light,.035f)
+                disc(c,x+.26f,f-1.99f,.022f,outline)
+                disc(c,x+.26f,f-.95f,.022f,outline)
+            }
+        }
+        for(i in 0..5) {
+            val x=7f+i*3.4f
+            box(c,x-.04f,f-2.54f,x+.22f,f-.33f,wood,.04f,outline)
+            box(c,x-.09f,f-2.63f,x+.27f,f-2.45f,light,.045f,outline)
+        }
     }
     private fun house(c: Canvas,f: Float,outline: Int,color: Int){
         ramp("wall",f-7.1f,f,mix(mix(color,Color.WHITE,.14f),0xFF536D70.toInt(),night*.55f),mix(color,0xFF657464.toInt(),night*.45f+.08f))

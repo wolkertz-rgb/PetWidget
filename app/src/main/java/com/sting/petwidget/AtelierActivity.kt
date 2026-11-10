@@ -451,6 +451,9 @@ class AtelierActivity : Activity() {
         card.addView(label("ФАСАД"))
         card.addView(swatchRow(listOf(0xFFE9D9BB,0xFFD3DFCB,0xFFD6DEEB,0xFFE8CFC3),getThemePrefs().getInt("yard_house",0xFFE9D9BB.toInt())) { putColor("yard_house",it) })
         card.addView(label("ЗАБОР"))
+        card.addView(chipRow(listOf("Штакетник","Горизонтальный","Садовая решётка"),getThemePrefs().getInt("yard_fence_style",0).coerceIn(0,2)) {
+            getThemePrefs().edit().putInt("yard_fence_style",it).apply();refreshAll()
+        })
         card.addView(swatchRow(listOf(0xFFD8BB8B,0xFFE9E4CF,0xFF94B4A0,0xFFA2B3C3),getThemePrefs().getInt("yard_fence",0xFFD8BB8B.toInt())) { putColor("yard_fence",it) })
         card.addView(label("КАЧЕЛИ"))
         card.addView(swatchRow(listOf(0xFFB58B5F,0xFF8EAA94,0xFF9EADBF,0xFFC8998E),getThemePrefs().getInt("yard_swing",0xFFB58B5F.toInt())) { putColor("yard_swing",it) })
