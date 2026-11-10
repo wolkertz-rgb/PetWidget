@@ -261,12 +261,15 @@ class SceneRenderer {
         yardScene.draw(c, w.toFloat(), h.toFloat(), floor, unit, System.currentTimeMillis(), sim.outing, lastPrefs)
         val inter = readInteract(sim, itemX, r = unit * 1.55f)
         val a = sim.outing.swingAngle
+        val center=itemX(sim.x)
         c.save()
-        c.translate(sin(a)*unit*4.2f, -unit*.65f*sim.outing.mount-(1f-cos(a))*unit*4.2f)
+        c.translate(center,floor+SwingMotion.offsetY(a,sim.outing.mount)*unit)
+        val perspective=SwingMotion.scale(a)
+        c.scale(perspective,perspective)
+        c.translate(-center,-floor)
         drawPet(c, sim, itemX(sim.x), floor, unit, inter)
         drawArms(c, sim, inter, unit, floor, itemX)
         c.restore()
-        yardScene.swingFront(c, w.toFloat(), floor, unit, a)
         for (item in sim.items) {
             if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), floor, unit)
             if (item.ageMs in 0L..1700L) drawSpawnLabel(c, item.def.name, itemX(item.x), floor, unit, item.ageMs)
@@ -859,6 +862,7 @@ class SceneRenderer {
             sy = pose.sy
             rot = pose.angle
             dx = pose.offset * unit
+            if (sim.outing.swinging) { sx=1.02f; sy=.95f; rot=0f }
             if (st == PetSim.State.PULL && th("room_lamp", 0) != 0) {
                 sx = 1f; sy = 1f
                 val reach = SwitchMotion.pose(sim.stateTime).reach

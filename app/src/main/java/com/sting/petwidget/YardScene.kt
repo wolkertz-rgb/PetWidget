@@ -5,8 +5,6 @@ import android.graphics.Paint
 import android.graphics.LinearGradient
 import android.graphics.Shader
 import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 /** Ясный двор: общие с комнатой часы, собственное небо и игровая площадка. */
 internal class YardScene {
@@ -53,6 +51,7 @@ internal class YardScene {
         door(c,.7f+outing.doorX*(w/u-1.4f),floor/u,1f,outing.doorOpen)
         c.restore()
         swing(c,w,floor,u,outing.swingAngle)
+        swingSupports(c,w,floor,u)
     }
 
     /** Толщина бруса и светлая боковая грань дают читаемую деревянную конструкцию. */
@@ -71,7 +70,8 @@ internal class YardScene {
     fun swing(c: Canvas,w: Float,floor: Float,u: Float,a: Float) {
         c.save();c.scale(u,u)
         val center=.7f+.80f*(w/u-1.4f);val f=floor/u
-        val dx=sin(a)*4.2f;val rise=(1f-cos(a))*4.2f
+        val seatY=SwingMotion.offsetY(a)
+        val perspective=SwingMotion.scale(a)
         p.color=0x21404D34;c.drawOval(center-2.8f,f-.1f,center+2.8f,f+.45f,p)
         // Дальние ножки, верхняя перекладина и диагональные распорки.
         beam(c,center-2f,f-.1f,center-1.6f,f-5.45f,.25f)
@@ -82,13 +82,13 @@ internal class YardScene {
         for(side in -1..1 step 2) {
             val anchor=center+side*1.28f
             edge.color=0xFF4C5D50.toInt();edge.strokeWidth=.10f
-            c.drawLine(anchor,f-4.85f,anchor+dx,f-.65f-rise,edge)
+            c.drawLine(anchor,f-4.85f,center+side*1.28f*perspective,f+seatY,edge)
             edge.color=0xFFD4D0AD.toInt();edge.strokeWidth=.04f
-            c.drawLine(anchor,f-4.85f,anchor+dx,f-.65f-rise,edge)
+            c.drawLine(anchor,f-4.85f,center+side*1.28f*perspective,f+seatY,edge)
             p.color=0xFFD7B97A.toInt();c.drawCircle(anchor,f-4.85f,.085f,p)
             c.drawLine(anchor,f-5.25f,anchor,f-4.85f,edge)
         }
-        c.save();c.translate(center+dx,f-.65f-rise)
+        c.save();c.translate(center,f+seatY);c.scale(perspective,perspective)
         // Спинка скамьи видна за питомцем; сиденье находится точно под ним.
         box(c,-1.5f,-1.05f,1.5f,-.12f,swingWood,.09f)
         edge.color=0xFF4B5544.toInt();edge.strokeWidth=.055f
@@ -99,12 +99,10 @@ internal class YardScene {
         c.restore();c.restore()
     }
 
-    fun swingFront(c: Canvas,w: Float,floor: Float,u: Float,a: Float = 0f) {
+    private fun swingSupports(c: Canvas,w: Float,floor: Float,u: Float) {
         c.save();c.scale(u,u)
         val center=.7f+.80f*(w/u-1.4f);val f=floor/u
-        val dx=sin(a)*4.2f;val rise=(1f-cos(a))*4.2f
-        // Передняя кромка сиденья и опоры перекрывают пета при пересечении.
-        box(c,center-1.58f+dx,f-.65f-rise+.09f,center+1.58f+dx,f-.65f-rise+.27f,swingWood,.045f)
+        // Все опоры рисуются до питомца, включая ближние ножки.
         for(side in -1..1 step 2) {
             beam(c,center+side*2.35f,f+.12f,center+side*1.57f,f-5.45f,.32f)
             p.color=0xFFE4C689.toInt();c.drawCircle(center+side*1.65f,f-4.95f,.075f,p)
