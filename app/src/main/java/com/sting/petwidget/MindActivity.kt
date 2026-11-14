@@ -45,7 +45,7 @@ class MindActivity : Activity() {
             body.addView(Button(this).apply {text=label;isAllCaps=false;setOnClickListener {action()} })
         }
         body.addView(text("Локальный мозг Petey",25f))
-        body.addView(text("Экспериментальный режим Qwen2.5 0.5B. Один раз скачай около 522 МиБ по Wi-Fi. Затем решения и реплики работают без интернета. Подготовь 1.1 ГБ свободного места. Скорость зависит от телефона."))
+        body.addView(text("Экспериментальный режим Qwen2.5 0.5B. Один раз скачай около 522 МиБ по Wi-Fi, оставив этот экран открытым до завершения. Затем решения и реплики работают без интернета. Подготовь 1.1 ГБ свободного места. Скорость зависит от телефона."))
         button("Загрузить модель") {MindModel.download(this)}
         button("Включить нейросетевой режим") {
             if(!MindModel.file(this).exists())Toast.makeText(this,"Сначала дождись загрузки модели",Toast.LENGTH_SHORT).show()
@@ -56,7 +56,9 @@ class MindActivity : Activity() {
         body.addView(message)
         button("Сказать пету") {
             val value=message.text.toString().trim().take(180)
-            if(value.isNotEmpty()) {
+            if(value.isNotEmpty() && !prefs.getBoolean("mind_enabled",false)) {
+                Toast.makeText(this,"Сначала загрузи модель и включи нейросетевой режим",Toast.LENGTH_LONG).show()
+            } else if(value.isNotEmpty()) {
                 prefs.edit().putString("mind_message",value).putLong("mind_message_id",System.currentTimeMillis()).apply()
                 PetWidgetProvider.tryStartService(this);message.text.clear()
                 Toast.makeText(this,"Сообщение передано. Пет ответит, когда освободится.",Toast.LENGTH_LONG).show()

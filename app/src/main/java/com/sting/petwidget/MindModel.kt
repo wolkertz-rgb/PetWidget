@@ -9,6 +9,7 @@ import java.security.MessageDigest
 
 /** Сеть нужна только для явной загрузки весов; inference полностью локальный. */
 internal object MindModel {
+    @Volatile private var activeSession: LlmInferenceSession? = null
     const val SIZE = 546660344L
     private const val SHA = "e608953f169aeb1bd7b9155fec2559825e08453fc209b84eda3a781ed0452fd2"
     private const val MODEL_URL = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task"
@@ -49,10 +50,21 @@ internal object MindModel {
     fun open(c: Context): LlmInference = LlmInference.createFromOptions(c,
         LlmInference.LlmInferenceOptions.builder().setModelPath(file(c).path)
             .setMaxTokens(1024).setPreferredBackend(LlmInference.Backend.CPU).build())
-    fun infer(engine: LlmInference,prompt: String): String =
+    fun cancel() {
+        try { activeSession?.cancelGenerateResponseAsync() } catch (_: Exception) { }
+    }
+    fun infer(engine: LlmInference,prompt: String, allowed: () -> Boolean): String =
         LlmInferenceSession.createFromOptions(engine,
             LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTopK(32).setTemperature(.75f).setRandomSeed(kotlin.random.Random.nextInt()).build()).use {
-            it.addQueryChunk(prompt);it.generateResponse()
+            check(allowed()) {"Вычисление отменено"}
+            it.addQueryChunk(prompt)
+            check(allowed()) {"Вычисление отменено"}
+            activeSession=it
+            try {
+                val response=it.generateResponseAsync()
+                if(!allowed())it.cancelGenerateResponseAsync()
+                response.get()
+            } finally { activeSession=null }
         }
 }

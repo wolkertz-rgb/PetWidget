@@ -97,7 +97,7 @@ class PetService : Service() {
             ACTION_TAP -> {
                 if (screenOn) {
                     sim.tap()
-                    mind.notice("Owner stroked me")
+                    mind.notice("Хозяин погладил меня")
                     if (sizeW == 0) recomputeSizes()
                     handler.removeCallbacks(frameRunnable)
                     handler.post(frameRunnable)
@@ -145,6 +145,7 @@ class PetService : Service() {
             handler.removeCallbacks(frameRunnable)
             handler.post(frameRunnable)
         } else {
+            mind.interrupt()
             handler.removeCallbacks(frameRunnable)
             sim.save()
         }

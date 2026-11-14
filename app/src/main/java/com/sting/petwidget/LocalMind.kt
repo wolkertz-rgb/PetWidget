@@ -17,8 +17,9 @@ internal class LocalMind(context: Context) : AutoCloseable {
     private val busy=AtomicBoolean(false)
     private var engine: LlmInference?=null
     @Volatile private var closed=false
+    @Volatile private var revision=0L
     private var retryAt=0L
-    private var messageId=0L
+    private var messageId=prefs.getLong("mind_processed_message_id",0L)
     private var lastAction=""
     private var previouslyEnabled=false
     private var previousState=PetSim.State.IDLE
@@ -32,16 +33,27 @@ internal class LocalMind(context: Context) : AutoCloseable {
             listOf("gentle, curious, playful","calm, observant, affectionate","adventurous, shy, fond of nature").random()).apply()
     }
     fun notice(event: String) {
+        interrupt()
         memories.addLast(event.take(100));while(memories.size>10)memories.removeFirst()
         prefs.edit().putString("mind_memories",memories.joinToString("\n")).apply()
         retryAt=0
     }
+    fun interrupt() {
+        revision++
+        MindModel.cancel()
+    }
+    private fun available(version: Long): Boolean = !closed && revision==version &&
+        prefs.getBoolean("mind_enabled",false) &&
+        (app.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive
     fun tick(sim: PetSim,dt: Long) {
         sim.externalBrain=prefs.getBoolean("mind_enabled",false)
-        if(previouslyEnabled && !sim.externalBrain)worker.execute { engine?.close();engine=null }
+        if(previouslyEnabled && !sim.externalBrain) {
+            interrupt()
+            worker.execute { try {engine?.close()}catch(_: Exception){};engine=null }
+        }
         previouslyEnabled=sim.externalBrain
         if(!sim.externalBrain || closed)return
-        if(previousState!=sim.state && sim.state==PetSim.State.HAPPY)notice("Finished an interaction with an object")
+        if(previousState!=sim.state && sim.state==PetSim.State.HAPPY)notice("Закончил занятие с предметом")
         previousState=sim.state
         val minutes=dt/60_000f
         energy=(energy+minutes*(if(sim.state==PetSim.State.SLEEP).07f else if(sim.state==PetSim.State.SIT).025f else -.018f)).coerceIn(0f,1f)
@@ -51,12 +63,13 @@ internal class LocalMind(context: Context) : AutoCloseable {
         if(sim.outing.busy || sim.state !in listOf(PetSim.State.IDLE,PetSim.State.SIT) || now<retryAt || busy.get())return
         if(!MindModel.file(app).exists()) { if(now>=retryAt){status("Сначала загрузи модель в разделе «Мозг»");retryAt=now+30_000};return }
         val yard=sim.outing.yard
+        val version=revision
         val incomingId=prefs.getLong("mind_message_id",0)
         val incoming=if(incomingId!=messageId)prefs.getString("mind_message","")?.take(180).orEmpty() else ""
         val items=sim.items.filter {it.ageMs>=0}.joinToString(",") {"${it.defId}:${it.def.kind}"}
         val prompt="""<|im_start|>system
 You are Petey, a virtual pet. Choose your next intention from personality, needs, memories and surroundings. Be varied. Never claim to see camera or other apps. Reply ONLY JSON: {"action":"LOOK","target":"","say":"short Russian phrase","plan":"short intention"}.
-Allowed: IDLE,WALK,PLAY,EAT,REST,LOOK,STRETCH,WAVE,LIGHT,TRAVEL,SWING,THINK,SHOW. PLAY/EAT/SHOW target is a listed item id. LIGHT indoors, SWING in yard. Say may be empty; do not speak every turn. Maximum 55 characters of Russian speech. No reasoning text.
+Allowed: IDLE,WALK,PLAY,EAT,REST,LOOK,STRETCH,WAVE,LIGHT,TRAVEL,SWING,THINK,SHOW,ROLL,SWAY,BLUSH,SMILE,CUDDLE,CRY. PLAY/EAT/SHOW target is a listed item id; PLAY needs TOY, EAT needs FOOD. LIGHT indoors, SWING in yard, TRAVEL changes place. CRY expresses hunger, CUDDLE affection. Say may be empty; do not speak every turn. Maximum 55 characters of Russian speech. Write plan briefly in Russian. No reasoning text. Hunger 100 means very hungry; energy 0 means tired; need company 100 means lonely.
 <|im_end|>
 <|im_start|>user
 Personality: ${prefs.getString("mind_personality","curious")}.
@@ -78,7 +91,7 @@ Choose a small plan and one available action.
                     check(info.availMem>1_700_000_000L) {"Недостаточно свободной RAM. Закрой другие приложения."}
                     MindModel.open(app).also {engine=it}
                 }
-                val raw=MindModel.infer(loaded,prompt)
+                val raw=MindModel.infer(loaded,prompt) {available(version) && prefs.getLong("mind_message_id",0)==incomingId}
                 val first=raw.indexOf('{');val last=raw.lastIndexOf('}')
                 check(first>=0 && last>first) {"Модель не вернула действие"}
                 val result=JSONObject(raw.substring(first,last+1))
@@ -88,17 +101,16 @@ Choose a small plan and one available action.
                 val plan=result.optString("plan").replace('\n',' ').take(100)
                 main.post {
                     try {
-                        val power=app.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                        if(!closed && power.isInteractive && prefs.getBoolean("mind_enabled",false) && yard==sim.outing.yard &&
+                        if(available(version) && prefs.getLong("mind_message_id",0)==incomingId && yard==sim.outing.yard &&
                             !sim.outing.busy && sim.state in listOf(PetSim.State.IDLE,PetSim.State.SIT)) {
                             if(sim.performIntention(action,target)) {
                                 lastAction=action;messageId=incomingId
-                                if(incoming.isNotEmpty())notice("Owner said: $incoming")
-                                notice("Chose $action $target. $plan")
+                                if(incoming.isNotEmpty())notice("Хозяин сказал: $incoming")
+                                notice("План: $plan")
                                 if(say.isNotBlank()){sim.speech=say;sim.speechMs=8000}
                                 if(action=="PLAY"){curiosity=(curiosity-.2f).coerceAtLeast(0f);prefs.edit().putString("mind_favourite",target).apply()}
                                 if(action=="WAVE")social=(social-.3f).coerceAtLeast(0f)
-                                prefs.edit().putString("mind_plan",plan).putFloat("mind_energy",energy)
+                                prefs.edit().putLong("mind_processed_message_id",messageId).putString("mind_plan",plan).putFloat("mind_energy",energy)
                                     .putFloat("mind_social",social).putFloat("mind_curiosity",curiosity).apply()
                                 status("Локальный мозг работает")
                             } else status("Обдумывает другое доступное действие")
@@ -106,7 +118,7 @@ Choose a small plan and one available action.
                     } finally { retryAt=android.os.SystemClock.uptimeMillis()+5000;busy.set(false) }
                 }
             } catch(e: Exception) {
-                main.post { if(!closed)status("ИИ: ${e.message?.take(100)}");retryAt=android.os.SystemClock.uptimeMillis()+30_000;busy.set(false) }
+                main.post { if(available(version))status("ИИ: ${e.message?.take(100)}");retryAt=android.os.SystemClock.uptimeMillis()+30_000;busy.set(false) }
             } catch(e: LinkageError) {
                 main.post { if(!closed)status("Нейросеть недоступна на этом устройстве");busy.set(false);retryAt=Long.MAX_VALUE }
             } catch(e: OutOfMemoryError) {
@@ -117,6 +129,7 @@ Choose a small plan and one available action.
     private fun status(text: String) {prefs.edit().putString("mind_status",text).apply()}
     override fun close() {
         closed=true
+        interrupt()
         worker.execute {try {engine?.close()}catch(_: Exception){};engine=null}
         worker.shutdown()
     }

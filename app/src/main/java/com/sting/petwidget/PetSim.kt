@@ -418,9 +418,10 @@ class PetSim(
         val item=items.firstOrNull {it.defId==target && it.ageMs>=0}
         if(action in listOf("PLAY","EAT","SHOW") && item==null)return false
         if(action=="EAT" && item?.def?.kind!=ItemDefs.Kind.FOOD)return false
+        if(action=="PLAY" && item?.def?.kind!=ItemDefs.Kind.TOY)return false
         if(action=="LIGHT" && outing.yard)return false
         if(action=="SWING" && !outing.yard)return false
-        if(action !in listOf("IDLE","WALK","PLAY","EAT","REST","LOOK","STRETCH","WAVE","LIGHT","TRAVEL","SWING","THINK","SHOW"))return false
+        if(action !in listOf("IDLE","WALK","PLAY","EAT","REST","LOOK","STRETCH","WAVE","LIGHT","TRAVEL","SWING","THINK","SHOW","ROLL","SWAY","BLUSH","SMILE","CUDDLE","CRY"))return false
         targetItem=null;walkMode=WalkMode.NONE;sleepingInBed=false;stateTime=0
         pendingNextPull=false;switchPartyLeft=0;sleepAfterGap=0
         stateDur=3000
@@ -444,6 +445,12 @@ class PetSim(
             "WAVE" -> {state=State.WAVE;stateDur=2400}
             "THINK" -> {state=State.THINK;stateDur=3500}
             "SHOW" -> {state=State.SHOW;targetItem=item;dir=if(item!!.x>x)1 else -1}
+            "ROLL" -> {state=State.ROLL;stateDur=1300}
+            "SWAY" -> {state=State.SWAY;stateDur=2100}
+            "BLUSH" -> {state=State.BLUSH;stateDur=1600}
+            "SMILE" -> {state=State.HAPPY;stateDur=2000}
+            "CUDDLE" -> {state=State.SQUEEZE;stateDur=1300}
+            "CRY" -> {state=State.HUNGRY;stateDur=2800}
             else -> state=State.IDLE
         }
         return true
