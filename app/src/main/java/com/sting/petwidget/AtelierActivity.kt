@@ -477,9 +477,6 @@ class AtelierActivity : Activity() {
 
     private fun helpControls(): View {
         val card = sectionCard("Виджет на рабочем столе", "Настрой один раз — питомец останется рядом")
-        card.addView(actionButton("Мозг Petey и общение",0xFFDEE8E1.toInt()) {
-            startActivity(Intent(this,MindActivity::class.java))
-        })
         card.addView(text("Зажми свободное место на рабочем столе → Виджеты → Питомец. Перетащи виджет и выбери удобный размер.",15f,vertical=dp(16)))
         card.addView(gap(18))
         card.addView(serviceStatus())

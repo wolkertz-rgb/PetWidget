@@ -65,7 +65,6 @@ android {
 }
 
 dependencies {
-    implementation("com.google.mediapipe:tasks-genai:0.10.35")
     // только тестовая зависимость (в APK не попадает)
     testImplementation("junit:junit:4.13.2")
 }
