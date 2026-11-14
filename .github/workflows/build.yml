@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, visual-v2, visual-v4 ]
+    branches: [ main, visual-v2, visual-v4, ai-brain ]
   workflow_dispatch:
 
 permissions:

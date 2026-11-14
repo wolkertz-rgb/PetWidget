@@ -27,6 +27,7 @@ import android.widget.RemoteViews
 class PetService : Service() {
 
     private lateinit var sim: PetSim
+    private lateinit var mind: LocalMind
     private val renderer = SceneRenderer()
     private val handler = Handler(Looper.getMainLooper())
     private var awm: AppWidgetManager? = null
@@ -64,6 +65,7 @@ class PetService : Service() {
         lastWallSaved = prefs.getLong("last_wall", 0L)
 
         sim = PetSim(this)
+        mind = LocalMind(this)
         renderer.lastPrefs = getSharedPreferences("pet_state", Context.MODE_PRIVATE)
         try { renderer.font = resources.getFont(R.font.rubik) } catch (_: Throwable) {}
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -95,6 +97,7 @@ class PetService : Service() {
             ACTION_TAP -> {
                 if (screenOn) {
                     sim.tap()
+                    mind.notice("Owner stroked me")
                     if (sizeW == 0) recomputeSizes()
                     handler.removeCallbacks(frameRunnable)
                     handler.post(frameRunnable)
@@ -114,6 +117,7 @@ class PetService : Service() {
     }
 
     override fun onDestroy() {
+        if(this::mind.isInitialized)mind.close()
         PetService.running = false
         handler.removeCallbacksAndMessages(null)
         if (registered) {
@@ -164,6 +168,7 @@ class PetService : Service() {
             // сим живёт в памяти сервиса и сам пишет диск по таймеру (~20 с).
             // «ходы» не тикают одновременно (running-флаг) — кадр без load/save:
             // экономим SharedPreferences-записи и парсинг строк (урок №4 «Библии»)
+            mind.tick(sim,dt)
             sim.tick(dt)
 
             val bmp = renderer.render(sim, sizeW, sizeH)

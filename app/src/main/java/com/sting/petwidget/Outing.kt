@@ -22,9 +22,12 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
     val swingAngle get() = if (swinging) sin(time / 1000f * 2.1f) * 0.22f *
         PetMotion.ease(time / 900f) * PetMotion.ease((10_000f - time) / 900f) else 0f
 
-    fun tick(sim: PetSim, dt: Long): Boolean {
+    fun requestTrip(): Boolean { if(busy)return false;phase=1;time=0;return true }
+    fun requestSwing(): Boolean { if(busy || !yard)return false;phase=4;time=0;return true }
+    fun tick(sim: PetSim, dt: Long, scheduled: Boolean = true): Boolean {
         elapsed += dt
         if (phase == 0) {
+            if (!scheduled) return false
             val free = sim.state == PetSim.State.IDLE || sim.state == PetSim.State.SIT ||
                 (sim.state == PetSim.State.WALK && sim.walkMode == PetSim.WalkMode.RANDOM)
             if (!free) return false

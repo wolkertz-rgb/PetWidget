@@ -51,7 +51,28 @@ class SceneRenderer {
         }
         val c = Canvas(bmp!!)
         try { paintScene(c, sim) } catch (t: Throwable) { logErr("scene", t) }
+        if(sim.speechMs>0 && sim.speech.isNotBlank() && sim.outing.fade<.05f) drawSpeech(c,sim)
         return bmp
+    }
+
+    private fun drawSpeech(c: Canvas,sim: PetSim) {
+        val u=(w/24f).coerceAtLeast(8f)
+        val width=(u*12f).coerceAtMost(w*.9f)
+        val x=(w*sim.x-width*.5f).coerceIn(u*.3f,(w-width-u*.3f).coerceAtLeast(u*.3f))
+        val y=(h-h*.115f-u*6.2f).coerceAtLeast(u*.3f)
+        pZ.typeface=font;pZ.textAlign=Paint.Align.LEFT;pZ.textSize=u*.66f;pZ.color=0xFF29443A.toInt();pZ.alpha=255
+        val lines=ArrayList<String>();var remaining=sim.speech
+        while(remaining.isNotEmpty() && lines.size<3) {
+            var count=pZ.breakText(remaining,true,width-u*.7f,null).coerceAtLeast(1)
+            if(count<remaining.length){val space=remaining.lastIndexOf(' ',count-1);if(space>0)count=space}
+            lines.add(remaining.take(count));remaining=remaining.drop(count).trimStart()
+        }
+        val height=u*(.55f+lines.size*.8f)
+        pF.color=0xF5FFF9E9.toInt();rect.set(x,y,x+width,y+height)
+        c.drawRoundRect(rect,u*.22f,u*.22f,pF)
+        pS.color=0xFF6D8977.toInt();pS.strokeWidth=u*.045f;c.drawRoundRect(rect,u*.22f,u*.22f,pS)
+        for(i in lines.indices)c.drawText(lines[i],x+u*.35f,y+u*(.85f+i*.8f),pZ)
+        pZ.color=0xFF75808B.toInt();pZ.textAlign=Paint.Align.CENTER
     }
 
     private fun logErr(section: String, t: Throwable) {
@@ -1518,6 +1539,18 @@ class SceneRenderer {
         }
 
         when (st) {
+            PetSim.State.THINK -> {
+                val e=PetMotion.envelope((sim.stateTime.toFloat()/sim.stateDur).coerceIn(0f,1f))
+                arm(cx+r*.48f,cy+r*.10f,cx+r*.40f,cy-r*.14f*e,true)
+            }
+            PetSim.State.SHOW -> {
+                val ti=sim.targetItem
+                if(ti!=null) {
+                    val e=PetMotion.envelope((sim.stateTime.toFloat()/sim.stateDur).coerceIn(0f,1f))
+                    arm(cx+sim.dir*r*.48f,cy+r*.1f,
+                        lerp(cx+sim.dir*r*.5f,itemX(ti.x),e),cy-r*.05f,true)
+                }
+            }
             PetSim.State.STRETCH -> {
                 val sp = sin(((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)) * PI.toFloat())
                 val up = sp * r * 1.35f

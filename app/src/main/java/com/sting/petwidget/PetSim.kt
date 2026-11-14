@@ -25,7 +25,7 @@ class PetSim(
         autoSave = true
     )
 
-    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY }
+    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY, THINK, SHOW }
     enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED, TO_SWITCH }
 
     /** У новых светильников настенная кнопка рядом со спальным местом. */
@@ -62,6 +62,9 @@ class PetSim(
     var hunger = 30f              // 0..100: растёт со временем, снимается едой
     val items = ArrayList<SpawnedItem>()
     val outing = Outing(prefs, autoSave)
+    var externalBrain = autoSave && prefs.getBoolean("mind_enabled",false)
+    var speech = ""
+    var speechMs = 0L
 
     private var nextSpawnIn = 6_000L             // первый предмет появится скорее
     private var sleepAfterGap = 0L
@@ -104,7 +107,8 @@ class PetSim(
         val dtS = dt / 1000f
         animPhase += dtS
         stateTime += dt
-        if (outing.tick(this, dt)) return
+        speechMs=(speechMs-dt).coerceAtLeast(0)
+        if (outing.tick(this, dt, !externalBrain)) return
 
         // физика предметов: экспоненциальное трение — время скольжения не зависит
         // от частоты кадров (в отличие от vx *= 1 - k·dt)
@@ -129,6 +133,7 @@ class PetSim(
             if (items.isEmpty() && state != State.SLEEP && state != State.PULL && state != State.WAVE) spawnItem()
         }
         // "Я ВАС ВИЖУ!" — махание владельцу раз в ~5 минут вежливости
+        if (!externalBrain) {
         msSinceWave += dt
         if (msSinceWave >= nextWaveEvery &&
             state != State.SLEEP && state != State.INTERACT && state != State.PULL &&
@@ -191,10 +196,11 @@ class PetSim(
             }
         }
 
+        }
         // ГОЛОД: растёт со временем жизни на экране
         hunger = (hunger + dt * 100f / HUNGER_FULL_MS).coerceIn(0f, 100f)
         // если голоден сильнее меры и еды в комнате нет — голодная побудка-жест
-        if (hunger > HUNGER_LEVEL && animPhase >= nextHungryAt &&
+        if (!externalBrain && hunger > HUNGER_LEVEL && animPhase >= nextHungryAt &&
             (state == State.IDLE || state == State.SIT ||
                 (state == State.WALK && walkMode == WalkMode.RANDOM))
         ) {
@@ -343,6 +349,7 @@ class PetSim(
         walkMode = WalkMode.NONE
         sleepingInBed = false
         if (outing.yard && state == State.SLEEP) state = State.IDLE
+        if (externalBrain) { state=State.IDLE;stateDur=2000;return }
 
         if (sleepAfterGap > 0) { state = State.SLEEP; stateDur = 2_500; return }
 
@@ -404,6 +411,42 @@ class PetSim(
                 dir = if (BED_X > x) 1 else -1
             }
         }
+    }
+
+    fun performIntention(action: String, target: String): Boolean {
+        if(outing.busy)return false
+        val item=items.firstOrNull {it.defId==target && it.ageMs>=0}
+        if(action in listOf("PLAY","EAT","SHOW") && item==null)return false
+        if(action=="EAT" && item?.def?.kind!=ItemDefs.Kind.FOOD)return false
+        if(action=="LIGHT" && outing.yard)return false
+        if(action=="SWING" && !outing.yard)return false
+        if(action !in listOf("IDLE","WALK","PLAY","EAT","REST","LOOK","STRETCH","WAVE","LIGHT","TRAVEL","SWING","THINK","SHOW"))return false
+        targetItem=null;walkMode=WalkMode.NONE;sleepingInBed=false;stateTime=0
+        pendingNextPull=false;switchPartyLeft=0;sleepAfterGap=0
+        stateDur=3000
+        when(action) {
+            "TRAVEL" -> { state=State.IDLE;return outing.requestTrip() }
+            "SWING" -> { state=State.IDLE;return outing.requestSwing() }
+            "PLAY","EAT" -> {
+                targetItem=item
+                if(abs(item!!.x-x)<.15f)beginInteract(item)
+                else {state=State.WALK;walkMode=WalkMode.TO_ITEM;dir=if(item.x>x)1 else -1;stateDur=16_000}
+            }
+            "REST" -> {
+                pendingSleepDur=15_000
+                if(outing.yard){state=State.SIT;stateDur=8000}
+                else {state=State.WALK;walkMode=WalkMode.TO_BED;dir=if(BED_X>x)1 else -1;stateDur=12_000}
+            }
+            "LIGHT" -> {state=State.WALK;walkMode=WalkMode.TO_SWITCH;dir=if(switchX>x)1 else -1;stateDur=12_000}
+            "WALK" -> {state=State.WALK;walkMode=WalkMode.RANDOM;dir=if(x>.5f)-1 else 1;stateDur=6000}
+            "LOOK" -> state=State.LOOK
+            "STRETCH" -> {state=State.STRETCH;stateDur=1600}
+            "WAVE" -> {state=State.WAVE;stateDur=2400}
+            "THINK" -> {state=State.THINK;stateDur=3500}
+            "SHOW" -> {state=State.SHOW;targetItem=item;dir=if(item!!.x>x)1 else -1}
+            else -> state=State.IDLE
+        }
+        return true
     }
 
     private fun beginInteract(item: SpawnedItem) {
@@ -509,6 +552,10 @@ class PetSim(
     }
 
     private fun finishPull() {
+        if(externalBrain) {
+            pendingNextPull=false;switchPartyLeft=0;state=State.IDLE;stateTime=0;stateDur=1200
+            return
+        }
         // «детская игра»: иногда после тяги — серия весёлых включений-выключений
         if (switchPartyLeft == 0 && !pendingNextPull && rng.nextFloat() < 0.30f) {
             switchPartyLeft = (2..4).random(rng)
@@ -557,7 +604,7 @@ class PetSim(
     fun onResume(gapMs: Long) {
         // время питомца замирает вместе с экраном: предметы в паузе не старели,
         // поэтому чистка по gapMs не нужна (семантика «спал, а не жил в тени»)
-        if (gapMs > 4 * 60 * 60_000 && !outing.yard) {
+        if (gapMs > 4 * 60 * 60_000 && !outing.yard && !externalBrain) {
             sleepAfterGap = rL(8_000, 18_000)
         }
         stateDur = stateTime + 1
