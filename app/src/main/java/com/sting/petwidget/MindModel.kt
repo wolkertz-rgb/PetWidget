@@ -67,7 +67,13 @@ internal object MindModel {
             try {
                 val response=it.generateResponseAsync()
                 if(!allowed())it.cancelGenerateResponseAsync()
-                response.get()
+                try { response.get(30,java.util.concurrent.TimeUnit.SECONDS) }
+                catch(e: java.util.concurrent.TimeoutException) {
+                    it.cancelGenerateResponseAsync()
+                    // Дождаться подтверждения отмены перед закрытием native-сессии.
+                    try {response.get()}catch(_: Exception){}
+                    throw IllegalStateException("Превышено время выбора занятия",e)
+                }
             } finally { activeSession=null }
         }
 }

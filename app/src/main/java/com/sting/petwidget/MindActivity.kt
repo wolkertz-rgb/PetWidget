@@ -26,7 +26,9 @@ class MindActivity : Activity() {
                 !ready -> "Модель пока не загружена"
                 !prefs.getBoolean("mind_enabled",false) -> "Модель готова. Нейросетевой режим выключен.\n"+prefs.getString("mind_status","")
                 else -> prefs.getString("mind_status","Мозг готов")
-            }+"\n\nПлан: "+prefs.getString("mind_plan","пока не выбран")+
+            }+"\n\nЗанятие: "+prefs.getString("mind_plan","пока не выбрано")+
+                "\nВыбор: "+prefs.getString("mind_source","ожидание")+
+                "\nПоследний запрос: "+(prefs.getLong("mind_latency_ms",0)/1000)+" с"+
                 "\n\nПоследние события:\n"+prefs.getString("mind_memories","пока нет")
             handler.postDelayed(this,1000)
         }
@@ -65,7 +67,7 @@ class MindActivity : Activity() {
             }
         }
         status=text("");body.addView(status)
-        body.addView(text("Память и сообщения хранятся на телефоне. Облачного сервера и ключа API нет. Модель может ошибаться и повторяться. Если режим не запускается, выключи его и пришли текст статуса."))
+        body.addView(text("Пет продолжает жить, пока нейросеть выбирает занятие. Сообщения используются для выбора действий: свободного чата пока нет. Русские реплики подготовлены заранее и связаны с действием. Память хранится на телефоне; облачного сервера нет."))
         button("Назад") {finish()}
     }
     override fun onResume(){super.onResume();handler.post(ticker)}
