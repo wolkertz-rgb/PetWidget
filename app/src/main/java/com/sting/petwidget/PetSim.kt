@@ -418,7 +418,7 @@ class PetSim(
         val item=items.firstOrNull {it.defId==target && it.ageMs>=0}
         if(action in listOf("PLAY","EAT","SHOW") && item==null)return false
         if(action=="EAT" && item?.def?.kind!=ItemDefs.Kind.FOOD)return false
-        if(action=="PLAY" && item?.def?.kind!=ItemDefs.Kind.TOY)return false
+        if(action=="PLAY" && item?.def?.kind==ItemDefs.Kind.FOOD)return false
         if(action=="LIGHT" && outing.yard)return false
         if(action=="SWING" && !outing.yard)return false
         if(action !in listOf("IDLE","WALK","PLAY","EAT","REST","LOOK","STRETCH","WAVE","LIGHT","TRAVEL","SWING","THINK","SHOW","ROLL","SWAY","BLUSH","SMILE","CUDDLE","CRY"))return false

@@ -53,7 +53,7 @@ internal class LocalMind(context: Context) : AutoCloseable {
         }
         previouslyEnabled=sim.externalBrain
         if(!sim.externalBrain || closed)return
-        if(previousState!=sim.state && sim.state==PetSim.State.HAPPY)notice("Закончил занятие с предметом")
+        if(previousState==PetSim.State.INTERACT && sim.state==PetSim.State.HAPPY)notice("Закончил занятие с предметом")
         previousState=sim.state
         val minutes=dt/60_000f
         energy=(energy+minutes*(if(sim.state==PetSim.State.SLEEP).07f else if(sim.state==PetSim.State.SIT).025f else -.018f)).coerceIn(0f,1f)
@@ -69,7 +69,7 @@ internal class LocalMind(context: Context) : AutoCloseable {
         val items=sim.items.filter {it.ageMs>=0}.joinToString(",") {"${it.defId}:${it.def.kind}"}
         val prompt="""<|im_start|>system
 You are Petey, a virtual pet. Choose your next intention from personality, needs, memories and surroundings. Be varied. Never claim to see camera or other apps. Reply ONLY JSON: {"action":"LOOK","target":"","say":"short Russian phrase","plan":"short intention"}.
-Allowed: IDLE,WALK,PLAY,EAT,REST,LOOK,STRETCH,WAVE,LIGHT,TRAVEL,SWING,THINK,SHOW,ROLL,SWAY,BLUSH,SMILE,CUDDLE,CRY. PLAY/EAT/SHOW target is a listed item id; PLAY needs TOY, EAT needs FOOD. LIGHT indoors, SWING in yard, TRAVEL changes place. CRY expresses hunger, CUDDLE affection. Say may be empty; do not speak every turn. Maximum 55 characters of Russian speech. Write plan briefly in Russian. No reasoning text. Hunger 100 means very hungry; energy 0 means tired; need company 100 means lonely.
+Allowed: IDLE,WALK,PLAY,EAT,REST,LOOK,STRETCH,WAVE,LIGHT,TRAVEL,SWING,THINK,SHOW,ROLL,SWAY,BLUSH,SMILE,CUDDLE,CRY. PLAY/EAT/SHOW target is a listed item id; PLAY needs TOY or BOX, EAT needs FOOD. PLAY opens a BOX gift. LIGHT indoors, SWING in yard, TRAVEL changes place. CRY expresses hunger, CUDDLE affection. Say may be empty; do not speak every turn. Maximum 55 characters of Russian speech. Write plan briefly in Russian. No reasoning text. Hunger 100 means very hungry; energy 0 means tired; need company 100 means lonely.
 <|im_end|>
 <|im_start|>user
 Personality: ${prefs.getString("mind_personality","curious")}.
