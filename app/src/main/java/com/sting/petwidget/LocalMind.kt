@@ -61,7 +61,8 @@ internal class LocalMind(context: Context) : AutoCloseable {
     }
     private fun key(c: Choice)="${c.action}:${c.target}"
     private fun autonomous(sim: PetSim): Choice {
-        val options=choices(sim)
+        // Не менять локацию под снимком мира, который сейчас обрабатывает модель.
+        val options=choices(sim).filter { !busy.get() || it.action!="TRAVEL" }
         options.firstOrNull {it.action=="EAT" && sim.hunger>55}?.let {return it}
         if(energy<.25f)return options.first {it.action=="REST"}
         return options.maxBy { c ->
@@ -112,7 +113,15 @@ internal class LocalMind(context: Context) : AutoCloseable {
         val free=!sim.outing.busy && sim.state==PetSim.State.IDLE
         pending?.let { d ->
             if(d.version!=revision || d.message!=incomingId || d.yard!=sim.outing.yard || now>d.expires)pending=null
-            else if(free){pending=null;if(execute(sim,d.choice,true))return}
+            else if(free){
+                pending=null
+                if(execute(sim,d.choice,true)) {
+                    if(d.message!=messageId)remember("Хозяин: ${prefs.getString("mind_message","").orEmpty().take(80)}")
+                    messageId=d.message
+                    prefs.edit().putLong("mind_processed_message_id",messageId).apply()
+                    return
+                }
+            }
         }
         // Подход к предмету, игра и отдых завершаются без прерывания запросами.
         if(free && sim.stateTime>=1200)execute(sim,autonomous(sim),false)
@@ -155,9 +164,6 @@ ${menu.mapIndexed { i,c -> "$i=${c.action} ${c.target} (${c.label})" }.joinToStr
                 main.post {
                     if(available(version) && prefs.getLong("mind_message_id",0)==incomingId && sim.outing.yard==yard) {
                         pending=Decision(menu[index],yard,version,incomingId,SystemClock.uptimeMillis()+45_000)
-                        messageId=incomingId
-                        if(incoming.isNotEmpty())remember("Хозяин: $incoming")
-                        prefs.edit().putLong("mind_processed_message_id",messageId).apply()
                         status("Выбрано: ${menu[index].label}")
                     }
                     finishRequest(start,30_000)
