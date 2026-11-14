@@ -84,6 +84,7 @@ Choose a small plan and one available action.
         if(!busy.compareAndSet(false,true))return
         status("Обдумывает следующее занятие")
         worker.execute {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND)
             try {
                 val loaded=engine ?: run {
                     val manager=app.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager

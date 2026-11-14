@@ -24,7 +24,7 @@ class MindActivity : Activity() {
                 MindModel.downloading -> "Загрузка модели: "+MindModel.progress+"%"
                 MindModel.downloadError.isNotEmpty() -> MindModel.downloadError
                 !ready -> "Модель пока не загружена"
-                !prefs.getBoolean("mind_enabled",false) -> "Модель готова. Включи нейросетевой режим."
+                !prefs.getBoolean("mind_enabled",false) -> "Модель готова. Нейросетевой режим выключен.\n"+prefs.getString("mind_status","")
                 else -> prefs.getString("mind_status","Мозг готов")
             }+"\n\nПлан: "+prefs.getString("mind_plan","пока не выбран")+
                 "\n\nПоследние события:\n"+prefs.getString("mind_memories","пока нет")
@@ -49,9 +49,9 @@ class MindActivity : Activity() {
         button("Загрузить модель") {MindModel.download(this)}
         button("Включить нейросетевой режим") {
             if(!MindModel.file(this).exists())Toast.makeText(this,"Сначала дождись загрузки модели",Toast.LENGTH_SHORT).show()
-            else {prefs.edit().putBoolean("mind_enabled",true).apply();PetWidgetProvider.tryStartService(this)}
+            else {prefs.edit().putBoolean("mind_enabled",true).putString("mind_status","Ждёт свободного момента в виджете").apply();PetWidgetProvider.tryStartService(this)}
         }
-        button("Вернуть обычное поведение") {prefs.edit().putBoolean("mind_enabled",false).apply()}
+        button("Вернуть обычное поведение") {prefs.edit().putBoolean("mind_enabled",false).putString("mind_status","Выбрано обычное поведение").apply()}
         val message=EditText(this).apply {hint="Что сказать пету?";maxLines=3}
         body.addView(message)
         button("Сказать пету") {

@@ -3,6 +3,7 @@ package com.sting.petwidget
 import android.content.Context
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import com.google.mediapipe.tasks.genai.llminference.PromptTemplates
 import java.io.File
 import java.net.URL
 import java.security.MessageDigest
@@ -56,6 +57,8 @@ internal object MindModel {
     fun infer(engine: LlmInference,prompt: String, allowed: () -> Boolean): String =
         LlmInferenceSession.createFromOptions(engine,
             LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                // ChatML уже включён в prompt: библиотека не должна оборачивать его повторно.
+                .setPromptTemplates(PromptTemplates.builder().build())
                 .setTopK(32).setTemperature(.75f).setRandomSeed(kotlin.random.Random.nextInt()).build()).use {
             check(allowed()) {"Вычисление отменено"}
             it.addQueryChunk(prompt)
