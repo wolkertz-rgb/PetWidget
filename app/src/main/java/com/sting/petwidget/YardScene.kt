@@ -43,11 +43,17 @@ internal class YardScene {
         box(c,-2.05f,-.06f,2.05f,.1f,0xFFA6987F.toInt(),.035f)
         c.restore()
     }
+    private val dayGlow = SceneLighting.AmbientGlow(0.72f, .27f, .43f, 0x31FFE3A6)
+    private val eveningGlow = SceneLighting.AmbientGlow(.73f, .38f, .39f, 0x2992BBF0)
+
     fun draw(c: Canvas, w: Float, h: Float, floor: Float, u: Float, now: Long, outing: Outing,
              prefs: android.content.SharedPreferences? = null) {
         swingWood = prefs?.getInt("yard_swing",0xFFB58B5F.toInt()) ?: 0xFFB58B5F.toInt()
         c.save(); c.scale(u,u)
         landscape.draw(c,w/u,h/u,floor/u,now,prefs)
+        val night = WindowScene.night(now)
+        dayGlow.draw(c, w/u, h/u, floor/u, 1f - night)
+        eveningGlow.draw(c, w/u, h/u, floor/u, night)
         door(c,.7f+outing.doorX*(w/u-1.4f),floor/u,1f,outing.doorOpen)
         c.restore()
         swing(c,w,floor,u,outing.swingAngle)

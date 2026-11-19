@@ -25,7 +25,7 @@ class PetSim(
         autoSave = true
     )
 
-    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY }
+    enum class State { IDLE, WALK, SIT, SLEEP, INTERACT, HAPPY, ROLL, SWAY, LOOK, STRETCH, WAVE, SMUG, BLUSH, SQUEEZE, TICKLE, PULL, HUNGRY, NOTICE, INSPECT, CHASE, SATISFIED }
     enum class WalkMode { NONE, RANDOM, TO_ITEM, TO_BED, TO_SWITCH }
 
     /** У новых светильников настенная кнопка рядом со спальным местом. */
@@ -43,6 +43,7 @@ class PetSim(
         var used: Boolean = false // питомец уже поиграл с ним — интерес пропал
     ) {
         val def: ItemDefs.Def get() = ItemDefs.byId[defId]!!
+        var rollDistance = 0f
     }
 
     private fun rL(a: Long, b: Long): Long = rng.nextLong(a, b)
@@ -57,6 +58,9 @@ class PetSim(
     var walkMode = WalkMode.NONE
     var targetItem: SpawnedItem? = null
     var reaction = ItemDefs.Reaction.PLAY
+    var robotReturns = false
+        private set
+    private var chaseBallNext = true
     var sleepingInBed = false
     var petStyle = 0              // вариант реакции на поглаживание
     var hunger = 30f              // 0..100: растёт со временем, снимается едой
@@ -115,10 +119,12 @@ class PetSim(
             if (i.ageMs > i.ttlMs) { it.remove(); continue }
             if (i.ageMs >= 0 && abs(i.vx) > 0.01f) {
                 val k = kotlin.math.exp(-1.6f * dtS)
+                val previousX = i.x
                 i.x += i.vx * (1f - k) / 1.6f
                 i.vx *= k
                 if (i.x < 0.07f) { i.x = 0.07f; i.vx = -i.vx * 0.5f }
                 if (i.x > 0.93f) { i.x = 0.93f; i.vx = -i.vx * 0.5f }
+                if (i.defId == "ball") i.rollDistance += i.x - previousX
             }
         }
 
@@ -126,15 +132,11 @@ class PetSim(
         nextSpawnIn -= dt
         if (nextSpawnIn <= 0) {
             nextSpawnIn = rL(14_000, 55_000)
-            if (items.isEmpty() && state != State.SLEEP && state != State.PULL && state != State.WAVE) spawnItem()
+            if (items.isEmpty() && freeForActivity()) spawnItem()
         }
         // "Я ВАС ВИЖУ!" — махание владельцу раз в ~5 минут вежливости
         msSinceWave += dt
-        if (msSinceWave >= nextWaveEvery &&
-            state != State.SLEEP && state != State.INTERACT && state != State.PULL &&
-            state != State.ROLL && state != State.HAPPY &&
-            walkMode != WalkMode.TO_SWITCH && !pendingNextPull
-        ) {
+        if (msSinceWave >= nextWaveEvery && freeForActivity()) {
             msSinceWave = 0
             nextWaveEvery = rL(240_000, 360_000)
             state = State.WAVE
@@ -142,12 +144,9 @@ class PetSim(
             stateDur = 2_400
         }
 
-        // ЖЁСТКОЕ ПРАВИЛО: раз в минуту питомец ОБЯЗАН дёрнуть выключатель.
-        // Не рандом и без бегов — будит даже спящего, перебивает остальные дела.
-        // Пока он в процессе тяги/похода/серии — правило честно ждёт окончания.
+        // Когда настало время переключить свет, ждём завершения текущего занятия.
         val switchDue = animPhase - lastPullAt >= 60f
-        val switchBusy = state == State.PULL || walkMode == WalkMode.TO_SWITCH || pendingNextPull
-        if (switchDue && !switchBusy && !outing.yard) {
+        if (switchDue && freeForActivity() && !outing.yard) {
             lastPullAt = animPhase
             walkMode = WalkMode.TO_SWITCH
             state = State.WALK
@@ -161,30 +160,11 @@ class PetSim(
         // ГАРАНТИРОВАННОЕ ЖЕЛАНИЕ: давно не трогал предметы и есть НЕТРОНУТЫЙ —
         // начинает взаимодействие (тот же путь, что и тап-тест — он работает всегда)
         // голоден сильнее меры — еды в приоритете и ждать недолго
-        if (animPhase >= nextAutoInteract &&
-            state != State.INTERACT && state != State.SLEEP &&
-            state != State.WAVE && state != State.HAPPY &&
-            walkMode != WalkMode.TO_SWITCH && !pendingNextPull
-        ) {
-            val unused = items.filter { !it.used }
-            val candidates = if (hunger > 55f) {
-                (unused.filter { it.def.kind == ItemDefs.Kind.FOOD } + unused).distinctBy { it.x }
-            } else unused
-            val nearest = candidates.minByOrNull { abs(it.x - x) }
+        if (animPhase >= nextAutoInteract && freeForActivity()) {
+            val nearest = interestingItem()
             if (nearest != null) {
                 nextAutoInteract = animPhase + if (hunger > 55f) rF(45f, 75f) else rF(90f, 150f)
-                if (abs(nearest.x - x) < 0.15f) {
-                    targetItem = nearest
-                    beginInteract(nearest)
-                } else {
-                    // далекий предмет: честно идём к нему (ход дойдёт благодаря clamp)
-                    targetItem = nearest
-                    walkMode = WalkMode.TO_ITEM
-                    state = State.WALK
-                    stateTime = 0
-                    stateDur = 16_000
-                    dir = if (nearest.x > x) 1 else -1
-                }
+                approach(nearest)
             } else {
                 // нетронутых предметов нет — интерес утих, ждём нового
                 nextAutoInteract = animPhase + rF(60f, 120f)
@@ -249,7 +229,7 @@ class PetSim(
                                 val dist = abs(dx)
                                 if (dist < 0.07f) {
                                     // ДОШЁЛ — начинается взаимодействие
-                                    beginInteract(ti)
+                                    inspect(ti)
                                 } else {
                                     dir = if (dx > 0) 1 else -1
                                     // шаг строго ограничен дистанцией: питомец
@@ -286,6 +266,30 @@ class PetSim(
                         }
                         if (state == State.WALK && stateTime >= stateDur && walkMode != WalkMode.TO_ITEM) nextAction()
                     }
+                }
+            }
+
+            State.NOTICE, State.INSPECT, State.CHASE -> {
+                val item = targetItem
+                if (item == null || item !in items) {
+                    nextAction()
+                } else when (state) {
+                    State.NOTICE -> if (item.ageMs >= 0) approach(item)
+                    State.INSPECT -> if (stateTime >= stateDur) beginInteract(item)
+                    State.CHASE -> {
+                        val dx = item.x - x
+                        if (abs(dx) > 0.085f) {
+                            dir = if (dx > 0) 1 else -1
+                            x += dir * minOf(abs(dx) - 0.085f, WALK_SPEED * 1.45f * dtS)
+                        }
+                        if (stateTime >= stateDur || (stateTime >= 350 && abs(dx) <= 0.085f)) {
+                            targetItem = null
+                            state = State.HAPPY
+                            stateTime = 0
+                            stateDur = 1_050
+                        }
+                    }
+                    else -> Unit
                 }
             }
 
@@ -350,27 +354,19 @@ class PetSim(
         // рывок в случайную следующую позу — так просыпаются домашние зверьки
         if (woke) { state = State.STRETCH; stateDur = 1_600; return }
 
-        val nearest = items.filter { !it.used }.minByOrNull { abs(it.x - x) }
+        val nearest = interestingItem()
         val fresh = nearest?.takeIf { it.ageMs in 0L..12_000L }
         val r = rng.nextFloat()
 
         when {
             // ЛЮБОПЫТСТВО к НОВОМУ предмету (сила — только пока он нетронутый)
             fresh != null && rng.nextFloat() < 0.85f -> {
-                targetItem = fresh
-                walkMode = WalkMode.TO_ITEM
-                state = State.WALK
-                stateDur = 16_000
-                dir = if (fresh.x > x) 1 else -1
+                approach(fresh)
             }
 
             // обычное любопытство: только к нетронутым предметам
             nearest != null && r < 0.62f -> {
-                targetItem = nearest
-                walkMode = WalkMode.TO_ITEM
-                state = State.WALK
-                stateDur = 14_000
-                dir = if (nearest.x > x) 1 else -1
+                approach(nearest)
             }
 
             // РЕДКИЕ выходки-трюки: не чаще, чем раз в 30 секунд
@@ -406,11 +402,45 @@ class PetSim(
         }
     }
 
+    private fun freeForActivity(): Boolean = !pendingNextPull &&
+        (state == State.IDLE || state == State.SIT ||
+            (state == State.WALK && walkMode == WalkMode.RANDOM))
+
+    private fun interestingItem(): SpawnedItem? {
+        val landed = items.filter { !it.used && it.ageMs >= 0 }
+        return landed.minByOrNull {
+            abs(it.x - x) - if (hunger > 55f && it.def.kind == ItemDefs.Kind.FOOD) 1f else 0f
+        }
+    }
+
+    private fun approach(item: SpawnedItem) {
+        if (abs(item.x - x) < 0.085f) {
+            inspect(item)
+            return
+        }
+        targetItem = item
+        walkMode = WalkMode.TO_ITEM
+        state = State.WALK
+        stateTime = 0
+        stateDur = 16_000
+        dir = if (item.x >= x) 1 else -1
+    }
+
+    private fun inspect(item: SpawnedItem) {
+        targetItem = item
+        walkMode = WalkMode.NONE
+        state = State.INSPECT
+        stateTime = 0
+        stateDur = if (item.def.kind == ItemDefs.Kind.BOX) 1_150 else 790
+        dir = if (item.x >= x) 1 else -1
+    }
+
     private fun beginInteract(item: SpawnedItem) {
         state = State.INTERACT
         stateTime = 0
         interactShown = false
         reaction = item.def.reaction
+        if (item.defId == "robot") robotReturns = !robotReturns
         stateDur = when (item.defId) {
             "robot" -> 4_200
             "top" -> 3_400
@@ -435,7 +465,7 @@ class PetSim(
 
     private fun finishInteract() {
         val ti = targetItem
-        if (ti != null) {
+        if (ti != null && ti in items) {
             when (reaction) {
                 ItemDefs.Reaction.EAT -> {
                     items.remove(ti)
@@ -447,11 +477,21 @@ class PetSim(
                     }
                 }
                 ItemDefs.Reaction.PUSH -> {
-                    ti.x = (ti.x + dir * 0.018f).coerceIn(X_MIN, X_MAX)
                     ti.vx = dir * rF(0.35f, 0.7f)
+                    if (ti.defId == "ball") {
+                        val chase = chaseBallNext
+                        chaseBallNext = !chaseBallNext
+                        if (chase) {
+                            ti.used = true
+                            state = State.CHASE
+                            stateTime = 0
+                            stateDur = 2_800
+                            return
+                        }
+                    }
                 }
                 ItemDefs.Reaction.PLAY -> if (ti.defId == "robot") {
-                    ti.x = (ti.x + dir * 0.09f).coerceIn(X_MIN, X_MAX)
+                    if (!robotReturns) ti.x = (ti.x + dir * InteractionMotion.ROBOT_TRAVEL).coerceIn(0.07f, 0.93f)
                 }
                 ItemDefs.Reaction.OPEN -> openGift(ti)
                 else -> {}
@@ -460,9 +500,10 @@ class PetSim(
             if (items.contains(ti)) ti.used = true
         }
         targetItem = null
-        state = State.HAPPY
+        val satisfied = reaction == ItemDefs.Reaction.EAT || reaction == ItemDefs.Reaction.RUB
+        state = if (satisfied) State.SATISFIED else State.HAPPY
         stateTime = 0
-        stateDur = 700
+        stateDur = if (satisfied) 1_350 else 950
     }
 
     private fun openGift(box: SpawnedItem) {
@@ -540,7 +581,7 @@ class PetSim(
     /** Тап по питомцу = ПОГЛАЖИВАНИЕ: случайная реакция */
     fun tap() {
         if (outing.busy) return
-        if (state == State.SLEEP) return
+        if (state == State.SLEEP || state == State.PULL || pendingNextPull) return
         petStyle = rng.nextInt(5)
         targetItem = null
         walkMode = WalkMode.NONE
@@ -560,7 +601,7 @@ class PetSim(
         if (gapMs > 4 * 60 * 60_000 && !outing.yard) {
             sleepAfterGap = rL(8_000, 18_000)
         }
-        stateDur = stateTime + 1
+        if (!tracksItem() && state != State.PULL) stateDur = stateTime + 1
         save()
     }
 
@@ -586,17 +627,12 @@ class PetSim(
         }
         items.add(spawned)
 
-        // МГНОВЕННОЕ ЛЮБОПЫТСТВО: каждый новый предмет — сразу цель похода
-        if (walkMode != WalkMode.TO_SWITCH && state != State.SLEEP &&
-            state != State.PULL && state != State.INTERACT
-        ) {
-            targetItem = spawned
-            walkMode = WalkMode.TO_ITEM
-            state = State.WALK
-            stateTime = 0
-            stateDur = 16_000
-            dir = if (spawned.x > x) 1 else -1
-        }
+        targetItem = spawned
+        walkMode = WalkMode.NONE
+        state = State.NOTICE
+        stateTime = 0
+        stateDur = SpawnMotion.DURATION_MS
+        dir = if (spawned.x >= x) 1 else -1
     }
 
     /**
@@ -612,11 +648,15 @@ class PetSim(
         defId,
         x = rF(0.10f, 0.66f), // левее кресла — кресло занимает правый угол
         vx = 0f,
-        ageMs = -1500L,
+        ageMs = -SpawnMotion.DURATION_MS,
         ttlMs = rL(90_000, 210_000)
     )
 
     // ---------------------------------------------------------- сохранение
+
+    private fun tracksItem() = state == State.NOTICE || state == State.INSPECT ||
+        state == State.CHASE || state == State.INTERACT ||
+        (state == State.WALK && walkMode == WalkMode.TO_ITEM)
 
     fun save() {
         if (!autoSave) return
@@ -630,6 +670,8 @@ class PetSim(
         ed.putLong(KEY_STIME, stateTime)
         ed.putLong(KEY_SDUR, stateDur)
         ed.putString(KEY_REACTION, reaction.name)
+        ed.putBoolean("robot_returns", robotReturns)
+        ed.putBoolean("ball_chase_next", chaseBallNext)
         ed.putBoolean(KEY_INBED, sleepingInBed)
         ed.putBoolean(KEY_PULLDONE, pullDone)
         ed.putFloat(KEY_HUNGER, hunger)
@@ -639,7 +681,7 @@ class PetSim(
         // ЦЕЛЬ ХРАНИТСЯ НЕ ТОЛЬКО ДЛЯ INTERACT — иначе поход к предмету
         // теряет цель при пересоздании симуляции (амнезия ходьбы)
         if (targetItem != null &&
-            (state == State.INTERACT || (state == State.WALK && walkMode == WalkMode.TO_ITEM))
+            tracksItem()
         ) {
             ed.putString(KEY_TARGET, "${targetItem!!.defId},${targetItem!!.x}")
         } else {
@@ -660,6 +702,8 @@ class PetSim(
         animPhase = prefs.getFloat(KEY_PHASE, animPhase)
         stateTime = prefs.getLong(KEY_STIME, 0L)
         stateDur = prefs.getLong(KEY_SDUR, 2_000L)
+        robotReturns = prefs.getBoolean("robot_returns", false)
+        chaseBallNext = prefs.getBoolean("ball_chase_next", true)
         reaction = try {
             ItemDefs.Reaction.valueOf(prefs.getString(KEY_REACTION, "PLAY")!!)
         } catch (_: Exception) { ItemDefs.Reaction.PLAY }
@@ -698,7 +742,7 @@ class PetSim(
             items.clear()
         }
         // восстановить цель: для взаимодействия И для похода к предмету
-        if (state == State.INTERACT || (state == State.WALK && walkMode == WalkMode.TO_ITEM)) {
+        if (tracksItem()) {
             val tk = prefs.getString(KEY_TARGET, null)?.split(",")
             if (tk != null && tk.size == 2) {
                 val tx = tk[1].toFloatOrNull()

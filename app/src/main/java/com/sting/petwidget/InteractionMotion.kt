@@ -6,6 +6,7 @@ import kotlin.math.sin
 
 /** Индивидуальные мини-сцены для игрушек, которые остаются на полу. */
 internal object InteractionMotion {
+    const val ROBOT_TRAVEL = 0.09f
     data class FloorPose(
         val dx: Float = 0f,
         val lift: Float = 0f,
@@ -19,16 +20,16 @@ internal object InteractionMotion {
         return x * x * (3f - 2f * x)
     }
 
-    fun floorPose(id: String, phase: Float, dir: Int): FloorPose {
+    fun floorPose(id: String, phase: Float, dir: Int, robotReturns: Boolean = false): FloorPose {
         val p = phase.coerceIn(0f, 1f)
         return when (id) {
             "robot" -> {
                 // Сначала пет ставит робота и нажимает кнопку, затем тот идёт сам.
-                val move = smooth((p - 0.32f) / 0.48f)
-                val settle = smooth((p - 0.80f) / 0.20f)
-                val steps = sin(move * PI.toFloat() * 6f) * (1f - settle)
+                val move = if (robotReturns) smooth((p - 0.34f) / 0.30f) *
+                    (1f - smooth((p - 0.66f) / 0.30f)) else smooth((p - 0.34f) / 0.56f)
+                val steps = sin(move * PI.toFloat() * 6f)
                 FloorPose(
-                    dx = dir * 2.05f * move,
+                    dx = dir * move,
                     lift = -0.18f * kotlin.math.abs(steps),
                     rotation = steps * 5f,
                     scaleX = 1f + 0.035f * kotlin.math.abs(steps),

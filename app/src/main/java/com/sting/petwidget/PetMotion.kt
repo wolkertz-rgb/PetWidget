@@ -48,6 +48,17 @@ internal object PetMotion {
             }
             PetSim.State.SWAY -> Pose(angle = sin(p * 4f * PI.toFloat()) * 0.12f * e)
             PetSim.State.LOOK -> Pose(angle = sin(p * 2f * PI.toFloat()) * 0.055f * e)
+            PetSim.State.NOTICE -> Pose(1f - 0.045f * e, 1f + 0.07f * e,
+                -sim.dir * 0.11f * e, lift = 0.10f * e)
+            PetSim.State.INSPECT -> Pose(1f + 0.055f * e, 1f - 0.06f * e,
+                sim.dir * 0.13f * e, offset = sim.dir * 0.12f * e)
+            PetSim.State.CHASE -> {
+                val bounce = kotlin.math.abs(sin(t * 12f)) * e
+                Pose(1f - 0.04f * bounce, 1f + 0.05f * bounce,
+                    sim.dir * 0.07f * e, lift = 0.24f * bounce)
+            }
+            PetSim.State.SATISFIED -> Pose(1f + 0.045f * e, 1f - 0.035f * e,
+                sin(t * 3.5f) * 0.04f * e)
             PetSim.State.WAVE -> Pose(1f + 0.018f * e, 1f - 0.012f * e)
             PetSim.State.SMUG -> Pose(1f + 0.04f * e, 1f - 0.02f * e, -0.06f * e * sim.dir)
             PetSim.State.BLUSH -> Pose(1f + 0.035f * e, 1f - 0.055f * e, 0.045f * e * sim.dir)

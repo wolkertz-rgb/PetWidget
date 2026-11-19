@@ -171,6 +171,7 @@ class SceneRenderer {
 
         // Мягкая смена времени суток и окно в свободной левой части стены.
         c.drawColor(((night * 30).toInt() shl 24) or 0x002E3A55)
+        if (lightNow()) roomBounce.draw(c, w.toFloat(), h.toFloat(), floorY)
         c.save()
         c.translate(unit * 15f, 0f)
         WindowScene.draw(c, unit, floorY, worldTime)
@@ -229,6 +230,7 @@ class SceneRenderer {
 
         // сердечки при приветствии
         if (sim.state == PetSim.State.WAVE) drawHearts(c, sim, itemX(sim.x), floorY, unit)
+        drawDiscovery(c, sim, itemX(sim.x), floorY, unit, itemX)
 
         // конфетти
         for (item in sim.items) {
@@ -268,7 +270,7 @@ class SceneRenderer {
         c.scale(perspective,perspective)
         c.translate(-center,-floor)
         drawPet(c, sim, itemX(sim.x), floor, unit, inter)
-        drawArms(c, sim, inter, unit, floor, itemX)
+        if (!inter.holding) drawArms(c, sim, inter, unit, floor, itemX)
         c.restore()
         for (item in sim.items) {
             if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), floor, unit)
@@ -281,7 +283,30 @@ class SceneRenderer {
             drawArms(c,sim,inter,unit,floor,itemX)
         }
         if (sim.state == PetSim.State.WAVE) drawHearts(c,sim,itemX(sim.x),floor,unit)
+        drawDiscovery(c, sim, center, floor, unit, itemX)
         drawLocationFade(c,sim)
+    }
+
+    private val roomBounce = SceneLighting.AmbientGlow(0.53f, 0.91f, 0.49f, 0x24FFF1C9)
+
+    private fun drawDiscovery(c: Canvas, sim: PetSim, x: Float, floor: Float,
+                              unit: Float, itemX: (Float) -> Float) {
+        val phase = sim.stateTime.toFloat() / sim.stateDur.coerceAtLeast(1)
+        val pulse = PetMotion.envelope(phase)
+        when (sim.state) {
+            PetSim.State.NOTICE -> {
+                val tx = sim.targetItem?.let { itemX(it.x) } ?: return
+                val cx = (x + sim.dir * unit * 1.5f).coerceIn(unit, w - unit)
+                val cy = (floor - unit * (4.35f + 0.30f * pulse)).coerceAtLeast(unit)
+                drawSpark(c, cx, cy, unit * 0.31f, 0xFFFFCF70.toInt(), (215 * pulse).toInt())
+                drawSpark(c, lerp(cx, tx, 0.25f), cy - unit * .52f,
+                    unit * .14f, 0xFFF6E2AD.toInt(), (180 * pulse).toInt())
+            }
+            PetSim.State.SATISFIED -> drawMiniHeart(c, x + unit * .9f,
+                floor - unit * (3.45f + .8f * phase.coerceIn(0f, 1f)),
+                unit * .36f, 0xFFF5A294.toInt(), (195 * pulse).toInt())
+            else -> Unit
+        }
     }
 
     // ------------------------------------------------------- свет и лампа
@@ -659,7 +684,8 @@ class SceneRenderer {
             c.save()
             // Локальная точка (0,0) — контакт с полом. Масштабирование вокруг неё
             // физически не может протолкнуть предмет ниже floorY.
-            c.translate(ix, floorY + pose.y * unit)
+            c.clipRect(0f, 0f, w.toFloat(), floorY + unit * .13f)
+            c.translate(ix, floorY + pose.y / 10.5f * floorY)
             c.rotate(pose.rotation, 0f, -unit)
             c.scale(pose.scaleX, pose.scaleY, 0f, 0f)
             def.draw(c, 0f, 0f, unit, sim.animPhase)
@@ -667,8 +693,6 @@ class SceneRenderer {
             return
         }
 
-        val pop = if (item.confetti) 1f else (item.ageMs / 900f).coerceIn(0f, 1f)
-        val sc = if (pop >= 1f) 1f else 0.55f + 0.45f * pop
         val fade = 1f - ((item.ageMs - item.ttlMs + 1500f) / 1500f).coerceIn(0f, 1f)
         if (fade <= 0f) return
         val alpha = (fade * 255).toInt()
@@ -677,15 +701,16 @@ class SceneRenderer {
         val isTarget = inter.target === item && sim.state == PetSim.State.INTERACT
         val interactionPhase = if (isTarget)
             (sim.stateTime.toFloat() / sim.stateDur.coerceAtLeast(1)).coerceIn(0f, 1f) else 0f
-        val floorPose = if (isTarget) InteractionMotion.floorPose(def.id, interactionPhase, sim.dir)
+        val floorPose = if (isTarget) InteractionMotion.floorPose(def.id, interactionPhase, sim.dir, sim.robotReturns)
             else InteractionMotion.FloorPose()
-        val renderX = ix + floorPose.dx * unit
+        val renderX = if (def.id == "robot" && isTarget)
+            floorXfor((item.x + floorPose.dx * InteractionMotion.ROBOT_TRAVEL).coerceIn(0.07f, 0.93f), unit)
+        else ix + floorPose.dx * unit
         val renderY = floorY + floorPose.lift * unit
         var toyRot = 0f
-        var toyScale = 1f
         val rolling = abs(item.vx) > 0.02f
         when (def.id) {
-            "ball" -> if (rolling) toyRot = sim.animPhase * 240f * (if (item.vx > 0) 1f else -1f)
+            "ball" -> toyRot = item.rollDistance * (w - 1.4f * unit) / (1.08f * unit) * 57.2958f
             "block" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 8f
             "top" -> if (rolling) toyRot = sim.animPhase * 260f * (if (item.vx > 0) 1f else -1f)
             "plushie" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 6f
@@ -693,8 +718,9 @@ class SceneRenderer {
         }
 
         c.save()
-        c.scale(sc * toyScale * floorPose.scaleX, sc * toyScale * floorPose.scaleY, renderX, renderY)
-        c.rotate(toyRot + floorPose.rotation, renderX, renderY - unit * 0.9f)
+        c.scale(floorPose.scaleX, floorPose.scaleY, renderX, renderY)
+        val pivotY = renderY - unit * (if (def.id == "ball") 1.08f else .9f)
+        c.rotate(toyRot + floorPose.rotation, renderX, pivotY)
         pF.alpha = alpha; pS.alpha = alpha; pZ.alpha = alpha
         def.draw(c, renderX, renderY, unit, sim.animPhase)
         c.restore()
@@ -999,7 +1025,8 @@ class SceneRenderer {
         val sleeping = st == PetSim.State.SLEEP
         val stretching = st == PetSim.State.STRETCH
         val waving = st == PetSim.State.WAVE
-        val happy = st == PetSim.State.HAPPY || st == PetSim.State.INTERACT || st == PetSim.State.ROLL
+        val happy = st == PetSim.State.HAPPY || st == PetSim.State.INTERACT || st == PetSim.State.ROLL ||
+            st == PetSim.State.SATISFIED || st == PetSim.State.CHASE
 
         var lookX = sim.dir * 0.18f
         var lookY = 0f
@@ -1011,7 +1038,11 @@ class SceneRenderer {
                 val dyT = -(r * sy * 0.3f / r)
                 val len = kotlin.math.sqrt(dxT * dxT + dyT * dyT).coerceAtLeast(0.001f)
                 lookX = dxT / len * 0.2f
-                lookY = dyT / len * 0.12f
+                lookY = when (st) {
+                    PetSim.State.NOTICE -> -0.44f * PetMotion.envelope(p)
+                    PetSim.State.INSPECT, PetSim.State.CHASE -> .23f
+                    else -> dyT / len * 0.12f
+                }
             }
         }
 
@@ -1037,7 +1068,8 @@ class SceneRenderer {
                 pZ.alpha = 255
             }
             st == PetSim.State.HUNGRY -> drawHungryEyes(c,sim,px,eyeY,r,eyeDx)
-            stretching || waving || st == PetSim.State.SQUEEZE || st == PetSim.State.TICKLE || st == PetSim.State.HAPPY -> {
+            stretching || waving || st == PetSim.State.SQUEEZE || st == PetSim.State.TICKLE ||
+                st == PetSim.State.HAPPY || (st == PetSim.State.SATISFIED && p in 0.16f..0.83f) -> {
                 // РАДОСТЬ: дужки-глаза — читается мгновенно
                 pS.color = 0xFF2E3B34.toInt(); pS.strokeWidth = unit * 0.21f
                 rect.set(px - eyeDx - r * 0.18f, eyeY - r * 0.14f, px - eyeDx + r * 0.18f, eyeY + r * 0.07f)
@@ -1190,6 +1222,10 @@ class SceneRenderer {
         }
         when {
             sleeping -> { /* нарисовано */ }
+            st == PetSim.State.NOTICE -> {
+                pF.color = 0xFF2E3B34.toInt()
+                c.drawCircle(px, mouthY, r * (.05f + .07f * PetMotion.envelope(p)), pF)
+            }
             waving -> {
                 // широкая улыбка хозяину с открытым ротиком
                 pF.color = 0xFF2E3B34.toInt()
@@ -1518,6 +1554,13 @@ class SceneRenderer {
         }
 
         when (st) {
+            PetSim.State.INSPECT -> {
+                val reach = PetMotion.envelope(sim.stateTime.toFloat() / sim.stateDur)
+                val shoulder = cx + sim.dir * r * .42f
+                arm(shoulder, cy + r * .3f, shoulder + sim.dir * r * .38f * reach,
+                    cy + r * (.35f + .27f * reach), false)
+            }
+
             PetSim.State.STRETCH -> {
                 val sp = sin(((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)) * PI.toFloat())
                 val up = sp * r * 1.35f
@@ -1588,16 +1631,14 @@ class SceneRenderer {
                     }
                     ItemDefs.Reaction.PLAY -> {
                         val phase = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-                        val pose = InteractionMotion.floorPose(ti.def.id, phase, sim.dir)
-                        val tx = itemX(ti.x) + pose.dx * unit
+                        val tx = itemX(ti.x)
                         when (ti.def.id) {
                             "robot" -> {
                                 // Одна лапа ставит робота, вторая нажимает кнопку на голове.
-                                val press = PetMotion.envelope(phase)
-                                if (phase < 0.44f) {
-                                    arm(axL, ay, tx - unit * 0.55f, floorY - unit * 1.15f, false)
-                                    arm(axR, ay, tx + unit * 0.12f,
-                                        floorY - unit * (2.65f + 0.10f * press), true)
+                                if (phase < 0.40f) {
+                                    val press = smooth(phase / .16f) * smooth((.40f - phase) / .10f)
+                                    arm(axR, ay, lerp(axR, tx, press),
+                                        lerp(ay, floorY - unit * 2.65f, press), true)
                                 }
                             }
                             "top" -> {
@@ -1622,8 +1663,9 @@ class SceneRenderer {
                     }
                     ItemDefs.Reaction.PUSH -> {
                         val tx = itemX(ti.x)
-                        arm(axL, ay, tx - unit * 0.35f, floorY - unit * 0.48f, false)
-                        arm(axR, ay, tx + unit * 0.35f, floorY - unit * 0.48f, false)
+                        val reach = inter.armReach
+                        arm(axL, ay, lerp(axL, tx - unit * 0.35f, reach), lerp(ay, floorY - unit * 0.48f, reach), false)
+                        arm(axR, ay, lerp(axR, tx + unit * 0.35f, reach), lerp(ay, floorY - unit * 0.48f, reach), false)
                     }
                 }
             }

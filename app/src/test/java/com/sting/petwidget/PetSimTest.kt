@@ -68,6 +68,25 @@ class PetSimTest {
     // ------------------------------------------------------------- тесты
 
     @Test
+    fun fallingItemIsWatchedBeforeApproachAndInspection() {
+        val sim = makeSim(21)
+        sim.stateDur = 8_000
+        live(sim, 6_000)
+        val item = sim.items.single()
+        assertEquals(PetSim.State.NOTICE, sim.state)
+        val beforeLanding = sim.x
+        live(sim, 1_250)
+        assertEquals(PetSim.State.NOTICE, sim.state)
+        assertEquals(beforeLanding, sim.x, 0.001f)
+        // Даже если предмет упал у лап, осмотр предшествует игре.
+        sim.x = item.x
+        live(sim, 250)
+        assertEquals(PetSim.State.INSPECT, sim.state)
+        live(sim, 1_000)
+        assertEquals(PetSim.State.INTERACT, sim.state)
+    }
+
+    @Test
     fun lampButtonUsesNearbyPositionAndTogglesOnce() {
         for (style in 0..2) {
             val prefs = FakePrefs()
