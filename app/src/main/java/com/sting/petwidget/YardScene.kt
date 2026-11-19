@@ -11,6 +11,7 @@ internal class YardScene {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val landscape = YardLandscape()
     private var swingWood = 0xFFB58B5F.toInt()
+    private var swingStyle = 0
     private val doorFinish by lazy { LinearGradient(0f,-5.6f,3.5f,0f,0xFF8DA697.toInt(),0xFF587B6C.toInt(),Shader.TileMode.CLAMP) }
     private val outdoorFinish by lazy {
         LinearGradient(0f, -5.6f, 3.5f, 0f, 0xFFA88059.toInt(), 0xFF685241.toInt(), Shader.TileMode.CLAMP)
@@ -64,6 +65,7 @@ internal class YardScene {
 
     fun draw(c: Canvas, w: Float, h: Float, floor: Float, u: Float, now: Long, outing: Outing,
              prefs: android.content.SharedPreferences? = null) {
+        swingStyle = prefs?.getInt("yard_swing_style", 0) ?: 0
         swingWood = prefs?.getInt("yard_swing",0xFFB58B5F.toInt()) ?: 0xFFB58B5F.toInt()
         c.save(); c.scale(u,u)
         landscape.draw(c,w/u,h/u,floor/u,now,prefs)
@@ -112,12 +114,35 @@ internal class YardScene {
         }
         c.save();c.translate(center,f+seatY);c.scale(perspective,perspective)
         // Спинка скамьи видна за питомцем; сиденье находится точно под ним.
-        box(c,-1.5f,-1.05f,1.5f,-.12f,swingWood,.09f)
-        edge.color=0xFF4B5544.toInt();edge.strokeWidth=.055f
-        c.drawRoundRect(-1.5f,-1.05f,1.5f,-.12f,.09f,.09f,edge)
-        for(i in 0..5){val x=-1.25f+i*.5f;edge.color=0x66786D4E;c.drawLine(x,-.91f,x,-.25f,edge)}
-        box(c,-1.58f,-.12f,1.58f,.18f,0xFFC8AD7D.toInt(),.07f)
-        edge.color=0xFF4B5544.toInt();c.drawRoundRect(-1.58f,-.12f,1.58f,.18f,.07f,.07f,edge)
+        when (swingStyle) {
+            1 -> { // Upholstered seat with a piped edge.
+                box(c,-1.5f,-1.22f,1.5f,-.04f,swingWood,.34f)
+                edge.color=0x55726855
+                edge.strokeWidth=.05f
+                c.drawRoundRect(-1.39f,-1.1f,1.39f,-.13f,.26f,.26f,edge)
+                for (i in -1..1) {
+                    p.color=0x66615748
+                    c.drawCircle(i*.77f,-.62f,.065f,p)
+                }
+            }
+            2 -> { // Open garden bench with curved armrests.
+                for (side in -1..1 step 2) {
+                    beam(c,side*1.39f,-.06f,side*1.39f,-.63f,.13f)
+                    box(c,side*1.39f-.15f,-.7f,side*1.39f+.15f,-.56f,swingWood,.07f)
+                }
+            }
+            else -> {
+                for (side in -1..1 step 2) beam(c,side*1.24f,0f,side*1.24f,-1.13f,.13f)
+                for (i in 0..2) {
+                    val y=-1.09f+i*.34f
+                    box(c,-1.48f,y,1.48f,y+.24f,swingWood,.08f)
+                }
+            }
+        }
+        box(c,-1.57f,-.12f,1.57f,.16f,swingWood,.1f)
+        edge.color=0xFF505B4E.toInt()
+        edge.strokeWidth=.055f
+        c.drawRoundRect(-1.57f,-.12f,1.57f,.16f,.1f,.1f,edge)
         c.restore();c.restore()
     }
 

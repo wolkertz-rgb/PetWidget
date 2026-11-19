@@ -456,6 +456,10 @@ class AtelierActivity : Activity() {
         })
         card.addView(swatchRow(listOf(0xFFD8BB8B,0xFFE9E4CF,0xFF94B4A0,0xFFA2B3C3),getThemePrefs().getInt("yard_fence",0xFFD8BB8B.toInt())) { putColor("yard_fence",it) })
         card.addView(label("КАЧЕЛИ"))
+        card.addView(chipRow(listOf("Реечные", "Мягкие", "Открытые"), getThemePrefs().getInt("yard_swing_style", 0).coerceIn(0, 2)) {
+            getThemePrefs().edit().putInt("yard_swing_style", it).apply()
+            refreshAll()
+        })
         card.addView(swatchRow(listOf(0xFFB58B5F,0xFF8EAA94,0xFF9EADBF,0xFFC8998E),getThemePrefs().getInt("yard_swing",0xFFB58B5F.toInt())) { putColor("yard_swing",it) })
         card.addView(label("САДОВЫЙ ДЕКОР"))
         card.addView(chipRow(listOf("Без декора","Клумба","Каменный сад","Поилка для птиц"),getThemePrefs().getInt("yard_decor",1)) {

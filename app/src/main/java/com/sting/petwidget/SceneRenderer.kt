@@ -151,6 +151,17 @@ class SceneRenderer {
         pS.strokeWidth = unit * 0.08f
         c.drawLine(pad, floorY - unit * 2.0f, w - pad, floorY - unit * 2.0f, pS)
 
+        val panels = ((w - 2f * pad) / (unit * 3.4f)).toInt().coerceAtLeast(1)
+        val panelWidth = (w - 2f * pad) / panels
+        for (i in 0 until panels) {
+            val left = pad + i * panelWidth + unit * .14f
+            val right = left + panelWidth - unit * .28f
+            pS.color = 0x24504A43
+            pS.strokeWidth = unit * .046f
+            c.drawRoundRect(left, floorY - unit * 1.83f, right, floorY - unit * .39f, unit * .09f, unit * .09f, pS)
+            pS.color = 0x62FFFFFF
+            c.drawLine(left + unit * .09f, floorY - unit * .34f, right - unit * .09f, floorY - unit * .34f, pS)
+        }
         // пол + плинтус (тема-токены)
         val floor = gradientPaint("floor").apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFE1E1DC.toInt()), th("floor_bottom", 0xFFD3D3CE.toInt()), Shader.TileMode.CLAMP) }
         rect.set(pad, floorY, w - pad, h - pad)
@@ -960,18 +971,18 @@ class SceneRenderer {
         // «пятки-няшки» убраны по решению: чистый силуэт выглядит круче
 
 
-        // двойной блик (стеклянность)
-        pF.color = 0x32FFFFFF.toInt()
-        rect.set(px - r * 0.66f * sx, cy - r * sy * 0.98f, px + r * 0.10f * sx, cy - r * sy * 0.42f)
-        c.drawOval(rect, pF)
-        pF.color = 0x20FFFFFF.toInt()
-        rect.set(px + r * 0.16f * sx, cy - r * sy * 0.80f, px + r * 0.42f * sx, cy - r * sy * 0.52f)
-        c.drawOval(rect, pF)
-
-        // животик
+        // Small markings follow the same stretch as the body and inherit its palette.
+        c.save()
+        c.translate(px, cy)
+        c.scale(r * sx, r * sy)
+        pF.color = 0x38FFFFFF
+        c.rotate(-20f)
+        c.drawOval(-.44f, -.86f, -.04f, -.74f, pF)
+        c.drawOval(.02f, -.83f, .16f, -.75f, pF)
+        c.rotate(20f)
         pF.color = th("pet_belly", 0xFFBDEBCF.toInt())
-        rect.set(px - r * 0.55f * sx, cy + r * sy * 0.02f, px + r * 0.55f * sx, cy + r * sy * 0.84f)
-        c.drawOval(rect, pF)
+        c.drawRoundRect(-.56f,.08f,.56f,.84f,.42f,.38f,pF)
+        c.restore()
 
         // лицо
         val eyeY = cy - r * sy * 0.30f
