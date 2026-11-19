@@ -22,7 +22,7 @@ internal class YardScene {
     private fun box(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int, radius: Float = 0f) {
         p.color = color; c.drawRoundRect(l,t,r,b,radius,radius,p)
     }
-    fun door(c: Canvas, x: Float, floor: Float, u: Float, open: Float, outdoors: Boolean = false) {
+    fun door(c: Canvas, x: Float, floor: Float, u: Float, open: Float, style: Int) {
         c.save(); c.translate(x, floor); c.scale(u,u)
         // Ширина чистого проёма 3.5 единицы при диаметре пета 3.1.
         p.color=0x24000000;c.drawOval(-2.1f,-.12f,2.2f,.22f,p)
@@ -31,18 +31,18 @@ internal class YardScene {
         box(c,-1.75f,-5.6f,1.75f,-.04f,0xFF263B35.toInt(),.035f)
         val squeeze=1f-open.coerceIn(0f,1f)*.91f
         c.save();c.translate(-1.75f,0f);c.scale(squeeze,1f)
-        p.shader = if (outdoors) outdoorFinish else doorFinish
+        p.shader = if (style == 1) outdoorFinish else doorFinish
         c.drawRoundRect(0f,-5.6f,3.5f,-.06f,.04f,.04f,p);p.shader=null
         edge.color=0xFF415D50.toInt();edge.strokeWidth=.055f
         c.drawRoundRect(.22f,-5.34f,3.28f,-.3f,.04f,.04f,edge)
         box(c,.42f,-5.12f,3.08f,-3.55f,0xFF41655D.toInt(),.06f)
         box(c,.5f,-5.04f,3f,-3.63f,0xFFB7D4CC.toInt(),.04f)
         edge.color=0x66FFFFFF;edge.strokeWidth=.055f;c.drawLine(.7f,-4.85f,2.4f,-3.82f,edge)
-        box(c,.42f,-3.3f,3.08f,-.55f,if (outdoors) 0xFF8F7051.toInt() else 0xFF739382.toInt(),.05f)
-        edge.color = if (outdoors) 0xFF705940.toInt() else 0xFF597868.toInt()
+        box(c,.42f,-3.3f,3.08f,-.55f,if (style == 1) 0xFF8F7051.toInt() else 0xFF739382.toInt(),.05f)
+        edge.color = if (style == 1) 0xFF705940.toInt() else 0xFF597868.toInt()
         edge.strokeWidth=.035f
         c.drawRoundRect(.55f,-3.16f,2.95f,-.7f,.03f,.03f,edge)
-        if (outdoors) {
+        if (style == 1) {
             edge.color = 0x55F0D7AA
             c.drawLine(1.75f, -4.98f, 1.75f, -3.69f, edge)
             c.drawLine(.56f, -4.32f, 2.94f, -4.32f, edge)
@@ -53,6 +53,13 @@ internal class YardScene {
                 edge.color = 0x3CDFBD91
                 c.drawLine(boardX + .045f, -3.1f, boardX + .045f, -1.1f, edge)
             }
+        }
+        if (style == 2) {
+            box(c,.42f,-5.12f,3.08f,-3.55f,0xFF739382.toInt(),.06f)
+            p.color=0xFFE8CD95.toInt()
+            c.drawCircle(1.75f,-4.34f,.66f,p)
+            p.color=0xFF9FCAC8.toInt()
+            c.drawCircle(1.75f,-4.34f,.52f,p)
         }
         box(c,2.95f,-2.9f,3.15f,-2.2f,0xFFB59A61.toInt(),.07f)
         edge.color=0xFFF1D99B.toInt();edge.strokeWidth=.09f;c.drawLine(3.04f,-2.52f,2.65f,-2.52f,edge)
@@ -72,7 +79,7 @@ internal class YardScene {
         val night = WindowScene.night(now)
         dayGlow.draw(c, w/u, h/u, floor/u, 1f - night)
         eveningGlow.draw(c, w/u, h/u, floor/u, night)
-        door(c,.7f+outing.doorX*(w/u-1.4f),floor/u,1f,outing.doorOpen,outdoors = true)
+        door(c,.7f+outing.doorX*(w/u-1.4f),floor/u,1f,outing.doorOpen,prefs?.getInt("door_style", 0) ?: 0)
         c.restore()
         swing(c,w,floor,u,outing.swingAngle)
         swingSupports(c,w,floor,u)

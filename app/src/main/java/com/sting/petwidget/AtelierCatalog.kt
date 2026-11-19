@@ -32,7 +32,7 @@ internal class AtelierCatalog(
             if (child.tag == "atelier-label" && child is TextView) {
                 val label = child.text.toString()
                 val key = if (yard) when(label) {
-                    "ФАСАД", "ЗАБОР", "КАЧЕЛИ" -> "Оформление двора"
+                    "ФАСАД", "ДВЕРЬ", "ЗАБОР", "КАЧЕЛИ" -> "Оформление двора"
                     "САДОВЫЙ ДЕКОР" -> "Садовые декорации"
                     else -> "Живой сад"
                 } else if (pet) when (label) {

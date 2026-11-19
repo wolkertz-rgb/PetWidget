@@ -53,13 +53,13 @@ internal object HeldMotion {
         var size = 1f
         if (contact != null) {
             for ((index, point) in contact.withIndex()) {
-                taste = maxOf(taste, pulse(p, point - .08f, point, point + .055f))
+                taste = maxOf(taste, pulse(p, point - .095f, point, point + .085f))
                 val chewing = PetMotion.ease((p - point) / .025f) *
                     (1f - PetMotion.ease((p - point - .075f) / .055f))
                 chew = maxOf(chew, chewing * (.65f + .35f * sin((p - point) * 67f)))
                 if (id != "coffee") {
                     val bite = PetMotion.ease((p - point) / .055f)
-                    size -= bite * if (index == 2) .47f else .19f
+                    size -= bite * if (index == 2) .32f else .14f
                     if (p >= point) crumbs = (p - point) / .11f
                 }
             }

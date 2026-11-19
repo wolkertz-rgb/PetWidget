@@ -297,6 +297,14 @@ class AtelierActivity : Activity() {
         val views = ArrayList<TextView>()
 
         fun select(index: Int) {
+            val tint = when (index) {
+                1 -> 0xFFF6DDC7.toInt()
+                2 -> 0xFFCDE8CA.toInt()
+                3 -> 0xFFE5D6F4.toInt()
+                else -> 0xFFCBEBE2.toInt()
+            }
+            window.decorView.findViewById<android.view.ViewGroup>(android.R.id.content).getChildAt(0).background =
+                GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(tint, 0xFFF8F7F0.toInt(), Color.WHITE))
             selectedTab = index
             catalog = null
             views.forEachIndexed { i, tab ->
@@ -450,6 +458,11 @@ class AtelierActivity : Activity() {
         val card = sectionCard("Твой сад", "Оформление, декор и маленькая жизнь во дворе")
         card.addView(label("ФАСАД"))
         card.addView(swatchRow(listOf(0xFFE9D9BB,0xFFD3DFCB,0xFFD6DEEB,0xFFE8CFC3),getThemePrefs().getInt("yard_house",0xFFE9D9BB.toInt())) { putColor("yard_house",it) })
+        card.addView(label("ДВЕРЬ"))
+        card.addView(chipRow(listOf("Шалфей", "Дуб", "Иллюминатор"), getThemePrefs().getInt("door_style", 0)) {
+            getThemePrefs().edit().putInt("door_style", it).apply()
+            refreshAll()
+        })
         card.addView(label("ЗАБОР"))
         card.addView(chipRow(listOf("Штакетник","Горизонтальный","Садовая решётка"),getThemePrefs().getInt("yard_fence_style",0).coerceIn(0,2)) {
             getThemePrefs().edit().putInt("yard_fence_style",it).apply();refreshAll()
@@ -658,8 +671,8 @@ class AtelierActivity : Activity() {
         val lp = LinearLayout.LayoutParams(MATCH, WRAP)
         lp.setMargins(dp(16), 0, dp(16), 0)
         l.layoutParams = lp
-        l.addView(text(title, 19f, bold = true, color = 0xFF28342F.toInt()))
-        subtitle?.let { l.addView(text(it, 12.5f, color = 0xFF858985.toInt(), vertical = dp(3))) }
+        l.addView(text(title, 22f, bold = true, color = 0xFF28342F.toInt()))
+        subtitle?.let { l.addView(text(it, 14f, color = 0xFF576960.toInt(), vertical = dp(3))) }
         l.addView(gap(4))
         return l
     }

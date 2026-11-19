@@ -202,7 +202,7 @@ class SceneRenderer {
         // шнур-выключатель с бусиной
         drawPullCord(c, sim, unit, floorY)
 
-        yardScene.door(c, itemX(sim.outing.doorX), floorY, unit, sim.outing.doorOpen)
+        yardScene.door(c, itemX(sim.outing.doorX), floorY, unit, sim.outing.doorOpen, th("door_style", 0))
 
         // когда питомец НЕ спит в кресле — подлокотники тоже позади него
         val sleepingInChair = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
@@ -608,6 +608,12 @@ class SceneRenderer {
         val holding: Boolean get() = held != null
     }
 
+    private fun modelScale(def: ItemDefs.Def) = when {
+        def.kind == ItemDefs.Kind.FOOD -> .58f
+        def.id == "rocket" || def.id == "robot" -> .64f
+        else -> .74f
+    }
+
     private fun readInteract(sim: PetSim, itemX: (Float) -> Float, floor: Float, unit: Float): InteractInfo {
         val info = InteractInfo()
         val item = sim.targetItem ?: return info
@@ -642,6 +648,12 @@ class SceneRenderer {
         val approachX = itemX(sim.x) + sim.dir * advance * unit
         info.x = lerp(info.x, approachX, pose.carry) + pose.dx * unit
         info.y = floor - rise * pose.carry * unit + pose.dy * unit
+        if (food) {
+            val rim = HeldMotion.grip(item.defId).height * 1.7f * modelScale(item.def) * pose.scale
+            val mouthY = petCy(sim, floor, unit, unit * 1.55f) + unit * .25f
+            info.x = lerp(info.x, itemX(sim.x) + sim.dir * unit * .20f, pose.taste)
+            info.y = lerp(info.y, mouthY + rim * unit, pose.taste)
+        }
         return info
     }
 
@@ -657,7 +669,7 @@ class SceneRenderer {
             val proximity = (1f - (-pose.y / 10.5f)).coerceIn(0f, 1f)
             pF.color = 0xFF000000.toInt()
             pF.alpha = (proximity * 40f).toInt()
-            val shadowW = def.w * unit * (0.24f + proximity * 0.18f)
+            val shadowW = def.w * modelScale(def) * unit * (0.24f + proximity * 0.18f)
             rect.set(ix - shadowW, floorY - unit * 0.10f, ix + shadowW, floorY + unit * 0.10f)
             c.drawOval(rect, pF)
             pF.alpha = 255
@@ -669,7 +681,7 @@ class SceneRenderer {
             c.translate(ix, floorY + pose.y / 10.5f * floorY)
             c.rotate(pose.rotation, 0f, -unit)
             c.scale(pose.scaleX, pose.scaleY, 0f, 0f)
-            def.draw(c, 0f, 0f, unit, sim.animPhase)
+            def.draw(c, 0f, 0f, unit * modelScale(def), sim.animPhase)
             c.restore()
             return
         }
@@ -691,7 +703,7 @@ class SceneRenderer {
         var toyRot = 0f
         val rolling = abs(item.vx) > 0.02f
         when (def.id) {
-            "ball" -> toyRot = item.rollDistance * (w - 1.4f * unit) / (1.08f * unit) * 57.2958f
+            "ball" -> toyRot = item.rollDistance * (w - 1.4f * unit) / (1.08f * unit * modelScale(def)) * 57.2958f
             "block" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 8f
             "top" -> if (rolling) toyRot = sim.animPhase * 260f * (if (item.vx > 0) 1f else -1f)
             "plushie" -> if (rolling) toyRot = sin(sim.animPhase * 8f) * 6f
@@ -699,7 +711,7 @@ class SceneRenderer {
         }
 
         c.save()
-        c.scale(floorPose.scaleX, floorPose.scaleY, renderX, renderY)
+        c.scale(floorPose.scaleX * modelScale(def), floorPose.scaleY * modelScale(def), renderX, renderY)
         if (def.id != "ball") c.rotate(toyRot + floorPose.rotation, renderX, renderY - unit * .9f)
         pF.alpha = alpha; pS.alpha = alpha; pZ.alpha = alpha
         when {
@@ -715,7 +727,7 @@ class SceneRenderer {
         // ---- спецэффекты поверх игрушек
         if (def.id == "robot" && isTarget && sim.reaction == ItemDefs.Reaction.PLAY) {
             val blink = if ((sim.stateTime / 260L) % 2L == 0L) 220 else 50
-            drawSpark(c, renderX, renderY - unit * 3.5f, unit * 0.30f,
+            drawSpark(c, renderX, renderY - unit * modelScale(def) * 3.5f, unit * 0.30f,
                 0xFFFFD54D.toInt(), blink)
         }
         // (мишка и цветок теперь в лапках — их эффекты переехали в drawHeldItem)
@@ -1350,7 +1362,8 @@ class SceneRenderer {
         if (pose.scale > .015f) {
             c.save()
             c.rotate(pose.tilt, x, y)
-            c.scale(pose.scale, pose.scale, x, y)
+            val size = pose.scale * modelScale(item.def)
+            c.scale(size, size, x, y)
             val cupFade = if (item.defId == "coffee") smooth((inter.phase - .94f) / .06f) else 0f
             if (cupFade > 0f) {
                 val layer = c.saveLayerAlpha(x - unit * 2f, y - unit * 4f, x + unit * 2f, y + unit * .5f,
@@ -1435,7 +1448,7 @@ class SceneRenderer {
         // руки красятся токенами тела (утолщённый контур + светлые ладошки)
         val armColor = th("pet_bottom", 0xFF5CA985.toInt())
         val palmColor = th("pet_belly", 0xFF9ADDB8.toInt())
-        val grip = unit * 0.24f
+        val grip = unit * .17f
 
         fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean) {
             // руки не резиновые до бесконечности: максимум ~2 радиуса тела
@@ -1450,13 +1463,14 @@ class SceneRenderer {
                 hy = cy + vy / d * maxD
             }
             val mx = (ax + hx) / 2f
-            val my = (ay + hy) / 2f + (if (up) -unit * 0.30f else unit * 0.45f)
+            val bend = kotlin.math.hypot(hx - ax, hy - ay).coerceAtMost(unit * 1.4f)
+            val my = (ay + hy) / 2f + bend * (if (up) -.18f else .25f)
             path.reset()
             path.moveTo(ax, ay)
             path.quadTo(mx, my, hx, hy)
             // мягкое свечение под рукой
             pS.color = (0x2E shl 24) or (palmColor and 0x00FFFFFF)
-            pS.strokeWidth = unit * 0.40f
+            pS.strokeWidth = unit * 0.29f
             c.drawPath(path, pS)
             // основная рука
             pS.color = armColor
@@ -1526,13 +1540,14 @@ class SceneRenderer {
                 fun reach(ax: Float, tx: Float, ty: Float, amount: Float, up: Boolean = false) {
                     if (amount > .01f) arm(ax, ay, lerp(ax, tx, amount), lerp(ay, ty, amount), up)
                 }
+                val propUnit = unit * modelScale(item.def)
                 val held = inter.held
                 if (held != null) {
                     val grip = HeldMotion.grip(item.defId)
                     val radians = held.tilt * PI.toFloat() / 180f
                     val cosTilt = cos(radians)
                     val sinTilt = sin(radians)
-                    val scale = unit * held.scale
+                    val scale = unit * held.scale * modelScale(item.def)
                     val amount = held.hands * if (item.def.kind == ItemDefs.Kind.FOOD)
                         smooth(held.scale / .17f) else 1f
                     for (side in -1..1 step 2) {
@@ -1547,18 +1562,18 @@ class SceneRenderer {
                 when (sim.reaction) {
                     ItemDefs.Reaction.PLAY -> {
                         val hand = InteractionMotion.floorHand(item.defId, phase)
-                        reach(near, inter.x + sim.dir * unit * hand.dx, floorY - unit * hand.height, hand.reach, true)
+                        reach(near, inter.x + sim.dir * propUnit * hand.dx, floorY - propUnit * hand.height, hand.reach, true)
                     }
                     ItemDefs.Reaction.OPEN -> {
                         val uncover = InteractionMotion.giftLid(phase)
                         val lift = smooth(phase / .24f) * smooth((.81f - phase) / .21f)
-                        reach(near, inter.x - sim.dir * unit * .64f, floorY - unit * (1.42f + uncover * .71f), lift)
-                        reach(far, inter.x + sim.dir * unit * .62f, floorY - unit * (1.42f + uncover * .71f), lift)
+                        reach(near, inter.x - sim.dir * propUnit * .64f, floorY - propUnit * (1.42f + uncover * .71f), lift)
+                        reach(far, inter.x + sim.dir * propUnit * .62f, floorY - propUnit * (1.42f + uncover * .71f), lift)
                     }
                     ItemDefs.Reaction.PUSH -> {
                         val hit = InteractionMotion.PUSH_PHASE
                         val touch = smooth(phase / hit) * smooth((hit + .23f - phase) / .23f)
-                        reach(near, inter.x - sim.dir * unit * .89f, floorY - unit * .99f, touch)
+                        reach(near, inter.x - sim.dir * propUnit * .89f, floorY - propUnit * .99f, touch)
                     }
                     else -> Unit
                 }
