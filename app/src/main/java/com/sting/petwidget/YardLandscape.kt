@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RadialGradient
 import android.graphics.Shader
 import kotlin.math.PI
 import kotlin.math.cos
@@ -25,6 +26,13 @@ internal class YardLandscape {
     private val stoneIds = arrayOf("stone0","stone1","stone2")
     private val forestX = floatArrayOf(8.3f,9.15f,10.4f,14.6f,15.7f,21.1f,22.35f)
     private val forestScale = floatArrayOf(.37f,.49f,.40f,.36f,.46f,.42f,.34f)
+    private val sunHalo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = RadialGradient(0f, 0f, 2.6f, 0x51FFE9A7, 0x00FFE9A7, Shader.TileMode.CLAMP)
+    }
+    private val moonHalo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        shader = RadialGradient(0f, 0f, 1.9f, 0x46BBD5FA, 0x00BBD5FA, Shader.TileMode.CLAMP)
+    }
+    private val meadowGlint = SceneLighting.AmbientGlow(.62f, .93f, .36f, 0x29F5F2C0, .30f)
     private fun meadowEdge(x: Float,f: Float) = f-2.55f+sin(x*.45f)*.18f
     private var night = 0f
     private fun mix(a: Int,b: Int,t: Float) = Color.argb(
@@ -61,8 +69,16 @@ internal class YardLandscape {
         val progress=(now%120_000L)/120_000f
         val sunX=-1.1f+(w+2.2f)*progress
         val sunY=f-3f-sin(progress*PI.toFloat())*(f-4.2f).coerceAtLeast(1f)
-        disc(c,sunX,sunY,.82f,tone(0x22FFE8A0,0x224F7690))
-        disc(c,sunX,sunY,.56f,if(now%240_000L<120_000L)0xFFFFDF88.toInt() else 0xFFF7EACD.toInt())
+        val day = now % 240_000L < 120_000L
+        c.save()
+        c.translate(sunX, sunY)
+        c.drawCircle(0f, 0f, if (day) 2.6f else 1.9f, if (day) sunHalo else moonHalo)
+        c.restore()
+        disc(c, sunX, sunY, .54f, if (day) 0xFFFFE4A2.toInt() else 0xFFF2EBDC.toInt())
+        if (!day) {
+            disc(c, sunX - .16f, sunY - .05f, .095f, 0x22A2AEC0)
+            disc(c, sunX + .18f, sunY + .13f, .12f, 0x27A2AEC0)
+        }
         if(night>.1f)for(i in 0..21)disc(c,2f+(i*1.83f)%21f,.4f+(i*.73f)%3f,.025f,Color.argb((night*180).toInt(),244,239,211))
         for(i in 0..2){
             val x=((now%360_000L)/360_000f*(w+9f)+i*9f)%(w+9f)-4f
@@ -74,7 +90,18 @@ internal class YardLandscape {
             path.cubicTo(x+1.65f,y-.65f,x+2.15f,y+.4f,x+1.25f,y+.4f)
             path.lineTo(x-1.2f,y+.4f);path.close();shape(c,Color.WHITE)
         }
-        // Спокойные холмы без отдельной горной гряды и обрывающегося русла.
+        val ridge = f - 4.15f
+        val rise = (f * .25f).coerceIn(.65f, 2.8f)
+        path.reset()
+        path.moveTo(0f, ridge)
+        path.cubicTo(w * .18f, ridge - rise * .16f, w * .31f, ridge - rise * .86f, w * .45f, ridge - rise * .64f)
+        path.cubicTo(w * .54f, ridge - rise * .52f, w * .57f, ridge - rise * .81f, w * .64f, ridge - rise * .96f)
+        path.cubicTo(w * .72f, ridge - rise * 1.16f, w * .83f, ridge - rise * .24f, w, ridge - rise * .56f)
+        path.lineTo(w, f)
+        path.lineTo(0f, f)
+        path.close()
+        ramp("ridge", ridge - rise, ridge + .7f, tone(0xFF9EBAC2,0xFF415870),tone(0xFFCADBCD,0xFF68818B))
+        shape(c, Color.WHITE)
         path.reset();path.moveTo(0f,f-3.4f)
         path.cubicTo(4f,f-5.1f,8f,f-5.3f,13f,f-3.9f)
         path.cubicTo(17f,f-5.2f,21f,f-4.9f,w,f-3.8f)
@@ -95,6 +122,7 @@ internal class YardLandscape {
         }
         path.reset();path.moveTo(0f,f-.3f);path.cubicTo(7f,f-.9f,16f,f-.4f,24f,f-.65f);path.lineTo(w,h);path.lineTo(0f,h);path.close()
         ramp("lawn",f-.7f,h,tone(0xFF8DBB78,0xFF486E54),tone(0xFFBDD78F,0xFF678464));shape(c,Color.WHITE,outline,.06f)
+        meadowGlint.draw(c, w, h, f, (1f - night) * .8f + .18f)
         fence(c,f,outline,prefs?.getInt("yard_fence",0xFFD8BB8B.toInt())?:0xFFD8BB8B.toInt(),
             (prefs?.getInt("yard_fence_style",0)?:0).coerceIn(0,2))
         house(c,f,outline,prefs?.getInt("yard_house",0xFFE9D9BB.toInt())?:0xFFE9D9BB.toInt())
@@ -171,23 +199,81 @@ internal class YardLandscape {
             box(c,x-.09f,f-2.63f,x+.27f,f-2.45f,light,.045f,outline)
         }
     }
-    private fun house(c: Canvas,f: Float,outline: Int,color: Int){
-        ramp("wall",f-7.1f,f,mix(mix(color,Color.WHITE,.14f),0xFF536D70.toInt(),night*.55f),mix(color,0xFF657464.toInt(),night*.45f+.08f))
-        box(c,-1f,f-7.1f,7.1f,f,Color.WHITE,0f,outline)
-        for(i in 1..10){val y=f-7.1f+i*.58f;line(c,0f,y,7.1f,y,tone(0x559F9C82,0x55576E63),.025f)}
-        box(c,0f,f-.55f,7.15f,f+.1f,tone(0xFF9EA48C,0xFF647668),.02f,outline)
-        for(i in 0..9)line(c,i*.8f,f-.53f,i*.8f,f+.08f,0x55596752,.03f)
-        // Большой скат продолжается за левый и верхний края; здесь только угол дома.
-        path.reset();path.moveTo(-3f,f-6.9f);path.lineTo(-3f,f-10.5f);path.lineTo(7.65f,f-7.25f);path.lineTo(7.65f,f-6.9f);path.close()
-        ramp("roof",f-10.5f,f-6.9f,tone(0xFF66887B,0xFF3D5760),tone(0xFF3F6257,0xFF283F4B));shape(c,Color.WHITE,outline,.12f)
-        for(i in 0..7)line(c,i*1.05f-1f,f-9.8f+i*.32f,i*1.05f+.1f,f-7.25f,tone(0x886F9785,0x88566F73),.04f)
-        box(c,0f,f-7.2f,7.65f,f-6.95f,tone(0xFFD9C5A1,0xFF8C9381),.025f,outline)
-        box(c,0f,f-6.95f,7.65f,f-6.76f,tone(0xFF8D8B70,0xFF52685F),.04f,outline)
-        box(c,6.88f,f-6.75f,7.25f,f+.12f,tone(0xFFA68A60,0xFF6A7560),.035f,outline)
-        box(c,6.8f,f-.2f,7.34f,f+.15f,tone(0xFFCEC09A,0xFF8A947A),.04f,outline)
-        box(c,6.81f,f-6.76f,7.33f,f-6.46f,tone(0xFFCEC09A,0xFF8A947A),.04f,outline)
-        line(c,7f,f-6.3f,7f,f-.4f,0x55FFFFFF,.04f)
-        birdhouse(c,.92f,f-3.65f,outline)
+    private fun house(c: Canvas, f: Float, outline: Int, color: Int) {
+        val corner = 8.35f
+        val side = 9.7f
+        val eave = f - 7.45f
+        val foot = f + .05f
+        val trim = tone(0xFFB8A284, 0xFF727F75)
+        val siding = mix(color, 0xFF535E66.toInt(), night * .54f)
+        val seam = mix(siding, outline, .24f)
+        val beamLight = mix(trim, Color.WHITE, .22f - night * .10f)
+
+        // Фасад и затенённый торец на общем каменном цоколе.
+        path.reset()
+        path.moveTo(corner, eave)
+        path.lineTo(side, eave + .55f)
+        path.lineTo(side, foot - .43f)
+        path.lineTo(corner, foot)
+        path.close()
+        shape(c, mix(siding, outline, .28f), outline, .065f)
+        ramp("siding", eave, foot, mix(siding, Color.WHITE, .11f), mix(siding, trim, .22f))
+        box(c, -.3f, eave, corner, foot, Color.WHITE, 0f, outline)
+        box(c, 0f, eave, corner, eave + .33f, tone(0x33745643, 0x55343D3D), 0f)
+        for (row in 1..10) {
+            val y = eave + row * .69f
+            line(c, 0f, y, corner, y, seam, .034f)
+            line(c, corner, y, side, y + .55f - row * .09f, mix(seam, outline, .2f), .033f)
+            line(c, 0f, y + .052f, corner, y + .052f, tone(0x55FFF7DA, 0x225C9291), .025f)
+            // Несколько коротких волокон в каждом ряду, с разным смещением.
+            for (fiber in 0..2) {
+                val x = .2f + (row * 1.37f + fiber * 2.51f) % 7.4f
+                line(c, x, y - .25f, x + .35f + (fiber % 2) * .22f, y - .27f,
+                    tone(0x258A6D51, 0x20414D49), .021f)
+            }
+        }
+
+        box(c, 0f, f - .54f, corner + .2f, foot, tone(0xFFA9A18E, 0xFF687670), .02f, outline)
+        line(c, 0f, f - .25f, corner, f - .25f, tone(0x80776F5F, 0x80515F5C), .036f)
+        for (joint in 0..8) {
+            val x = joint * .94f
+            line(c, x, f - .53f, x, f - .26f, tone(0x70776F5F, 0x70515F5C), .037f)
+            line(c, x + .42f, f - .24f, x + .42f, f + .04f, tone(0x70776F5F, 0x70515F5C), .037f)
+        }
+
+        // Скат продолжается за край кадра. Ряды кровли показаны по плоскости крыши.
+        val roofEnd = corner + .45f
+        path.reset()
+        path.moveTo(-2f, eave - 2.38f)
+        path.lineTo(corner - .25f, eave - 1.79f)
+        path.lineTo(roofEnd, eave + .06f)
+        path.lineTo(-2f, eave + .06f)
+        path.close()
+        ramp("roof", eave - 2.38f, eave + .06f, tone(0xFF7B8982, 0xFF485765), tone(0xFF485E55, 0xFF2F4149))
+        fill.color = Color.WHITE
+        c.drawPath(path, fill)
+        fill.shader = null
+        c.save()
+        c.clipPath(path)
+        for (row in 0..4) {
+            val y = eave - 2.2f + row * .46f
+            line(c, -.3f, y, roofEnd, y + .39f, tone(0x7352645C, 0x80333E49), .043f)
+            for (tile in 0..8) {
+                val x = tile * 1.04f + (row % 2) * .52f
+                val offset = x * .044f
+                line(c, x, y + offset, x + .20f, y + .45f + offset, tone(0x4C384C45,0x58404D58), .031f)
+                line(c, x + .14f, y + .1f + offset, x + .64f, y + .12f + offset, tone(0x439EB2A0,0x36687F8E), .025f)
+            }
+        }
+        c.restore()
+
+        box(c, 0f, eave, roofEnd, eave + .19f, trim, .025f, outline)
+        box(c, 0f, eave + .19f, roofEnd, eave + .32f, mix(trim, outline, .4f), .025f, outline)
+        box(c, corner - .20f, eave + .31f, corner + .13f, foot, trim, .025f, outline)
+        line(c, corner - .12f, eave + .56f, corner - .12f, f - .39f, beamLight, .037f)
+        box(c, corner - .28f, eave + .31f, corner + .21f, eave + .61f, beamLight, .025f, outline)
+        box(c, corner - .25f, f - .28f, corner + .21f, foot + .06f, beamLight, .025f, outline)
+        birdhouse(c, 1.23f, f - 3.65f, outline)
     }
     private fun steppingStones(c: Canvas,f: Float,outline: Int) {
         // Между независимыми плитами остаётся трава, а нижняя грань даёт толщину.

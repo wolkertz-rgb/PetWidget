@@ -12,4 +12,14 @@ internal object SwitchMotion {
             (1f - PetMotion.ease((t - 840f) / 160f))
         return Pose(reach, press)
     }
+
+    fun cordPull(timeMs: Long): Float {
+        val t = timeMs.toFloat()
+        return PetMotion.ease((t - 450f) / 250f) * (1f - PetMotion.ease((t - 795f) / 360f))
+    }
+
+    fun cordStretch(timeMs: Long): Float {
+        val t = timeMs.toFloat()
+        return PetMotion.ease((t - 90f) / 380f) * (1f - PetMotion.ease((t - 650f) / 580f))
+    }
 }

@@ -294,6 +294,10 @@ class PetSim(
             }
 
             State.INTERACT -> {
+                val contact = (stateDur * InteractionMotion.PUSH_PHASE).toLong()
+                if (reaction == ItemDefs.Reaction.PUSH && stateTime - dt < contact && stateTime >= contact) {
+                    targetItem?.let { it.vx = dir * if (it.defId == "ball") .46f else .24f }
+                }
                 if (stateTime >= stateDur) {
                     if (dt > 1500 && !interactShown) {
                         // большой шаг времени (режим "ходов"): показать СЕРЕДИНУ
@@ -477,7 +481,6 @@ class PetSim(
                     }
                 }
                 ItemDefs.Reaction.PUSH -> {
-                    ti.vx = dir * rF(0.35f, 0.7f)
                     if (ti.defId == "ball") {
                         val chase = chaseBallNext
                         chaseBallNext = !chaseBallNext
@@ -785,6 +788,5 @@ class PetSim(
         const val HUNGER_LEVEL = 75f        // порог, при котором морда грустит
         const val HUNGER_EAT_RELIEF = 65f   // сколько снимает одна еда
 
-        const val RELEASE_MS = 250L  // плавно убрать руки
     }
 }

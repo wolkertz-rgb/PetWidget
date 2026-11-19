@@ -5,6 +5,13 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SwitchMotionTest {
+    @Test fun cordReturnsToRestAfterClick() {
+        assertEquals(0f, SwitchMotion.cordPull(250), 0f)
+        assertEquals(1f, SwitchMotion.cordPull(PetSim.PULL_TOGGLE_MS), 0f)
+        assertEquals(0f, SwitchMotion.cordPull(PetSim.PULL_DUR), 0f)
+        assertEquals(0f, SwitchMotion.cordStretch(PetSim.PULL_DUR), 0f)
+    }
+
     @Test fun motionStaysInsideItsBoundsBeforeDuringAndAfterAction() {
         for (t in -1000L..4000L) {
             val pose = SwitchMotion.pose(t)

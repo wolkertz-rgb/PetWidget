@@ -87,6 +87,24 @@ class PetSimTest {
     }
 
     @Test
+    fun ballMovesAfterContactWhilePetIsStillFinishingPush() {
+        val sim = makeSim(28)
+        val ball = PetSim.SpawnedItem("ball", .55f, 0f, 0L, 20_000L)
+        sim.items.add(ball)
+        sim.targetItem = ball
+        sim.state = PetSim.State.INTERACT
+        sim.reaction = ItemDefs.Reaction.PUSH
+        sim.stateDur = 1_500L
+
+        live(sim, 650L)
+        assertEquals(.55f, ball.x, .001f)
+        live(sim, 50L)
+        live(sim, 150L)
+        assertEquals(PetSim.State.INTERACT, sim.state)
+        assertTrue(ball.x > .57f)
+    }
+
+    @Test
     fun lampButtonUsesNearbyPositionAndTogglesOnce() {
         for (style in 0..2) {
             val prefs = FakePrefs()

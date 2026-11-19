@@ -112,7 +112,30 @@ object ItemDefs {
         c.drawPath(path, pS)
     }
 
+    private var carrying = false
+
+    fun drawCarried(def: Def, c: Canvas, x: Float, y: Float, unit: Float, time: Float) {
+        carrying = true
+        try {
+            def.draw(c, x, y, unit, time)
+        } finally {
+            carrying = false
+        }
+    }
+
+    fun drawRollingBall(c: Canvas, cx: Float, fy: Float, s: Float, degrees: Float) {
+        contactShadow(c, cx, fy, s * .89f, s)
+        c.save()
+        c.rotate(degrees, cx, fy - s * 1.08f)
+        try {
+            drawCarried(byId.getValue("ball"), c, cx, fy, s, 0f)
+        } finally {
+            c.restore()
+        }
+    }
+
     private fun contactShadow(c: Canvas, cx: Float, fy: Float, rx: Float, s: Float) {
+        if (carrying) return
         ellipse(c, cx, fy - s * 0.05f, rx, s * 0.13f, 0x26000000)
     }
 
@@ -239,6 +262,10 @@ object ItemDefs {
 
     /** Робот — большой экран-лицо, светящиеся глаза-плашки */
     private fun robot() = Def("robot", "Робот", Kind.TOY, Reaction.PLAY, 2.4f) { c, cx, fy, s, t ->
+        drawRobot(c, cx, fy, s, t, 0f)
+    }
+
+    fun drawRobot(c: Canvas, cx: Float, fy: Float, s: Float, t: Float, gait: Float) {
         val body = 0xFFB9C9D8.toInt(); val side = 0xFF8299AE.toInt(); val dark = 0xFF314353.toInt()
         val blink = sin(t * 3.0f) > 0f
         contactShadow(c, cx, fy, s * 1.15f, s)
@@ -252,10 +279,15 @@ object ItemDefs {
         roundRect(c, cx - s * 0.47f, fy - s * 1.52f, cx + s * 0.25f, fy - s * 0.94f, s * 0.12f, 0xFFF0F6F7.toInt())
         circle(c, cx - s * 0.22f, fy - s * 1.23f, s * 0.11f, 0xFFEF6F6C.toInt())
         circle(c, cx + s * 0.08f, fy - s * 1.23f, s * 0.11f, 0xFFF4C95D.toInt())
-        line(c, cx - s * 0.48f, fy - s * 0.45f, cx - s * 0.48f, fy - s * 0.12f, s * 0.24f, side)
-        line(c, cx + s * 0.48f, fy - s * 0.45f, cx + s * 0.48f, fy - s * 0.12f, s * 0.24f, side)
-        roundRect(c, cx - s * 0.8f, fy - s * 0.22f, cx - s * 0.2f, fy - s * 0.03f, s * 0.08f, dark)
-        roundRect(c, cx + s * 0.2f, fy - s * 0.22f, cx + s * 0.8f, fy - s * 0.03f, s * 0.08f, dark)
+        for (leg in -1..1 step 2) {
+            val hip = cx + leg * s * .48f
+            val step = gait * leg
+            val toe = hip + step * s * .17f
+            val ground = fy - step.coerceAtLeast(0f) * s * .20f
+            line(c, hip, fy - s * .45f, toe, ground - s * .12f, s * .24f, side)
+            roundRect(c, toe - s * .30f, ground - s * .22f, toe + s * .30f,
+                ground - s * .03f, s * .08f, dark)
+        }
         roundRect(c, cx - s * 0.72f, fy - s * 3.18f, cx + s * 0.72f, fy - s * 1.82f, s * 0.3f, body)
         inkRound(c, cx - s * 0.72f, fy - s * 3.18f, cx + s * 0.72f, fy - s * 1.82f, s * 0.3f, s * 0.1f)
         roundRect(c, cx - s * 0.52f, fy - s * 2.95f, cx + s * 0.52f, fy - s * 2.14f, s * 0.2f, dark)
@@ -549,6 +581,10 @@ object ItemDefs {
 
     /** Подарочная коробка — лента + крупный бант */
     private fun box() = Def("box", "Подарок", Kind.BOX, Reaction.OPEN, 3.0f) { c, cx, fy, s, _ ->
+        drawGift(c, cx, fy, s, 0f, 1)
+    }
+
+    fun drawGift(c: Canvas, cx: Float, fy: Float, s: Float, open: Float, direction: Int) {
         val bw = s * 1.28f
         val bh = s * 1.2f
         roundRect(c, cx - bw, fy - bh, cx + bw, fy - s * 0.02f, s * 0.14f, 0xFFE3A56F.toInt())
@@ -557,6 +593,13 @@ object ItemDefs {
         rect.set(cx - s * 0.2f, fy - bh, cx + s * 0.2f, fy - s * 0.02f)
         pF.color = 0xFFE05B5B.toInt()
         c.drawRect(rect, pF)
+        if (open > 0f) {
+            ellipse(c, cx, fy - bh, bw, s * .19f, 0xFF9C633E.toInt())
+            ellipse(c, cx, fy - bh - s * .04f, bw * .82f, s * .105f, 0xFF634C3C.toInt())
+        }
+        c.save()
+        c.translate(s * open * direction * .58f, -s * open * .71f)
+        c.rotate(-direction * open * 23f, cx, fy - bh)
         // крышка (чуть шире)
         roundRect(c, cx - bw * 1.08f, fy - bh - s * 0.34f, cx + bw * 1.08f, fy - bh + s * 0.12f, s * 0.12f, 0xFFD8945C.toInt())
         inkRound(c, cx - bw * 1.08f, fy - bh - s * 0.34f, cx + bw * 1.08f, fy - bh + s * 0.12f, s * 0.12f, s * 0.09f)
@@ -567,5 +610,6 @@ object ItemDefs {
         ellipse(c, cx - s * 0.34f, fy - bh - s * 0.52f, s * 0.32f, s * 0.2f, 0xFFE05B5B.toInt())
         ellipse(c, cx + s * 0.34f, fy - bh - s * 0.52f, s * 0.32f, s * 0.2f, 0xFFE05B5B.toInt())
         circle(c, cx, fy - bh - s * 0.52f, s * 0.13f, 0xFFB94141.toInt())
+        c.restore()
     }
 }

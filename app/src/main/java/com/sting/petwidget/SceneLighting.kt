@@ -2,6 +2,7 @@ package com.sting.petwidget
 
 import android.graphics.Canvas
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
@@ -15,7 +16,8 @@ internal object SceneLighting {
         private val centerX: Float,
         private val centerY: Float,
         private val radius: Float,
-        private val color: Int
+        private val color: Int,
+        private val verticalScale: Float = 1f
     ) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private var lastWidth = 0f
@@ -26,33 +28,41 @@ internal object SceneLighting {
             if (width != lastWidth || floor != lastFloor) {
                 lastWidth = width
                 lastFloor = floor
-                paint.shader = RadialGradient(width * centerX, floor * centerY, width * radius,
-                    color, color and 0x00FFFFFF, Shader.TileMode.CLAMP)
+                val x = width * centerX
+                val y = floor * centerY
+                paint.shader = RadialGradient(x, y, width * radius,
+                    color, color and 0x00FFFFFF, Shader.TileMode.CLAMP).apply {
+                    if (verticalScale != 1f) setLocalMatrix(Matrix().apply { setScale(1f, verticalScale, x, y) })
+                }
             }
             paint.alpha = (strength.coerceIn(0f, 1f) * 255).toInt()
             c.drawRect(0f, 0f, width, height, paint)
         }
     }
 
-    fun draw(c: Canvas, width: Float, height: Float, floor: Float, bulbY: Float, on: Boolean,
-             windowGlow: Float = 0f, lampX: Float = width / 2f) {
-        val x = lampX
-        if (!on) {
+    fun draw(c: Canvas, width: Float, height: Float, floor: Float, bulbY: Float, lamp: Float, daylight: Float) {
+        val x = width / 2f
+        val darkness = 1f - lamp
+        if (darkness > .005f) {
             paint.shader = LinearGradient(0f, 0f, width, height,
                 0xAE1C2942.toInt(), 0x55354764, Shader.TileMode.CLAMP)
+            paint.alpha = (255 * darkness).toInt()
             c.drawRect(0f, 0f, width, height, paint)
             paint.shader = null
-            if (windowGlow > 0.001f) {
-                val alpha = (windowGlow.coerceIn(0f, 1f) * 44).toInt()
-                // Свет затухает до середины комнаты, не осветляя её целиком.
+            if (daylight > .001f) {
+                paint.alpha = (255 * darkness * daylight).toInt()
                 paint.shader = RadialGradient(width * 0.80f, floor * 0.53f, width * 0.46f,
-                    intArrayOf((alpha shl 24) or 0x00FFE7AA, 0x00FFE7AA),
+                    intArrayOf(0x2CFFE7AA, 0x00FFE7AA),
                     null, Shader.TileMode.CLAMP)
                 c.drawRect(width * 0.36f, 0f, width, height, paint)
                 paint.shader = null
             }
+        }
+        paint.alpha = 255
+        if (lamp <= .005f) {
             return
         }
+        paint.alpha = (255 * lamp).toInt()
         paint.shader = RadialGradient(x, bulbY, width * 0.85f,
             intArrayOf(0x42FFE6B3, 0x12FFE6B3, 0x00FFE6B3),
             floatArrayOf(0f, 0.35f, 1f), Shader.TileMode.CLAMP)
@@ -69,5 +79,6 @@ internal object SceneLighting {
             intArrayOf(0x65FFF4D8, 0x00FFF4D8), null, Shader.TileMode.CLAMP)
         c.drawCircle(x, bulbY, width * 0.11f, paint)
         paint.shader = null
+        paint.alpha = 255
     }
 }
