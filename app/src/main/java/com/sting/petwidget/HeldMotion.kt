@@ -88,7 +88,7 @@ internal object HeldMotion {
         val dy = when (id) {
             "balloon" -> -.28f * flourish
             "rocket" -> -.48f * flourish
-            "boat" -> -.14f * float
+            "boat" -> -.14f * flourish
             "dice" -> -.11f * kotlin.math.abs(rock)
             else -> 0f
         }
