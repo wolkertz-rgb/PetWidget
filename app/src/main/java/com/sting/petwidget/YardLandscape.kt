@@ -117,7 +117,19 @@ internal class YardLandscape {
         path.cubicTo(w * .55f, f - 2.88f, w * .35f, f - 3.23f, w * .46f, f - 3.50f)
         path.quadTo(w * .61f, f - 3.78f, w * .57f, f - 3.86f)
         path.close()
-        shape(c, tone(0xFF9CCAC4, 0xFF587984))
+        ramp("river", f - 3.86f, f - 2.26f, tone(0xFFBFDED7, 0xFF6F909F), tone(0xFF75ADA9, 0xFF40596E))
+        fill.color = Color.WHITE
+        c.drawPath(path, fill)
+        fill.shader = null
+        c.save()
+        c.clipPath(path)
+        for (i in 0..4) {
+            val y = f - 3.46f + i * .23f
+            val shimmer = .04f * sin(now / 800f + i)
+            val x = w * (.44f + .033f * i + shimmer)
+            line(c, x, y, x + w * .055f, y, tone(0x7BE6FAE7, 0x4EBDE0F3), .04f)
+        }
+        c.restore()
         path.reset();path.moveTo(0f,meadowEdge(0f,f))
         for(i in 1..24)path.lineTo(i.toFloat(),meadowEdge(i.toFloat(),f))
         path.lineTo(w,f+.2f);path.lineTo(0f,f+.2f);path.close()
@@ -204,7 +216,8 @@ internal class YardLandscape {
                 path.quadTo(x + .26f, crown - .18f, x + .52f, crown + .17f)
                 path.lineTo(x + .52f, f - .43f)
                 path.close()
-                shape(c, wood, outline)
+                ramp("pickets", f - 2.58f, f - .43f, light, dark)
+                shape(c, Color.WHITE, outline)
                 line(c,x+.09f,f-2.22f,x+.09f,f-.67f,light,.035f)
                 disc(c,x+.26f,f-1.99f,.022f,outline)
                 disc(c,x+.26f,f-.95f,.022f,outline)
@@ -223,7 +236,8 @@ internal class YardLandscape {
         val batten = mix(wall, outline, .18f)
         val timber = tone(0xFFAE815C, 0xFF62645D)
         // Straight-on cottage elevation, cropped at the left edge.
-        box(c, -.3f, eave, corner, f, wall, 0f, outline)
+        ramp("facade", eave, f, mix(wall, outline, .16f), mix(wall, Color.WHITE, .15f))
+        box(c, -.3f, eave, corner, f, Color.WHITE, 0f, outline)
         for (i in 0..9) {
             val x = .32f + i * .9f
             box(c, x, eave, x + .085f, f - .45f, batten, .01f)
@@ -242,7 +256,8 @@ internal class YardLandscape {
         path.lineTo(roofEnd, eave)
         path.lineTo(-1f, eave)
         path.close()
-        shape(c, tone(0xFF657975, 0xFF384C58), outline)
+        ramp("roof", eave - 2.5f, eave, tone(0xFF879C90, 0xFF526978), tone(0xFF4A625D, 0xFF263D48))
+        shape(c, Color.WHITE, outline)
         c.save()
         c.clipPath(path)
         for (row in 0..4) {

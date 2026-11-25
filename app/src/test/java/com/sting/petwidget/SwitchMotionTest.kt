@@ -33,6 +33,13 @@ class SwitchMotionTest {
         assertEquals(0f, SwitchMotion.pose(PetSim.PULL_DUR).reach, 0f)
     }
 
+    @Test fun petTurnsBeforeClickAndFacesFrontAfterRelease() {
+        assertEquals(0f, SwitchMotion.turn(0), 0f)
+        assertTrue(SwitchMotion.turn(200) in .01f..0.99f)
+        for (time in 540L..1000L) assertEquals(1f, SwitchMotion.turn(time), 0f)
+        assertEquals(0f, SwitchMotion.turn(PetSim.PULL_DUR), 0f)
+    }
+
     @Test fun motionHasNoFrameJumps() {
         for (t in 0L..1400L) {
             val a = SwitchMotion.pose(t)

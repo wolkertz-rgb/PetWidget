@@ -166,6 +166,12 @@ class SceneRenderer {
         val floor = gradientPaint("floor").apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFE1E1DC.toInt()), th("floor_bottom", 0xFFD3D3CE.toInt()), Shader.TileMode.CLAMP) }
         rect.set(pad, floorY, w - pad, h - pad)
         c.drawRect(rect, floor)
+        pS.color = 0x38FFF5E4
+        pS.strokeWidth = unit * .05f
+        for (i in 1..3) {
+            val y = lerp(floorY, h - pad, i * .22f)
+            c.drawLine(pad, y, w - pad, y, pS)
+        }
         pF.color = th("room_skirt", 0xFFDCDCD6.toInt())
         rect.set(pad, floorY - unit * 0.22f, w - pad, floorY)
         c.drawRect(rect, pF)
@@ -215,8 +221,13 @@ class SceneRenderer {
             catch (t: Throwable) { logErr("rear arm", t) }
         }
 
+        if (sim.state == PetSim.State.PULL) {
+            try { drawArms(c, sim, inter, unit, floorY, itemX, rear = true) }
+            catch (t: Throwable) { logErr("switch arm", t) }
+        }
+
         // питомец
-        try { drawPet(c, sim, itemX(sim.x), floorY, unit, inter) } catch (t: Throwable) { logErr("pet", t) }
+        try { drawPet(c, sim, itemX(sim.x) + switchOffset(sim, unit), floorY, unit, inter) } catch (t: Throwable) { logErr("pet", t) }
 
         // предметы ПОВЕРХ питомца (стоят перед ним)
         for (item in sim.items) {
@@ -864,6 +875,8 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
+        val turning = if (st == PetSim.State.PULL) SwitchMotion.turn(sim.stateTime) else 0f
+        val yaw = turning * PI.toFloat()
         run {
             val pose = PetMotion.pose(sim)
             sx = pose.sx
@@ -883,6 +896,12 @@ class SceneRenderer {
             }
         }
 
+        if (turning > 0f) {
+            val press = SwitchMotion.pose(sim.stateTime).press
+            sx *= 1f - .12f * sin(yaw)
+            sy *= 1f + .035f * sin(yaw)
+            rot += sim.dir * (.08f * sin(yaw) - .075f * press)
+        }
         val targetRotation = rot
         // ---- сглаживание: поза тянется к целевой (кратчайшая дуга по углу)
         val tl = lastPose
@@ -1003,9 +1022,22 @@ class SceneRenderer {
         c.drawOval(-.44f, -.86f, -.04f, -.74f, pF)
         c.drawOval(.02f, -.83f, .16f, -.75f, pF)
         c.rotate(20f)
-        pF.color = th("pet_belly", 0xFFBDEBCF.toInt())
-        c.drawRoundRect(-.56f,.08f,.56f,.84f,.42f,.38f,pF)
         c.restore()
+
+        val faceAmount = cos(yaw)
+        if (faceAmount <= .015f) {
+            c.restore()
+            return
+        }
+        val faceSave = if (turning > 0f) {
+            val margin = r * 3f
+            c.saveLayerAlpha(px - margin, cy - margin, px + margin, cy + margin, (255 * faceAmount).toInt())
+        } else c.save()
+        c.translate(sim.dir * r * .79f * sin(yaw), 0f)
+        c.scale(faceAmount, 1f, px, cy)
+        pF.color = th("pet_belly", 0xFFBDEBCF.toInt())
+        c.drawRoundRect(px - r * sx * .56f, cy + r * sy * .08f,
+            px + r * sx * .56f, cy + r * sy * .84f, r * sx * .42f, r * sy * .38f, pF)
 
         // лицо
         val eyeY = cy - r * sy * 0.30f
@@ -1360,6 +1392,7 @@ class SceneRenderer {
             }
         }
 
+        c.restoreToCount(faceSave)
         c.restore()
     }
 
@@ -1472,12 +1505,18 @@ class SceneRenderer {
         pF.alpha=255;pS.alpha=255
     }
 
+    private fun switchOffset(sim: PetSim, unit: Float): Float =
+        if (sim.state == PetSim.State.PULL && th("room_lamp", 0) != 0)
+            -unit * .92f * SwitchMotion.turn(sim.stateTime)
+        else 0f
+
     private fun drawArms(
         c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float, itemX: (Float) -> Float, rear: Boolean = false
     ) {
-        if (rear && sim.state != PetSim.State.INTERACT) return
+        if (sim.state == PetSim.State.PULL && !rear) return
+        if (rear && sim.state != PetSim.State.INTERACT && sim.state != PetSim.State.PULL) return
         val r = unit * 1.55f
-        val cx = itemX(sim.x)
+        val cx = itemX(sim.x) + switchOffset(sim, unit)
         val cy = petCy(sim, floorY, unit, r)
         val st = sim.state
 
@@ -1557,14 +1596,14 @@ class SceneRenderer {
                 val (tipX, tipY) = pullCordPos(sim, unit, floorY)
                 val motion = SwitchMotion.pose(sim.stateTime)
                 val shoulderX = cx + (if (tipX >= cx) r else -r) * .82f
-                val shoulderY = cy + r * .12f
+                val shoulderY = cy + r * .12f - r * .22f * SwitchMotion.turn(sim.stateTime)
                 val arc = unit * .24f * 4f * motion.reach * (1f - motion.reach)
                 if (motion.reach <= .01f) return
                 if (th("room_lamp", 0) == 0) {
                     arm(shoulderX, shoulderY, lerp(shoulderX, tipX, motion.reach),
                         lerp(shoulderY, tipY, motion.reach) - arc, true)
                 } else {
-                    val padY = tipY + unit * (.22f - .16f * motion.press)
+                    val padY = tipY + unit * (.17f - .11f * motion.press)
                     arm(shoulderX, shoulderY, lerp(shoulderX, tipX - unit * .09f, motion.reach),
                         lerp(shoulderY, padY, motion.reach) - arc, true)
                 }

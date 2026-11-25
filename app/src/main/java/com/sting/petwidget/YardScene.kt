@@ -147,6 +147,8 @@ internal class YardScene {
             }
         }
         box(c,-1.57f,-.12f,1.57f,.16f,swingWood,.1f)
+        p.color = 0x44FFF0CF
+        c.drawRoundRect(-1.43f,-.10f,1.43f,-.025f,.04f,.04f,p)
         edge.color=0xFF505B4E.toInt()
         edge.strokeWidth=.055f
         c.drawRoundRect(-1.57f,-.12f,1.57f,.16f,.1f,.1f,edge)

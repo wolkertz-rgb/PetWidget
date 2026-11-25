@@ -3,7 +3,9 @@ package com.sting.petwidget
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
+import android.graphics.LinearGradient
+import android.graphics.Shader
+import android.util.LruCache
 
 /** Мебель в координатах комнаты; выбор хранится в существующих настройках. */
 internal class RoomFurniture {
@@ -13,11 +15,32 @@ internal class RoomFurniture {
         strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
         color = 0xFF4A4038.toInt()
     }
-    private fun box(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int, radius: Float = 0.2f) {
+    private data class Finish(val color: Int, val top: Float, val bottom: Float)
+    private val finishes = LruCache<Finish, Shader>(96)
+
+    private fun finish(color: Int, top: Float, bottom: Float) {
         p.color = color
-        val rect = RectF(l, t, r, b)
-        c.drawRoundRect(rect, radius, radius, p)
-        c.drawRoundRect(rect, radius, radius, edge)
+        if (color ushr 24 != 255 || top >= bottom) return
+        val key = Finish(color, top, bottom)
+        p.shader = finishes.get(key) ?: LinearGradient(0f, top, 0f, bottom,
+            blend(color, 0xFFF9EED9.toInt(), .23f), color,
+            Shader.TileMode.CLAMP).also { finishes.put(key, it) }
+    }
+
+    private fun blend(color: Int, light: Int, amount: Float): Int {
+        fun channel(shift: Int): Int {
+            val a = (color ushr shift) and 255
+            val b = (light ushr shift) and 255
+            return (a + (b - a) * amount).toInt()
+        }
+        return android.graphics.Color.rgb(channel(16), channel(8), channel(0))
+    }
+
+    private fun box(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int, radius: Float = 0.2f) {
+        finish(color, t, b)
+        c.drawRoundRect(l, t, r, b, radius, radius, p)
+        p.shader = null
+        c.drawRoundRect(l, t, r, b, radius, radius, edge)
     }
 
     private fun shape(c: Canvas, path: Path, color: Int) {
@@ -25,7 +48,10 @@ internal class RoomFurniture {
     }
 
     private fun oval(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int) {
-        p.color = color; c.drawOval(l, t, r, b, p); c.drawOval(l, t, r, b, edge)
+        finish(color, t, b)
+        c.drawOval(l, t, r, b, p)
+        p.shader = null
+        c.drawOval(l, t, r, b, edge)
     }
 
     fun bed(c: Canvas, x: Float, floor: Float, u: Float, style: Int, color: Int, front: Boolean) {

@@ -4,6 +4,9 @@ package com.sting.petwidget
 internal object SwitchMotion {
     data class Pose(val reach: Float, val press: Float)
 
+    // The back faces the viewer throughout the click and release.
+    fun turn(timeMs: Long): Float = PetMotion.accent(timeMs.toFloat(), 0f, 430f, 1000f, 1400f)
+
     fun pose(timeMs: Long): Pose {
         val t = timeMs.toFloat()
         val reach = PetMotion.accent(t, 75f, 500f, 1000f, 1400f)
