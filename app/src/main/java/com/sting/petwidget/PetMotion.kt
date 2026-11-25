@@ -23,6 +23,14 @@ internal object PetMotion {
     private fun squash(y: Float, angle: Float = 0f, lift: Float = 0f) =
         Pose(1f / y, y, angle = angle, lift = lift)
 
+    private fun laughHop(p: Float, start: Float, end: Float): Float {
+        val t = ((p - start) / (end - start)).coerceIn(0f, 1f)
+        return 4f * t * (1f - t)
+    }
+
+    fun sob(p: Float, seconds: Float): Float =
+        accent(p, .08f, .25f, .78f, .98f) * (.5f + .5f * sin(seconds * 12f))
+
     fun pose(sim: PetSim): Pose {
         val p = (sim.stateTime.toFloat() / sim.stateDur.coerceAtLeast(1)).coerceIn(0f, 1f)
         val e = envelope(p)
@@ -48,11 +56,11 @@ internal object PetMotion {
             PetSim.State.STRETCH -> squash(1f + .12f * settle - .035f * accent(p, 0f, .10f, .14f, .26f))
             PetSim.State.HAPPY -> {
                 val flight = ((p - .24f) / .48f).coerceIn(0f, 1f)
-                val lift = 2.4f * flight * (1f - flight)
+                val lift = 3.2f * flight * (1f - flight)
                 val crouch = accent(p, 0f, .15f, .17f, .24f)
                 val landing = accent(p, .72f, .79f, .81f, .96f)
                 val launch = accent(p, .19f, .25f, .27f, .45f)
-                squash(1f - .13f * crouch + .08f * launch - .11f * landing, lift = lift)
+                squash(1f - .17f * crouch + .11f * launch - .16f * landing, angle = -.12f * sim.dir * (crouch - launch), lift = lift)
             }
             PetSim.State.ROLL -> {
                 val turn = ease((p - 0.16f) / 0.65f)
@@ -80,12 +88,17 @@ internal object PetMotion {
                 Pose(1f + 0.09f * squeeze, 1f - 0.09f * squeeze)
             }
             PetSim.State.TICKLE -> {
-                val giggle = sin(t * 8f) * e
-                Pose(1f + 0.035f * giggle, 1f - 0.03f * giggle, giggle * 0.045f)
+                val first = laughHop(p, .18f, .45f)
+                val second = laughHop(p, .51f, .76f)
+                val tuck = accent(p, 0f, .12f, .14f, .22f)
+                val settleDown = accent(p, .75f, .82f, .86f, 1f)
+                val lift = .43f * first + .25f * second
+                squash(1f - .14f * tuck + .09f * first - .10f * settleDown,
+                    angle = (.22f * tuck - .16f * first + .11f * second) * sim.dir, lift = lift)
             }
             PetSim.State.HUNGRY -> {
-                val sob = sin(t * 5f) * settle
-                squash(1f - .026f * settle + .012f * sob, angle = sin(t * 2.3f) * .024f * settle)
+                val sob = sob(p, t)
+                squash(1f - .10f * settle - .065f * sob, angle = -.14f * settle * sim.dir)
             }
             PetSim.State.INTERACT -> when (itemId) {
                 "robot", "top", "ball", "block" ->

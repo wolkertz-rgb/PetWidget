@@ -210,6 +210,11 @@ class SceneRenderer {
 
         val inter = readInteract(sim, itemX, floorY, unit)
 
+        if (inter.target != null) {
+            try { drawArms(c, sim, inter, unit, floorY, itemX, rear = true) }
+            catch (t: Throwable) { logErr("rear arm", t) }
+        }
+
         // питомец
         try { drawPet(c, sim, itemX(sim.x), floorY, unit, inter) } catch (t: Throwable) { logErr("pet", t) }
 
@@ -255,7 +260,7 @@ class SceneRenderer {
         // лампу и шнур видно и в темноте (питомцу нужно видеть, куда тянуть)
         drawBulb(c, unit, floorY)
         // Настенная клавиша рисуется только в слое стены, до питомца.
-        if (th("room_lamp", 0) == 0) drawPullCord(c, sim, unit, floorY)
+        if (th("room_lamp", 0) == 0 && sim.state != PetSim.State.PULL) drawPullCord(c, sim, unit, floorY)
 
         drawLocationFade(c, sim)
 
@@ -276,8 +281,9 @@ class SceneRenderer {
         val perspective=SwingMotion.scale(a)
         c.scale(perspective,perspective)
         c.translate(-center,-floor)
+        if (inter.target != null) drawArms(c, sim, inter, unit, floor, itemX, rear = true)
         drawPet(c, sim, itemX(sim.x), floor, unit, inter)
-        if (!inter.holding) drawArms(c, sim, inter, unit, floor, itemX)
+        if (inter.target == null) drawArms(c, sim, inter, unit, floor, itemX)
         c.restore()
         for (item in sim.items) {
             if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), floor, unit)
@@ -286,8 +292,8 @@ class SceneRenderer {
         }
         if (inter.holding) {
             drawHeldItem(c,sim,inter,unit,floor)
-            drawArms(c,sim,inter,unit,floor,itemX)
         }
+        if (inter.target != null) drawArms(c,sim,inter,unit,floor,itemX)
         if (sim.state == PetSim.State.WAVE) drawHearts(c,sim,itemX(sim.x),floor,unit)
         drawDiscovery(c, sim, center, floor, unit, itemX)
         drawLocationFade(c,sim)
@@ -608,6 +614,7 @@ class SceneRenderer {
         val holding: Boolean get() = held != null
     }
 
+    private val singleHandProps = setOf("balloon", "flower", "icecream", "coffee")
     private val flexibleProps = setOf("ball", "plushie", "balloon")
 
     private fun modelScale(def: ItemDefs.Def) = when {
@@ -631,30 +638,32 @@ class SceneRenderer {
         val pose = HeldMotion.pose(item.defId, info.phase, sim.dir, food)
         info.held = pose
         val advance = when (item.defId) {
-            "coffee" -> 1.20f - .33f * pose.taste
-            "icecream" -> 1.19f - .44f * pose.taste
+            "coffee" -> .92f
+            "icecream" -> .87f
             "flower" -> 1.26f
             "plushie" -> 1.20f
             "rocket", "balloon" -> 1.64f
-            else -> if (food) 1.18f - .52f * pose.taste else 1.42f
+            else -> if (food) .86f else 1.42f
         }
         val rise = when (item.defId) {
-            "coffee" -> .52f - .38f * pose.taste
-            "icecream" -> .55f - .24f * pose.taste
+            "coffee" -> .79f
+            "icecream" -> .65f
             "flower" -> .43f
             "plushie" -> .63f
             "balloon" -> .35f
             "rocket" -> .52f
-            else -> if (food) .76f + .22f * pose.taste else .87f
+            else -> if (food) .84f else .87f
         }
         val approachX = itemX(sim.x) + sim.dir * advance * unit
         info.x = lerp(info.x, approachX, pose.carry) + pose.dx * unit
         info.y = floor - rise * pose.carry * unit + pose.dy * unit
         if (food) {
-            val rim = HeldMotion.grip(item.defId).height * 1.7f * modelScale(item.def) * pose.scale
+            val rim = foodTop(item.defId) * modelScale(item.def)
             val mouthY = petCy(sim, floor, unit, unit * 1.55f) + unit * .10f
-            info.x = lerp(info.x, itemX(sim.x) + sim.dir * unit * .20f, pose.taste)
-            info.y = lerp(info.y, mouthY + rim * unit, pose.taste)
+            val angle = pose.tilt * PI.toFloat() / 180f
+            val mouthX = itemX(sim.x) + sim.dir * unit * .12f
+            info.x = lerp(info.x, mouthX - rim * unit * sin(angle), pose.taste)
+            info.y = lerp(info.y, mouthY + rim * unit * cos(angle), pose.taste) - unit * .19f * pose.taste * (1f - pose.taste)
         }
         return info
     }
@@ -1240,7 +1249,8 @@ class SceneRenderer {
             st == PetSim.State.TICKLE -> {
                 // хохочет от щекотки
                 pF.color = 0xFF2E3B34.toInt()
-                rect.set(px - r * 0.26f, mouthY - r * 0.24f, px + r * 0.26f, mouthY + r * 0.08f)
+                val laugh = PetMotion.accent(p, .06f, .21f, .68f, .96f)
+                rect.set(px - r * .26f, mouthY - r * .12f, px + r * .26f, mouthY + r * (.02f + .24f * laugh))
                 c.drawArc(rect, 0f, 180f, true, pF)
             }
             st == PetSim.State.PULL -> {
@@ -1252,7 +1262,7 @@ class SceneRenderer {
             }
             st == PetSim.State.HUNGRY -> {
                 pS.color = 0xFF2E3B34.toInt();pS.strokeWidth=unit*.12f
-                val sob=sin(sim.stateTime/1000f*5f)*r*.012f
+                val sob = PetMotion.sob(p, sim.stateTime / 1000f) * r * .15f
                 path.reset();path.moveTo(px-r*.15f,mouthY+r*.06f)
                 path.quadTo(px,mouthY-r*.12f+sob,px+r*.15f,mouthY+r*.06f)
                 c.drawPath(path,pS)
@@ -1356,17 +1366,40 @@ class SceneRenderer {
     // ------------------------------------------------- предмет "в руках"
 
 
+    private fun foodTop(id: String) = when (id) {
+        "pizza" -> 2.50f
+        "sushi" -> 1.43f
+        "coffee" -> 2f
+        "apple" -> 2.10f
+        "icecream" -> 2.59f
+        else -> 2.0f
+    }
+
+    private val biteMask = Path()
+
     private fun drawHeldItem(c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floor: Float) {
         val item = inter.target ?: return
         val pose = inter.held ?: return
         val x = inter.x
         val y = inter.y
-        if (pose.scale > .015f) {
+        if (pose.visibility > .015f) {
             c.save()
             c.rotate(pose.tilt, x, y)
             val size = pose.scale * modelScale(item.def)
             c.scale(size, size, x, y)
-            val cupFade = if (item.defId == "coffee") smooth((inter.phase - .94f) / .06f) else 0f
+            if (pose.bitesTaken > 0) {
+                val s = unit * modelScale(item.def)
+                val top = y - s * foodTop(item.defId)
+                biteMask.reset()
+                biteMask.addCircle(x - sim.dir * s * .25f, top + s * .12f, s * .42f, Path.Direction.CW)
+                if (pose.bitesTaken >= 2) {
+                    biteMask.addCircle(x + sim.dir * s * .20f, top + s * .20f, s * .44f, Path.Direction.CW)
+                }
+                @Suppress("DEPRECATION")
+                c.clipPath(biteMask, android.graphics.Region.Op.DIFFERENCE)
+            }
+            val cupFade = if (item.defId == "coffee") smooth((inter.phase - .94f) / .06f)
+                else 1f - pose.visibility
             if (cupFade > 0f) {
                 val layer = c.saveLayerAlpha(x - unit * 2f, y - unit * 4f, x + unit * 2f, y + unit * .5f,
                     ((1f - cupFade) * 255).toInt())
@@ -1440,8 +1473,9 @@ class SceneRenderer {
     }
 
     private fun drawArms(
-        c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float, itemX: (Float) -> Float
+        c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float, itemX: (Float) -> Float, rear: Boolean = false
     ) {
+        if (rear && sim.state != PetSim.State.INTERACT) return
         val r = unit * 1.55f
         val cx = itemX(sim.x)
         val cy = petCy(sim, floorY, unit, r)
@@ -1497,7 +1531,7 @@ class SceneRenderer {
         when (st) {
             PetSim.State.INSPECT -> {
                 val reach = PetMotion.envelope(sim.stateTime.toFloat() / sim.stateDur)
-                val shoulder = cx + sim.dir * r * .42f
+                val shoulder = cx + sim.dir * r * .82f
                 arm(shoulder, cy + r * .3f, shoulder + sim.dir * r * .38f * reach,
                     cy + r * (.35f + .27f * reach), false)
             }
@@ -1513,7 +1547,7 @@ class SceneRenderer {
                 val reach = PetMotion.envelope((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f))
                 val sw = sin(sim.stateTime / 1000f * 7f) * unit * 0.35f * reach
                 arm(
-                    cx + r * 0.5f, cy - r * 0.35f,
+                    cx + r * .83f, cy + r * .08f,
                     cx + r * (0.55f + 0.55f * reach) + sw, cy - r * (0.15f + 1.45f * reach),
                     true
                 )
@@ -1522,8 +1556,8 @@ class SceneRenderer {
             PetSim.State.PULL -> {
                 val (tipX, tipY) = pullCordPos(sim, unit, floorY)
                 val motion = SwitchMotion.pose(sim.stateTime)
-                val shoulderX = cx + r * .46f
-                val shoulderY = cy - r * .16f
+                val shoulderX = cx + (if (tipX >= cx) r else -r) * .82f
+                val shoulderY = cy + r * .12f
                 val arc = unit * .24f * 4f * motion.reach * (1f - motion.reach)
                 if (motion.reach <= .01f) return
                 if (th("room_lamp", 0) == 0) {
@@ -1536,19 +1570,36 @@ class SceneRenderer {
                 }
             }
 
-            PetSim.State.HUNGRY -> {
-                val e=PetMotion.envelope((sim.stateTime.toFloat()/sim.stateDur.coerceAtLeast(1)).coerceIn(0f,1f))
-                val sob=sin(sim.stateTime/1000f*5f)*unit*.035f*e
-                arm(cx-r*.55f,cy+r*.05f,cx-r*.20f,cy+r*.48f+sob,false)
-                arm(cx+r*.55f,cy+r*.05f,cx+r*.20f,cy+r*.48f-sob,false)
+            PetSim.State.HUNGRY, PetSim.State.HAPPY, PetSim.State.TICKLE -> {
+                val p = sim.stateTime.toFloat() / sim.stateDur.coerceAtLeast(1)
+                val reach = PetMotion.accent(p, .02f, .23f, .70f, .96f)
+                if (reach <= .01f) return
+                val sob = PetMotion.sob(p, sim.stateTime / 1000f)
+                val handX = when (st) {
+                    PetSim.State.HAPPY -> 1.36f
+                    PetSim.State.HUNGRY -> .46f
+                    else -> .44f
+                }
+                val handY = when (st) {
+                    PetSim.State.HAPPY -> -.57f
+                    PetSim.State.HUNGRY -> -.36f - .15f * sob
+                    else -> .62f - .19f * sin(p * 15f)
+                }
+                for (side in -1..1 step 2) {
+                    val shoulderX = cx + side * r * .84f
+                    val shoulderY = cy + r * .20f
+                    arm(shoulderX, shoulderY,
+                        lerp(shoulderX, cx + side * handX * r, reach),
+                        lerp(shoulderY, cy + handY * r, reach), handY < 0f)
+                }
             }
 
             PetSim.State.INTERACT -> {
 
                 val item = inter.target ?: return
                 val phase = inter.phase
-                val near = cx + sim.dir * r * .56f
-                val far = cx + sim.dir * r * .22f
+                val near = cx + sim.dir * r * .83f
+                val far = cx - sim.dir * r * .83f
                 val ay = cy + r * .18f
                 fun reach(ax: Float, tx: Float, ty: Float, amount: Float, up: Boolean = false) {
                     if (amount <= .01f) return
@@ -1564,8 +1615,10 @@ class SceneRenderer {
                     val sinTilt = sin(radians)
                     val scale = unit * held.scale * modelScale(item.def)
                     val amount = held.hands * if (item.def.kind == ItemDefs.Kind.FOOD)
-                        smooth(held.scale / .17f) else 1f
+                        held.visibility else 1f
                     for (side in -1..1 step 2) {
+                        if ((side != sim.dir) != rear) continue
+                        if (rear && item.defId in singleHandProps) continue
                         val dx = side * grip.halfWidth * scale
                         val dy = -grip.height * scale
                         reach(if (side == sim.dir) near else far,
@@ -1574,6 +1627,7 @@ class SceneRenderer {
                     }
                     return
                 }
+                if (rear && sim.reaction != ItemDefs.Reaction.OPEN) return
                 when (sim.reaction) {
                     ItemDefs.Reaction.PLAY -> {
                         val hand = InteractionMotion.floorHand(item.defId, phase)
@@ -1582,8 +1636,8 @@ class SceneRenderer {
                     ItemDefs.Reaction.OPEN -> {
                         val uncover = InteractionMotion.giftLid(phase)
                         val lift = smooth(phase / .24f) * smooth((.81f - phase) / .21f)
-                        reach(near, inter.x - sim.dir * propUnit * .64f, floorY - propUnit * (1.42f + uncover * .71f), lift)
-                        reach(far, inter.x + sim.dir * propUnit * .62f, floorY - propUnit * (1.42f + uncover * .71f), lift)
+                        if (!rear) reach(near, inter.x - sim.dir * propUnit * .64f, floorY - propUnit * (1.42f + uncover * .71f), lift)
+                        if (rear) reach(far, inter.x + sim.dir * propUnit * .62f, floorY - propUnit * (1.42f + uncover * .71f), lift)
                     }
                     ItemDefs.Reaction.PUSH -> {
                         val hit = InteractionMotion.PUSH_PHASE

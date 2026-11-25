@@ -15,10 +15,12 @@ internal object HeldMotion {
         val dy: Float,
         val taste: Float,
         val chew: Float,
-        val crumbs: Float
+        val crumbs: Float,
+        val bitesTaken: Int,
+        val visibility: Float
     )
 
-    private val bites = floatArrayOf(0.38f, 0.58f, 0.78f)
+    private val bites = floatArrayOf(.43f, .61f, .79f)
     private val sips = floatArrayOf(0.43f, 0.66f)
 
     fun grip(id: String): Grip = when (id) {
@@ -50,19 +52,18 @@ internal object HeldMotion {
         var chew = 0f
         var crumbs = 1f
         var remaining = 1f
-        var size = 1f
+        var bitesTaken = 0
         if (contact != null) {
-            for ((index, point) in contact.withIndex()) {
+            for (point in contact) {
                 taste = maxOf(taste, PetMotion.accent(p, point - .095f, point, point + .024f, point + .09f))
                 val chewing = PetMotion.accent(p, point + .025f, point + .052f, point + .078f, point + .129f)
                 chew = maxOf(chew, chewing)
                 if (id != "coffee") {
-                    val bite = PetMotion.ease((p - point) / .055f)
-                    size -= bite * if (index == 2) .32f else .14f
+                    if (p >= point) bitesTaken++
                     if (p >= point + .018f) crumbs = (p - point - .018f) / .11f
                 }
             }
-            if (id != "coffee") remaining = 1f - PetMotion.ease((p - .80f) / .055f)
+            if (id != "coffee") remaining = 1f - PetMotion.ease((p - bites.last()) / .05f)
         }
 
         val rock = sin((p - .32f).coerceAtLeast(0f) * PI.toFloat() * 5f) * flourish
@@ -74,8 +75,8 @@ internal object HeldMotion {
             "boat" -> 13f * rock
             "flower" -> dir * -42f * flourish
             "coffee" -> dir * -31f * taste
-            "icecream" -> dir * -17f * taste
-            else -> dir * -12f * taste
+            "icecream" -> dir * -5f * carry
+            else -> 0f
         }
         val dx = when (id) {
             "rocket" -> .45f * flourish
@@ -91,7 +92,7 @@ internal object HeldMotion {
             "dice" -> -.11f * kotlin.math.abs(rock)
             else -> 0f
         }
-        return Pose(carry, hands, (size * remaining).coerceAtLeast(0f), tilt, dx * dir, dy, taste, chew, crumbs)
+        return Pose(carry, hands, 1f, tilt, dx * dir, dy, taste, chew, crumbs, bitesTaken, remaining)
     }
 
     private fun pulse(p: Float, start: Float, peak: Float, end: Float) =
