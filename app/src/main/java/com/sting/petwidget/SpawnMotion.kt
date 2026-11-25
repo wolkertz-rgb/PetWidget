@@ -14,7 +14,7 @@ internal object SpawnMotion {
         val impact: Float
     )
 
-    fun pose(ageMs: Long, seed: Int): Pose {
+    fun pose(ageMs: Long, seed: Int, flexible: Boolean = false): Pose {
         val p = ((ageMs + DURATION_MS).toFloat() / DURATION_MS).coerceIn(0f, 1f)
         val direction = if (seed and 1 == 0) 1f else -1f
         return when {
@@ -31,14 +31,15 @@ internal object SpawnMotion {
             }
             p < 0.82f -> {
                 val q = (p - 0.70f) / 0.12f
-                val squash = sin(q * PI.toFloat())
-                Pose(0f, 1f + 0.16f * squash, 1f - 0.18f * squash,
+                val squash = if (flexible) .11f * sin(q * PI.toFloat()) else 0f
+                val height = 1f - squash
+                Pose(0f, 1f / height, height,
                     0f, 1f - q)
             }
             else -> {
                 val q = (p - 0.82f) / 0.18f
-                val hop = sin(q * PI.toFloat())
-                Pose(-0.42f * hop, 1f - 0.04f * hop, 1f + 0.05f * hop,
+                val hop = 4f * q * (1f - q)
+                Pose(-(if (flexible) .42f else .26f) * hop, 1f, 1f,
                     0f, 0f)
             }
         }

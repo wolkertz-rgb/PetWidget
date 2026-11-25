@@ -24,9 +24,9 @@ internal object InteractionMotion {
 
     fun floorHand(id: String, phase: Float): Hand = when (id) {
         "robot" -> Hand(-.20f, 1.23f,
-            smooth(phase / .19f) * smooth((.37f - phase) / .11f))
+            PetMotion.accent(phase, .04f, .19f, .28f, .38f))
         "top" -> Hand(.10f * smooth((phase - .17f) / .13f), 3.01f,
-            smooth(phase / .17f) * smooth((.39f - phase) / .13f))
+            PetMotion.accent(phase, .04f, .17f, .26f, .39f))
         else -> Hand(-.3f, .7f, PetMotion.envelope(phase))
     }
 

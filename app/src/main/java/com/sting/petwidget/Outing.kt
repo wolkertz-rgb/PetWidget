@@ -14,13 +14,14 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
     private val roomItems = ArrayList<PetSim.SpawnedItem>()
     private val yardItems = ArrayList<PetSim.SpawnedItem>()
     val doorX get() = 0.16f
-    val doorOpen get() = if (phase == 2) PetMotion.ease(time / 650f) else if (phase == 3) 1f - PetMotion.ease(time / 700f) else 0f
+    val doorReach get() = if (phase == 2) PetMotion.accent(time / 1300f, 0f, .22f, .33f, .59f) else 0f
+    val doorOpen get() = if (phase == 2) PetMotion.ease((time - 286f) / 364f) else if (phase == 3) 1f - PetMotion.ease(time / 700f) else 0f
     val fade get() = if (phase == 2) PetMotion.ease((time - 650f) / 650f) else if (phase == 3) 1f - PetMotion.ease(time / 850f) else 0f
     val swinging get() = phase == 5
     val busy get() = phase != 0
     val mount get() = if (swinging) PetMotion.ease(time / 900f) * PetMotion.ease((10_000f-time)/900f) else 0f
     val swingAngle get() = if (swinging) sin(time / 1000f * 2.1f) * 0.22f *
-        PetMotion.ease(time / 900f) * PetMotion.ease((10_000f - time) / 900f) else 0f
+        PetMotion.accent(time / 10_000f, .09f, .23f, .77f, .91f) else 0f
 
     fun tick(sim: PetSim, dt: Long): Boolean {
         elapsed += dt

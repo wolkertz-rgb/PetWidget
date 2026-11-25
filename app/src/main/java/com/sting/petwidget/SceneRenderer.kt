@@ -608,6 +608,8 @@ class SceneRenderer {
         val holding: Boolean get() = held != null
     }
 
+    private val flexibleProps = setOf("ball", "plushie", "balloon")
+
     private fun modelScale(def: ItemDefs.Def) = when {
         def.kind == ItemDefs.Kind.FOOD -> .58f
         def.id == "rocket" || def.id == "robot" -> .64f
@@ -650,7 +652,7 @@ class SceneRenderer {
         info.y = floor - rise * pose.carry * unit + pose.dy * unit
         if (food) {
             val rim = HeldMotion.grip(item.defId).height * 1.7f * modelScale(item.def) * pose.scale
-            val mouthY = petCy(sim, floor, unit, unit * 1.55f) + unit * .25f
+            val mouthY = petCy(sim, floor, unit, unit * 1.55f) + unit * .10f
             info.x = lerp(info.x, itemX(sim.x) + sim.dir * unit * .20f, pose.taste)
             info.y = lerp(info.y, mouthY + rim * unit, pose.taste)
         }
@@ -665,7 +667,7 @@ class SceneRenderer {
     ) {
         val def = item.def
         if (item.ageMs < 0) {
-            val pose = SpawnMotion.pose(item.ageMs, item.defId.hashCode())
+            val pose = SpawnMotion.pose(item.ageMs, item.defId.hashCode(), item.defId in flexibleProps)
             val proximity = (1f - (-pose.y / 10.5f)).coerceIn(0f, 1f)
             pF.color = 0xFF000000.toInt()
             pF.alpha = (proximity * 40f).toInt()
@@ -802,10 +804,7 @@ class SceneRenderer {
         val onBed = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
         val bedLift = if (th("room_bed", 0) == 1) 0.02f else 0.62f
         var cy = floorY - r * 0.92f - if (onBed) unit * bedLift else 0f
-        if (sim.state != PetSim.State.WALK) cy -= PetMotion.pose(sim).lift * r
-        if (sim.state == PetSim.State.WALK) {
-            cy -= abs(sin(sim.animPhase * 5.5f)) * r * 0.14f
-        }
+        cy -= PetMotion.pose(sim).lift * r
         if (sim.state == PetSim.State.PULL && th("room_lamp", 0) == 0) {
             cy -= SwitchMotion.cordStretch(sim.stateTime) * r * .44f
         }
@@ -856,16 +855,17 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-        if (st == PetSim.State.WALK) {
-            sx = 1f + 0.05f * sin(sim.animPhase * 11f)
-            sy = 1f - 0.035f * sin(sim.animPhase * 11f)
-        } else {
+        run {
             val pose = PetMotion.pose(sim)
             sx = pose.sx
             sy = pose.sy
             rot = pose.angle
             dx = pose.offset * unit
-            if (sim.outing.swinging) { sx=1.02f; sy=.95f; rot=0f }
+            if (sim.outing.swinging) {
+                sy = lerp(sy, .96f, sim.outing.mount)
+                sx = 1f / sy
+                rot = sim.outing.swingAngle * .12f
+            }
             if (st == PetSim.State.PULL && th("room_lamp", 0) != 0) {
                 sx = 1f; sy = 1f
                 val reach = SwitchMotion.pose(sim.stateTime).reach
@@ -874,6 +874,7 @@ class SceneRenderer {
             }
         }
 
+        val targetRotation = rot
         // ---- сглаживание: поза тянется к целевой (кратчайшая дуга по углу)
         val tl = lastPose
         dx = tl[3] + (dx - tl[3]) * k
@@ -902,11 +903,12 @@ class SceneRenderer {
         c.save()
         c.rotate(rot * 57.2958f, px, cy)
 
+        val antennaLag = unit * (rot - targetRotation).coerceIn(-.28f, .28f) * .5f
         // антеннка: варианты по кастомизации (шарик / цветочек / нить / ничего)
         when (look("look_antenna", "ball")) {
             "ball" -> {
                 val antBob = sin(sim.animPhase * 2.2f) * unit * 0.12f
-                val antTopX = px + r * 0.1f + antBob * 0.5f
+                val antTopX = px + r * 0.1f + antBob * 0.5f + antennaLag
                 val antTopY = cy - r * sy - unit * 0.55f + antBob
                 pS.color = 0xFF4E8F6E.toInt()
                 pS.strokeWidth = unit * 0.1f
@@ -918,7 +920,7 @@ class SceneRenderer {
                 c.drawCircle(antTopX, antTopY, unit * 0.14f, pS)
             }
             "flower" -> {
-                val antTopX = px + r * 0.12f
+                val antTopX = px + r * 0.12f + antennaLag
                 val antTopY = cy - r * sy - unit * 0.5f
                 pS.color = 0xFF4E8F6E.toInt()
                 pS.strokeWidth = unit * 0.1f
@@ -1482,6 +1484,16 @@ class SceneRenderer {
             c.drawCircle(hx, hy, grip, pS)
         }
 
+        val doorReach = sim.outing.doorReach
+        if (doorReach > .01f) {
+            val shoulderX = cx + r * .46f
+            val shoulderY = cy - r * .14f
+            val knobX = itemX(sim.outing.doorX) + unit * (-1.75f + 2.85f * (1f - sim.outing.doorOpen * .91f))
+            arm(shoulderX, shoulderY, lerp(shoulderX, knobX, doorReach),
+                lerp(shoulderY, floorY - 2.52f * unit, doorReach), true)
+            return
+        }
+
         when (st) {
             PetSim.State.INSPECT -> {
                 val reach = PetMotion.envelope(sim.stateTime.toFloat() / sim.stateDur)
@@ -1512,14 +1524,15 @@ class SceneRenderer {
                 val motion = SwitchMotion.pose(sim.stateTime)
                 val shoulderX = cx + r * .46f
                 val shoulderY = cy - r * .16f
+                val arc = unit * .24f * 4f * motion.reach * (1f - motion.reach)
                 if (motion.reach <= .01f) return
                 if (th("room_lamp", 0) == 0) {
                     arm(shoulderX, shoulderY, lerp(shoulderX, tipX, motion.reach),
-                        lerp(shoulderY, tipY, motion.reach), true)
+                        lerp(shoulderY, tipY, motion.reach) - arc, true)
                 } else {
                     val padY = tipY + unit * (.22f - .16f * motion.press)
                     arm(shoulderX, shoulderY, lerp(shoulderX, tipX - unit * .09f, motion.reach),
-                        lerp(shoulderY, padY, motion.reach), true)
+                        lerp(shoulderY, padY, motion.reach) - arc, true)
                 }
             }
 
@@ -1538,7 +1551,9 @@ class SceneRenderer {
                 val far = cx + sim.dir * r * .22f
                 val ay = cy + r * .18f
                 fun reach(ax: Float, tx: Float, ty: Float, amount: Float, up: Boolean = false) {
-                    if (amount > .01f) arm(ax, ay, lerp(ax, tx, amount), lerp(ay, ty, amount), up)
+                    if (amount <= .01f) return
+                    val arc = 4f * amount * (1f - amount) * unit * .27f
+                    arm(ax, ay, lerp(ax, tx, amount), lerp(ay, ty, amount) - arc, up)
                 }
                 val propUnit = unit * modelScale(item.def)
                 val held = inter.held

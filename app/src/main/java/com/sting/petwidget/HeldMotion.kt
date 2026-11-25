@@ -45,7 +45,7 @@ internal object HeldMotion {
         val carryUp = PetMotion.ease((p - .16f) / .17f)
         val carry = carryUp * (1f - PetMotion.ease((p - .78f) / .16f))
         val hands = PetMotion.ease(p / .16f) * (1f - PetMotion.ease((p - .94f) / .06f))
-        val flourish = pulse(p, .34f, .49f, .76f)
+        val flourish = PetMotion.accent(p, .31f, .49f, .55f, .78f)
         var taste = 0f
         var chew = 0f
         var crumbs = 1f
@@ -53,20 +53,19 @@ internal object HeldMotion {
         var size = 1f
         if (contact != null) {
             for ((index, point) in contact.withIndex()) {
-                taste = maxOf(taste, pulse(p, point - .095f, point, point + .085f))
-                val chewing = PetMotion.ease((p - point) / .025f) *
-                    (1f - PetMotion.ease((p - point - .075f) / .055f))
-                chew = maxOf(chew, chewing * (.65f + .35f * sin((p - point) * 67f)))
+                taste = maxOf(taste, PetMotion.accent(p, point - .095f, point, point + .024f, point + .09f))
+                val chewing = PetMotion.accent(p, point + .025f, point + .052f, point + .078f, point + .129f)
+                chew = maxOf(chew, chewing)
                 if (id != "coffee") {
                     val bite = PetMotion.ease((p - point) / .055f)
                     size -= bite * if (index == 2) .32f else .14f
-                    if (p >= point) crumbs = (p - point) / .11f
+                    if (p >= point + .018f) crumbs = (p - point - .018f) / .11f
                 }
             }
             if (id != "coffee") remaining = 1f - PetMotion.ease((p - .80f) / .055f)
         }
 
-        val rock = sin((p - .32f).coerceAtLeast(0f) * PI.toFloat() * 7f) * flourish
+        val rock = sin((p - .32f).coerceAtLeast(0f) * PI.toFloat() * 5f) * flourish
         val tilt = when (id) {
             "dice" -> dir * 17f * rock
             "plushie" -> dir * -7f * flourish + 4f * rock

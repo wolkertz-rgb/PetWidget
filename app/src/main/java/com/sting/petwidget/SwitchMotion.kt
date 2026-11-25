@@ -6,7 +6,7 @@ internal object SwitchMotion {
 
     fun pose(timeMs: Long): Pose {
         val t = timeMs.toFloat()
-        val reach = PetMotion.ease(t / 500f) * (1f - PetMotion.ease((t - 1000f) / 400f))
+        val reach = PetMotion.accent(t, 75f, 500f, 1000f, 1400f)
         // Полное нажатие совпадает с переключением света на 700 мс.
         val press = PetMotion.ease((t - 540f) / 160f) *
             (1f - PetMotion.ease((t - 840f) / 160f))
