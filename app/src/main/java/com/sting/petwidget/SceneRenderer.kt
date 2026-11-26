@@ -183,12 +183,23 @@ class SceneRenderer {
         val floor = gradientPaint("floor").apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFDCA06E.toInt()), th("floor_bottom", 0xFFBD8058.toInt()), Shader.TileMode.CLAMP) }
         rect.set(pad, floorY, w - pad, h - pad)
         c.drawRect(rect, floor)
-        pS.color = 0x38FFF5E4
-        pS.strokeWidth = unit * .05f
-        for (i in 1..3) {
-            val y = lerp(floorY, h - pad, i * .22f)
+        c.save()
+        c.clipRect(rect)
+        for (i in 1..4) {
+            val y = lerp(floorY, h - pad, i * .20f)
+            pS.color = 0x39795238
+            pS.strokeWidth = unit * .043f
             c.drawLine(pad, y, w - pad, y, pS)
+            pS.color = 0x37FFF2D3
+            c.drawLine(pad, y + unit*.064f, w - pad, y + unit*.064f, pS)
+            val spacing = unit * 4.3f
+            for (column in 0..5) {
+                val x = pad + column * spacing + (i % 2) * spacing * .48f
+                pS.color = 0x2E795238
+                c.drawLine(x,y-unit*.27f,x+unit*.11f,y,pS)
+            }
         }
+        c.restore()
         pF.color = th("room_skirt", 0xFF77927C.toInt())
         rect.set(pad, floorY - unit * 0.22f, w - pad, floorY)
         c.drawRect(rect, pF)
@@ -383,6 +394,11 @@ class SceneRenderer {
         path.close()
         c.drawPath(path, shade)
         pS.color = 0xFF20312C.toInt(); pS.strokeWidth = unit * 0.09f; c.drawPath(path, pS)
+        pF.color = 0x66FFF3CA
+        c.save()
+        c.rotate(-24f,bx,by)
+        c.drawOval(bx-unit*.74f,by-unit*.44f,bx-unit*.30f,by-unit*.29f,pF)
+        c.restore()
 
         // тёплый матовый рассеиватель, видимый и при выключенном свете
         pF.color = if (on) 0xFFFFE7AE.toInt() else 0xFFC8C5B8.toInt()
@@ -893,7 +909,13 @@ class SceneRenderer {
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
         val turning = if (st == PetSim.State.PULL) SwitchMotion.turn(sim.stateTime) else 0f
-        val yaw = turning * PI.toFloat()
+        val facingSide = when (st) {
+            PetSim.State.WALK, PetSim.State.CHASE -> .35f
+            PetSim.State.INTERACT -> .23f
+            PetSim.State.INSPECT -> .40f
+            else -> 0f
+        }
+        val yaw = turning * PI.toFloat() + facingSide
         run {
             val pose = PetMotion.pose(sim)
             sx = pose.sx
@@ -1018,7 +1040,7 @@ class SceneRenderer {
         petSilhouette.reset()
         val rx = r * sx
         val ry = r * sy
-        val lean = (sin(yaw) * sim.dir + if (st == PetSim.State.WALK) sim.dir * .20f else 0f) * rx * .10f
+        val lean = sin(yaw) * sim.dir * rx * .13f
         petSilhouette.moveTo(px + lean, cy - ry)
         petSilhouette.cubicTo(px + rx * .58f + lean, cy - ry, px + rx * .87f, cy - ry * .50f,
             px + rx * .98f, cy + ry * .10f)
@@ -1064,7 +1086,7 @@ class SceneRenderer {
             val margin = r * 3f
             c.saveLayerAlpha(px - margin, cy - margin, px + margin, cy + margin, (255 * faceAmount).toInt())
         } else c.save()
-        c.translate(sim.dir * r * .79f * sin(yaw), 0f)
+        c.translate(sim.dir * rx * (if (turning > 0f) .74f else .53f) * sin(yaw), 0f)
         c.scale(faceAmount, 1f, px, cy)
         val belly = gradientPaint("belly")
         val bellyColor = th("pet_belly", 0xFFBDEBCF.toInt())
@@ -1575,7 +1597,8 @@ class SceneRenderer {
             val ny = tx
             val width = unit * (.20f + .045f * (length / r).coerceAtMost(1f))
             val flex = length.coerceAtMost(r) * (if (up) -.13f else .19f)
-            val rootX = ax - side * unit * .19f
+            val bodyScale = PetMotion.pose(sim).sx
+            val rootX = cx + (ax-cx) * bodyScale - side * unit * .20f
             val mx = (rootX + hx) * .50f
             val my = (ay + hy) * .50f + flex
 

@@ -155,7 +155,7 @@ object ItemDefs {
         val r = s * 1.08f
         val cy = fy - r
         contactShadow(c, cx, fy, r * 0.82f, s)
-        circle(c, cx, cy, r, 0xFFF8F7F1.toInt())
+        circle(c, cx, cy, r, 0xFFF7F1DB.toInt())
         c.save()
         path.reset(); path.addCircle(cx, cy, r, Path.Direction.CW); c.clipPath(path)
         for (panel in 0..5) {
@@ -175,7 +175,13 @@ object ItemDefs {
             }
             path.close(); fillPath(c, 0xFF303936.toInt())
         }
-        ellipse(c, cx + r * 0.3f, cy + r * 0.62f, r * 0.9f, r * 0.25f, 0x18000000)
+        path.reset()
+        path.moveTo(cx-r,cy+r*.38f)
+        path.cubicTo(cx-r*.30f,cy+r*.98f,cx+r*.67f,cy+r*.55f,cx+r,cy-r*.05f)
+        path.lineTo(cx+r,cy+r)
+        path.lineTo(cx-r,cy+r)
+        path.close()
+        fillPath(c,0x24564F3F)
         c.restore()
         ink(c, cx, cy, r, s * 0.1f)
         ellipse(c, cx - r * 0.38f, cy - r * 0.42f, r * 0.18f, r * 0.28f, 0xA6FFFFFF.toInt())
@@ -282,14 +288,17 @@ object ItemDefs {
     }
 
     fun drawGift(c: Canvas, cx: Float, fy: Float, s: Float, open: Float, direction: Int) {
+        contactShadow(c,cx,fy,s*1.16f,s)
         val bw = s * 1.28f
         val bh = s * 1.2f
-        roundRect(c, cx - bw, fy - bh, cx + bw, fy - s * 0.02f, s * 0.14f, 0xFFE3A56F.toInt())
+        roundRect(c, cx - bw, fy - bh, cx + bw, fy - s * 0.02f, s * 0.14f, 0xFFD6AB77.toInt())
         inkRound(c, cx - bw, fy - bh, cx + bw, fy - s * 0.02f, s * 0.14f, s * 0.1f)
         // лента вертикальная
         rect.set(cx - s * 0.2f, fy - bh, cx + s * 0.2f, fy - s * 0.02f)
-        pF.color = 0xFFE05B5B.toInt()
+        pF.color = 0xFFB95C49.toInt()
         c.drawRect(rect, pF)
+        pF.color = 0x44FFE5AA
+        c.drawRect(cx-s*.14f,fy-bh,cx-s*.08f,fy-s*.05f,pF)
         if (open > 0f) {
             ellipse(c, cx, fy - bh, bw, s * .19f, 0xFF9C633E.toInt())
             ellipse(c, cx, fy - bh - s * .04f, bw * .82f, s * .105f, 0xFF634C3C.toInt())
@@ -301,11 +310,11 @@ object ItemDefs {
         roundRect(c, cx - bw * 1.08f, fy - bh - s * 0.34f, cx + bw * 1.08f, fy - bh + s * 0.12f, s * 0.12f, 0xFFD8945C.toInt())
         inkRound(c, cx - bw * 1.08f, fy - bh - s * 0.34f, cx + bw * 1.08f, fy - bh + s * 0.12f, s * 0.12f, s * 0.09f)
         rect.set(cx - s * 0.22f, fy - bh - s * 0.34f, cx + s * 0.22f, fy - bh + s * 0.12f)
-        pF.color = 0xFFE05B5B.toInt()
+        pF.color = 0xFFB95C49.toInt()
         c.drawRect(rect, pF)
         // бант
-        ellipse(c, cx - s * 0.34f, fy - bh - s * 0.52f, s * 0.32f, s * 0.2f, 0xFFE05B5B.toInt())
-        ellipse(c, cx + s * 0.34f, fy - bh - s * 0.52f, s * 0.32f, s * 0.2f, 0xFFE05B5B.toInt())
+        ellipse(c, cx - s * 0.34f, fy - bh - s * 0.52f, s * 0.32f, s * 0.2f, 0xFFB95C49.toInt())
+        ellipse(c, cx + s * 0.34f, fy - bh - s * 0.52f, s * 0.32f, s * 0.2f, 0xFFB95C49.toInt())
         circle(c, cx, fy - bh - s * 0.52f, s * 0.13f, 0xFFB94141.toInt())
         c.restore()
     }

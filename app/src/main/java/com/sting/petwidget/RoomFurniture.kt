@@ -130,10 +130,10 @@ internal class RoomFurniture {
     fun lamp(c: Canvas, width: Float, floor: Float, u: Float, bulbY: Float, style: Int, on: Boolean) {
         c.save(); c.scale(u, u)
         val x = width / u / 2f; val y = bulbY / u
-        val glow = if (on) 0xFFFFE5A6.toInt() else 0xFFABA99C.toInt()
+        val glow = if (on) 0xFFFFE6A2.toInt() else 0xFFBDB9A2.toInt()
         if (style == 1) {
             box(c, x - 0.35f, 0f, x + 0.35f, 0.22f, 0xFF455A50.toInt(), 0.08f)
-            edge.color = 0xFF9B8055.toInt(); edge.strokeWidth = 0.12f
+            edge.color = 0xFFC29758.toInt(); edge.strokeWidth = 0.15f
             c.drawLine(x, 0.22f, x, y + 0.05f, edge)
             val arms = Path().apply {
                 moveTo(x - 1.65f, y - 0.35f)
@@ -151,7 +151,8 @@ internal class RoomFurniture {
         } else {
             // Потолочный дисковый плафон вместо напольного торшера.
             c.drawLine(x, 0.1f, x, y - 0.4f, edge)
-            oval(c, x - 1.75f, y - 0.5f, x + 1.75f, y + 0.55f, 0xFF556D63.toInt())
+            oval(c, x - 1.83f, y - .46f, x + 1.83f, y + .55f, 0xFF758D6C.toInt())
+            box(c,x-.39f,y-.58f,x+.39f,y-.33f,0xFFC59C61.toInt(),.12f)
             oval(c, x - 1.55f, y - 0.05f, x + 1.55f, y + 0.55f, glow)
             p.color = 0x55FFFFFF; c.drawOval(x - 1.15f, y + 0.02f, x + 0.8f, y + 0.22f, p)
         }
@@ -263,12 +264,19 @@ internal class RoomFurniture {
             material.apply(p, rugColor, 7f, -.35f, 17f, .95f)
             c.drawOval(7f, -.35f, 17f, .95f, p)
             p.shader = null
-            edge.color = 0xFFE0D6BD.toInt(); c.drawOval(7.5f, -0.18f, 16.5f, 0.75f, edge)
+            edge.color = 0xFF526750.toInt()
+            edge.strokeWidth = .059f
+            c.drawOval(7f,-.35f,17f,.95f,edge)
+            edge.color = 0xFFE9DCB5.toInt()
+            edge.strokeWidth = .11f
+            c.drawOval(7.47f,-.20f,16.53f,.76f,edge)
+            edge.strokeWidth = .09f
             edge.color = 0xFF4A4038.toInt()
         }
         if (tv) {
             c.save(); c.translate(0.65f, 0f)
-            box(c, 8f, -5.7f, 12.3f, -3f, 0xFF354B48.toInt(), 0.18f)
+            box(c, 7.93f, -5.75f, 12.36f, -2.97f, 0xFF554D41.toInt(), .29f)
+            box(c, 8.10f, -5.58f, 12.22f, -3.14f, 0xFF445B54.toInt(), .18f)
             box(c, 8.25f, -5.45f, 12.05f, -3.25f, 0xFF536C67.toInt(), 0.08f)
             p.color = 0x24F7EACE
             val reflection = Path().apply {
@@ -280,6 +288,8 @@ internal class RoomFurniture {
             c.drawPath(reflection,p)
             c.drawLine(9.5f, -3f, 9.2f, -2.65f, edge); c.drawLine(10.8f, -3f, 11.1f, -2.65f, edge)
             box(c, 7.45f, -2.65f, 12.85f, -.38f, accent, .30f)
+            box(c, 7.32f, -2.74f, 12.98f, -2.46f,
+                VectorFinish.blend(accent,0xFFFFD3A1.toInt(),.31f), .13f)
             box(c, 7.78f, -2.34f, 9.25f, -.64f, accent, .13f)
             box(c, 11.04f, -2.34f, 12.52f, -.64f, accent, .13f)
             box(c, 9.54f, -2.30f, 10.78f, -.71f, 0xFF70503C.toInt(), .10f)
@@ -296,22 +306,32 @@ internal class RoomFurniture {
                 moveTo(0.75f, -1.2f); lineTo(2.25f, -1.2f)
                 lineTo(2.04f, -0.15f); quadTo(1.5f, 0.05f, 0.96f, -0.15f); close()
             }
+            p.color = 0x324B3423
+            c.drawOval(.61f,-.20f,2.61f,.11f,p)
             shape(c, pot, accent)
+            c.save()
+            c.clipPath(pot)
+            p.color=0x55FFF0C9
+            c.drawRoundRect(.78f,-.69f,2.28f,-.46f,.05f,.05f,p)
+            c.restore()
             oval(c, 0.72f, -1.38f, 2.28f, -1.05f, accent)
             p.color = 0xFF5C4839.toInt(); c.drawOval(0.9f, -1.3f, 2.1f, -1.13f, p)
             val stem = Path().apply { moveTo(1.5f, -1.2f); quadTo(1.25f, -2.7f, 1.65f, -3.75f) }
             edge.color = 0xFF456C4D.toInt(); edge.strokeWidth = 0.075f; c.drawPath(stem, edge)
             for (i in 0..4) {
-                val y = -1.65f - i * 0.43f
+                val y = -1.65f - i * .49f
                 val direction = if (i % 2 == 0) -1f else 1f
-                val tipX = 1.5f + direction * 0.9f
+                val tipX = 1.5f + direction * (1.02f - i*.08f)
                 val leaf = Path().apply {
                     moveTo(1.5f, y)
                     cubicTo(1.5f + direction * 0.2f, y - 0.7f, tipX, y - 0.62f, tipX, y - 0.44f)
                     cubicTo(tipX, y - 0.1f, 1.5f + direction * 0.3f, y + 0.1f, 1.5f, y); close()
                 }
                 shape(c, leaf, if (i % 2 == 0) 0xFF609365.toInt() else 0xFF83AC72.toInt())
-                c.drawLine(1.5f, y, tipX, y - 0.44f, edge)
+                detail.reset()
+                detail.moveTo(1.5f,y)
+                detail.quadTo(1.5f+direction*.48f,y-.42f,tipX,y-.44f)
+                seam(c,0x65DFE1A2,.039f)
             }
             edge.color = 0xFF4A4038.toInt(); edge.strokeWidth = 0.09f
             c.restore()

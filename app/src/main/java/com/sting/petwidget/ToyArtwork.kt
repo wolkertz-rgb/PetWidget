@@ -69,6 +69,8 @@ internal class ToyArtwork {
         c.drawArc(-.19f,-2.57f,.19f,-2.32f,10f,160f,false,ink)
         c.drawLine(0f,-3.23f,0f,-3.60f,ink)
         oval(c,0f,-3.72f,.16f,.16f,gold)
+        p.color=0x76FFE9C1
+        c.drawRoundRect(-.67f,-3.11f,-.18f,-3.00f,.06f,.06f,p)
         c.restore()
     }
 
@@ -79,7 +81,9 @@ internal class ToyArtwork {
         when(id) {
             "block" -> {
                 box(c,-.95f,-1.94f,.95f,-.04f,sage,.27f)
-                box(c,-.74f,-1.73f,.74f,-.24f,ivory,.19f)
+                p.color=0x7BEBF2C8
+                c.drawRoundRect(-.83f,-1.82f,.73f,-1.67f,.08f,.08f,p)
+                box(c,-.74f,-1.67f,.74f,-.24f,ivory,.19f)
                 path.reset()
                 path.moveTo(0f,-1.46f)
                 path.lineTo(.40f,-.69f)
@@ -89,6 +93,8 @@ internal class ToyArtwork {
             }
             "dice" -> {
                 box(c,-1f,-2.04f,1f,-.04f,ivory,.32f)
+                p.color=0x3FAD8B57
+                c.drawRoundRect(-.83f,-.36f,.83f,-.16f,.10f,.10f,p)
                 for ((px,py) in listOf(-.5f to -1.54f,.5f to -1.54f,0f to -1.04f,-.5f to -.54f,.5f to -.54f)) {
                     oval(c,px,py,.14f,.14f,0xFF6B7055.toInt())
                 }
@@ -107,6 +113,9 @@ internal class ToyArtwork {
                 oval(c,0f,-2.34f,.12f,.08f,0xFF554633.toInt())
                 c.drawLine(0f,-2.25f,0f,-2.12f,ink)
                 box(c,-.49f,-1.81f,.49f,-1.59f,sage,.08f)
+                box(c,.14f,-1.75f,.37f,-1.30f,sage,.08f)
+                p.color=0x50FFF1C9
+                c.drawOval(-.58f,-2.94f,-.31f,-2.83f,p)
             }
             "balloon" -> {
                 val sway=sin(time*1.3f)*.10f
@@ -117,6 +126,12 @@ internal class ToyArtwork {
                 oval(c,sway,-3.28f,.94f,1.25f,terra)
                 p.color=0x99FFF5D6.toInt()
                 c.drawOval(sway-.59f,-4.11f,sway-.32f,-3.54f,p)
+                path.reset()
+                path.moveTo(sway,-2.12f)
+                path.lineTo(sway+.17f,-1.94f)
+                path.quadTo(sway,-1.85f,sway-.17f,-1.94f)
+                path.close()
+                shape(c,terra)
             }
             "rocket" -> {
                 for (side in -1..1 step 2) {
@@ -134,6 +149,10 @@ internal class ToyArtwork {
                 path.cubicTo(-.81f,-1.29f,-.98f,-3.35f,0f,-4.02f)
                 path.close()
                 shape(c,ivory)
+                c.save()
+                c.clipPath(path)
+                box(c,-.88f,-4.09f,.88f,-3.06f,terra,.16f)
+                c.restore()
                 oval(c,0f,-2.32f,.43f,.47f,sage)
                 oval(c,-.10f,-2.44f,.13f,.15f,0xFFDFEDD5.toInt())
                 box(c,-.42f,-.48f,.42f,-.05f,0xFF6F7E6A.toInt(),.08f)
@@ -161,6 +180,8 @@ internal class ToyArtwork {
                 path.lineTo(-.84f,-.04f)
                 path.close()
                 shape(c,terra)
+                p.color=0x80FFDBA1.toInt()
+                c.drawRoundRect(-1.23f,-.86f,1.20f,-.72f,.07f,.07f,p)
             }
             "flower" -> {
                 ink.color=0xFF687D50.toInt()
@@ -173,6 +194,8 @@ internal class ToyArtwork {
                     oval(c,cos(angle)*.58f,-2.52f+sin(angle)*.58f,.41f,.41f,ivory)
                 }
                 oval(c,0f,-2.52f,.39f,.39f,gold)
+                p.color=0x82FFF1B5.toInt()
+                c.drawOval(-.23f,-2.72f,-.02f,-2.57f,p)
             }
             "top" -> {
                 val rock = sin(time*8f)*.06f
@@ -180,6 +203,8 @@ internal class ToyArtwork {
                 box(c,-.15f,-3.11f,.15f,-2.28f,gold,.09f)
                 oval(c,0f,-1.55f,1f,1.02f,sage)
                 box(c,-.98f,-1.65f,.98f,-1.40f,ivory,.10f)
+                p.color=0x72FAF7CC
+                c.drawOval(-.64f,-2.16f,-.25f,-1.92f,p)
                 path.reset()
                 path.moveTo(-.28f,-.62f)
                 path.lineTo(.28f,-.62f)

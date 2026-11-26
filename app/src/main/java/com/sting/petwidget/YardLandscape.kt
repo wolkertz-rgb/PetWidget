@@ -379,10 +379,10 @@ internal class YardLandscape {
 
     private fun flowerbed(c: Canvas,x: Float,f: Float,outline: Int){
         fill.color=0x223B513B;c.drawOval(x-1.55f,f-.07f,x+1.55f,f+.3f,fill)
-        box(c,x-1.4f,f-.48f,x+1.4f,f+.14f,tone(0xFFAD805B,0xFF64796A),.08f,outline)
+        box(c,x-1.4f,f-.48f,x+1.4f,f+.14f,tone(0xFFC99263,0xFF677E6C),.15f,outline)
         fill.color=tone(0xFF604E38,0xFF3F5348);c.drawOval(x-1.32f,f-.62f,x+1.32f,f-.29f,fill)
         for(i in 0..4){
-            val xx=x-1.02f+i*.51f;val yy=f-.83f-(i%3)*.26f
+            val xx=x-1.02f+i*.51f;val yy=f-.91f-(i%3)*.32f
             line(c,xx,f-.35f,xx,yy,tone(0xFF54794B,0xFF476957),.045f)
             for(side in -1..1 step 2){
                 path.reset();path.moveTo(xx,f-.56f)
@@ -397,7 +397,8 @@ internal class YardLandscape {
             disc(c,xx-.025f,yy-.03f,.035f,0x88FFF6DD.toInt())
         }
         box(c,x-1.48f,f-.38f,x+1.48f,f-.19f,tone(0xFFC8A478,0xFF899980),.05f,outline)
-        line(c,x-1.24f,f-.02f,x+1.24f,f-.02f,0x557B654A,.025f)
+        line(c,x-1.24f,f-.02f,x+1.24f,f-.02f,0x557B654A,.034f)
+        line(c,x-1.34f,f-.34f,x+1.35f,f-.34f,tone(0xA9FFE1A5,0x6DBDCEAA),.044f)
         for(side in -1..1 step 2)disc(c,x+side*1.23f,f-.28f,.035f,outline)
     }
     private fun pebble(c: Canvas,x: Float,y: Float,size: Float,outline: Int,variant: Int) {
@@ -410,7 +411,10 @@ internal class YardLandscape {
         line(c,x-size*.32f,y-size*.38f,x+size*.16f,y-size*.46f,tone(0x99FFF2D4,0x668DA99A),.04f)
     }
     private fun rockGarden(c: Canvas,x: Float,f: Float,outline: Int) {
-        fill.color=tone(0xFFB9BE9B,0xFF73876C);c.drawOval(x-1.65f,f-.25f,x+1.65f,f+.25f,fill)
+        fill.color=tone(0xFFB4AE79,0xFF677C62)
+        c.drawOval(x-1.72f,f-.32f,x+1.72f,f+.33f,fill)
+        for(i in 0..8) disc(c,x-1.5f+i*.37f,f+.12f+(i%3)*.055f,.050f,
+            tone(0xFFD8CCA3,0xFFA0AB8F))
         pebble(c,x-.75f,f+.03f,.75f,outline,0)
         pebble(c,x+.25f,f-.04f,1.15f,outline,1)
         pebble(c,x+1.12f,f+.11f,.55f,outline,2)
@@ -431,7 +435,10 @@ internal class YardLandscape {
         fill.color=tone(0xFFE0E0C6,0xFFB0C2AC);c.drawOval(x-.94f,f-1.74f,x+.94f,f-1.34f,fill)
         ink.color=outline;ink.strokeWidth=.04f;c.drawOval(x-.94f,f-1.74f,x+.94f,f-1.34f,ink)
         fill.color=tone(0xFF9DCFD0,0xFF749CA9);c.drawOval(x-.72f,f-1.66f,x+.72f,f-1.41f,fill)
-        line(c,x-.43f,f-1.54f,x+.20f,f-1.58f,tone(0xCCF1F8E2,0x889CB8B3),.035f)
+        ink.color=tone(0xB5F7F9D7,0x889CB8B3)
+        ink.strokeWidth=.038f
+        c.drawArc(x-.57f,f-1.61f,x+.39f,f-1.44f,190f,131f,false,ink)
+        c.drawArc(x-.19f,f-1.59f,x+.39f,f-1.50f,11f,135f,false,ink)
     }
     private fun butterflies(c: Canvas,f: Float,now: Long){
         val t=(now%60_000L)/1000f

@@ -109,55 +109,66 @@ internal class YardScene {
         val center=.7f+.80f*(w/u-1.4f);val f=floor/u
         val seatY=SwingMotion.offsetY(a)
         val perspective=SwingMotion.scale(a)
-        p.color=0x21404D34;c.drawOval(center-2.8f,f-.1f,center+2.8f,f+.45f,p)
+        p.color=0x21404D34;c.drawOval(center-2.8f,f-.1f,center+2.95f,f+.53f,p)
         // Дальние ножки, верхняя перекладина и диагональные распорки.
         beam(c,center-2f,f-.1f,center-1.6f,f-5.45f,.25f)
         beam(c,center+1.9f,f-.1f,center+1.55f,f-5.45f,.25f)
-        beam(c,center-1.95f,f-5.45f,center+1.95f,f-5.45f,.34f)
+        beam(c,center-2.06f,f-5.45f,center+2.06f,f-5.45f,.44f)
         beam(c,center-1.6f,f-4.85f,center-.9f,f-5.4f,.16f)
         beam(c,center+1.55f,f-4.85f,center+.9f,f-5.4f,.16f)
         for(side in -1..1 step 2) {
             val anchor=center+side*1.28f
-            edge.color=0xFF4C5D50.toInt();edge.strokeWidth=.10f
+            edge.color=0xFF625238.toInt();edge.strokeWidth=.142f
             c.drawLine(anchor,f-4.85f,center+side*1.28f*perspective,f+seatY,edge)
-            edge.color=0xFFD4D0AD.toInt();edge.strokeWidth=.04f
+            edge.color=0xFFF1DA9E.toInt();edge.strokeWidth=.082f
             c.drawLine(anchor,f-4.85f,center+side*1.28f*perspective,f+seatY,edge)
-            p.color=0xFFD7B97A.toInt();c.drawCircle(anchor,f-4.85f,.085f,p)
+            box(c,anchor-.14f,f-5.64f,anchor+.14f,f-4.91f,0xFFC99555.toInt(),.11f)
+            p.color=0xFFF3D18D.toInt()
+            c.drawCircle(anchor,f-4.88f,.128f,p)
+            edge.color=0xFF785834.toInt()
+            edge.strokeWidth=.05f
+            c.drawCircle(anchor,f-4.88f,.14f,edge)
             c.drawLine(anchor,f-5.25f,anchor,f-4.85f,edge)
         }
         c.save();c.translate(center,f+seatY);c.scale(perspective,perspective)
         // Спинка скамьи видна за питомцем; сиденье находится точно под ним.
+        val cushion=VectorFinish.blend(swingWood,0xFFCCE0A0.toInt(),.40f)
+        val shadow=VectorFinish.blend(swingWood,0xFF5C5236.toInt(),.38f)
         when (swingStyle) {
-            1 -> { // Upholstered seat with a piped edge.
-                box(c,-1.5f,-1.22f,1.5f,-.04f,swingWood,.34f)
-                edge.color=0x55726855
-                edge.strokeWidth=.05f
-                c.drawRoundRect(-1.39f,-1.1f,1.39f,-.13f,.26f,.26f,edge)
-                for (i in -1..1) {
-                    p.color=0x66615748
-                    c.drawCircle(i*.77f,-.62f,.065f,p)
-                }
+            1 -> {
+                box(c,-1.56f,-1.44f,1.56f,-.04f,shadow,.43f)
+                box(c,-1.44f,-1.36f,1.44f,-.16f,cushion,.45f)
+                edge.color=0x8AF5E9B9.toInt()
+                edge.strokeWidth=.062f
+                c.drawRoundRect(-1.33f,-1.24f,1.33f,-.26f,.37f,.37f,edge)
+                p.color=0x69736846
+                for (i in -1..1) c.drawOval(i*.77f-.068f,-.66f,i*.77f+.068f,-.55f,p)
             }
-            2 -> { // Open garden bench with curved armrests.
-                for (side in -1..1 step 2) {
-                    beam(c,side*1.39f,-.06f,side*1.39f,-.63f,.13f)
-                    box(c,side*1.39f-.15f,-.7f,side*1.39f+.15f,-.56f,swingWood,.07f)
-                }
+            2 -> {
+                box(c,-1.54f,-1.28f,1.54f,-1.06f,shadow,.11f)
+                for (i in -2..2) box(c,i*.53f-.085f,-1.12f,i*.53f+.085f,-.12f,swingWood,.08f)
             }
             else -> {
-                for (side in -1..1 step 2) beam(c,side*1.24f,0f,side*1.24f,-1.13f,.13f)
+                box(c,-1.56f,-1.43f,1.56f,-.03f,shadow,.39f)
                 for (i in 0..2) {
-                    val y=-1.09f+i*.34f
-                    box(c,-1.48f,y,1.48f,y+.24f,swingWood,.08f)
+                    val y=-1.35f+i*.40f
+                    box(c,-1.45f,y,1.45f,y+.34f,cushion,.17f)
+                    edge.color=0x80FFF2CB.toInt()
+                    edge.strokeWidth=.040f
+                    c.drawLine(-1.27f,y+.078f,1.23f,y+.078f,edge)
                 }
             }
         }
-        box(c,-1.57f,-.12f,1.57f,.16f,swingWood,.1f)
-        p.color = 0x44FFF0CF
-        c.drawRoundRect(-1.43f,-.10f,1.43f,-.025f,.04f,.04f,p)
-        edge.color=0xFF505B4E.toInt()
-        edge.strokeWidth=.055f
-        c.drawRoundRect(-1.57f,-.12f,1.57f,.16f,.1f,.1f,edge)
+        box(c,-1.62f,-.13f,1.62f,.24f,shadow,.15f)
+        box(c,-1.61f,-.16f,1.61f,.06f,cushion,.12f)
+        for (side in -1..1 step 2) {
+            val x=side*1.43f
+            box(c,x-.105f,-.75f,x+.105f,-.09f,shadow,.08f)
+            box(c,x-.23f,-.85f,x+.23f,-.67f,swingWood,.08f)
+        }
+        edge.color=0xFF564931.toInt()
+        edge.strokeWidth=.064f
+        c.drawRoundRect(-1.62f,-.13f,1.62f,.24f,.15f,.15f,edge)
         c.restore();c.restore()
     }
 
@@ -166,7 +177,7 @@ internal class YardScene {
         val center=.7f+.80f*(w/u-1.4f);val f=floor/u
         // Все опоры рисуются до питомца, включая ближние ножки.
         for(side in -1..1 step 2) {
-            beam(c,center+side*2.35f,f+.12f,center+side*1.57f,f-5.45f,.32f)
+            beam(c,center+side*2.35f,f+.12f,center+side*1.57f,f-5.45f,.43f)
             p.color=0xFFE4C689.toInt();c.drawCircle(center+side*1.65f,f-4.95f,.075f,p)
             box(c,center+side*2.35f-.28f,f+.04f,center+side*2.35f+.28f,f+.22f,0xFF818F70.toInt(),.06f)
         }

@@ -58,6 +58,7 @@ class VisualV5RenderTest {
             for (frame in 0..count) {
                 sim.stateTime = frame * 50L
                 sim.animPhase = sim.stateTime / 1000f
+                if (state == PetSim.State.WALK) sim.x = .30f + .29f * frame / count
                 save(renderer.render(sim, 900, 500), state.name, frame)
             }
         }
@@ -115,6 +116,12 @@ class VisualV5RenderTest {
             sim.x = PetSim.BED_X
             sim.stateTime = 1500
             save(renderer.render(sim, 900, 500), "interiors", bed*12 + lamp*4 + curtain + 1)
+        }
+        for (style in 0..3) {
+            val (pet, renderer) = scene("garden$style", yard = true)
+            renderer.lastPrefs!!.edit().putInt("yard_decor", style).apply()
+            pet.x = .63f
+            save(renderer.render(pet, 900, 500), "garden-decor", style)
         }
         val (sim, renderer) = scene("night", yard = true)
         renderer.previewTime = 180_000L
