@@ -1051,9 +1051,9 @@ class SceneRenderer {
         petSilhouette.moveTo(px + lean, cy - ry)
         petSilhouette.cubicTo(px + rx * .58f + lean, cy - ry, px + rx * .87f, cy - ry * .50f,
             px + rx * .98f, cy + ry * .10f)
-        petSilhouette.cubicTo(px + rx * 1.13f, cy + ry * .79f, px + rx * .70f, cy + ry,
+        petSilhouette.cubicTo(px + rx * 1.13f, cy + ry * .70f, px + rx * .70f, cy + ry,
             px, cy + ry)
-        petSilhouette.cubicTo(px - rx * .70f, cy + ry, px - rx * 1.13f, cy + ry * .79f,
+        petSilhouette.cubicTo(px - rx * .70f, cy + ry, px - rx * 1.13f, cy + ry * .70f,
             px - rx * .98f, cy + ry * .10f)
         petSilhouette.cubicTo(px - rx * .87f, cy - ry * .50f, px - rx * .58f + lean, cy - ry,
             px + lean, cy - ry)
@@ -1603,8 +1603,8 @@ class SceneRenderer {
             val side = if (ax < cx) -1f else 1f
             val nx = -ty
             val ny = tx
-            val width = unit * (.20f + .045f * (length / r).coerceAtMost(1f))
-            val palm = width + abs(bend) * unit * .19f
+            val width = unit * (.24f + .045f * (length / r).coerceAtMost(1f))
+            val palm = width * 1.17f + abs(bend) * unit * .19f
             val flex = length.coerceAtMost(r) * (if (up) -.13f else .19f)
             val rootX = cx + (ax-cx) * bodyScale - side * unit * .20f
             val mx = (rootX + hx) * .50f + side * r * bend
@@ -1618,7 +1618,7 @@ class SceneRenderer {
                 hx - nx * palm + tx * palm, hy - ny * palm + ty * palm,
                 hx - nx * palm, hy - ny * palm)
             path.quadTo(mx - nx * width, my - ny * width,
-                rootX - nx * width * .70f, ay - ny * width * .70f)
+                rootX - nx * width * .36f, ay - ny * width * .36f)
             material.shader = LinearGradient(hx - width, hy - width, hx + width, hy + width,
                 intArrayOf(armLight, armMid, armDark), null, Shader.TileMode.CLAMP)
             // Fill closes the shoulder. Stroke only the visible contour, leaving the root open.
@@ -1764,7 +1764,7 @@ class SceneRenderer {
                 val wave = sin(sim.animPhase * (if (walking) 11f else 3f)) * r * (if (walking) .17f else .025f)
                 for (side in -1..1 step 2) {
                     arm(cx + side * r * .81f, cy + r * .16f,
-                        cx + side * r * 1.07f + wave * .16f, cy + r * .40f + side * wave, false)
+                        cx + side * r * .99f + wave * .16f, cy + r * .46f + side * wave, false)
                 }
             }
         }

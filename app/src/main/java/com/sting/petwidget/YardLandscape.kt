@@ -107,11 +107,17 @@ internal class YardLandscape {
         fill.color=Color.WHITE
         c.drawRect(0f,valley,w,f,fill)
         fill.shader=null
-        for (i in 0..11) {
-            val y = valley+.48f+i*.33f
-            val trip = ((now % 2700L) / 2700f+i*.23f) % 1f
-            val x = w*(.46f+.20f*trip)
-            line(c,x,y,x+.45f+i*.09f,y,tone(0xA8E2FAE2,0x67A7CFD8),.037f)
+        for (i in 0..15) {
+            val phase = ((now % 6400L) / 6400f + i / 16f) % 1f
+            val y = valley + .37f + phase * 3.4f
+            val x = w * (.43f + (i % 5) * .045f)
+            ink.color = tone(0xAEF4FFDE, 0x6CBBDAE0)
+            ink.alpha = (ink.alpha * sin(phase * PI.toFloat())).toInt()
+            ink.strokeWidth = .023f + .041f * phase
+            path.reset()
+            path.moveTo(x, y)
+            path.quadTo(x + .65f, y + .11f * phase, x + 1.35f + phase, y)
+            c.drawPath(path, ink)
         }
         c.restore()
         tree(c,w*.42f,valley+.82f,.40f,outline)
@@ -129,6 +135,8 @@ internal class YardLandscape {
         shrub(c, w * .34f, f - .24f, .46f, tone(0xFF8AA05C, 0xFF45674E))
         shrub(c, w * .59f, f - .34f, .55f, tone(0xFF87A05E, 0xFF4A6F54))
         shrub(c, w * .96f, f - .28f, .74f, tone(0xFF8AA25F, 0xFF456A53))
+        fill.color = tone(0x3974553D,0x47425151)
+        c.drawOval(-2f,f-.48f,9.2f,f+.44f,fill)
         house(c,f,outline,prefs?.getInt("yard_house",0xFFF1DDBB.toInt())?:0xFFF1DDBB.toInt())
         steppingStones(c,f,outline)
         borderLeaves(c, .75f, h + .16f, .76f)
@@ -304,12 +312,17 @@ internal class YardLandscape {
         path.lineTo(-.6f,f)
         path.close()
         shape(c,Color.WHITE,outline,.075f)
-        for (i in 0..9) {
-            val x = i * .82f
-            line(c,x,eave,x,f-.37f,mix(shadow,wall,.44f),.031f)
-            line(c,x+.045f,eave,x+.045f,f-.37f,mix(wall,Color.WHITE,.41f),.023f)
-        }
-
+        box(c,-.86f,f-5.65f,1.65f,f-2.04f,shadow,.75f)
+        box(c,-.91f,f-5.79f,1.55f,f-2.18f,wood,.90f,outline)
+        box(c,-.72f,f-5.57f,1.34f,f-2.39f,tone(0xFFFFDE99,0xFFD8AD78),.73f)
+        line(c,.32f,f-5.53f,.32f,f-2.37f,wood,.13f)
+        line(c,-.70f,f-3.98f,1.34f,f-3.98f,wood,.13f)
+        box(c,-.95f,f-2.54f,1.75f,f-2.17f,woodLight,.14f,outline)
+        c.save()
+        c.translate(.28f,f-4f)
+        c.scale(.68f,1f)
+        c.drawCircle(0f,0f,1.2f,if(night>.45f) sunHalo else moonHalo)
+        c.restore()
         path.reset()
         path.moveTo(-1f,eave)
         path.lineTo(corner+.46f,eave+.10f)
@@ -325,7 +338,7 @@ internal class YardLandscape {
         path.reset()
         path.moveTo(-1.30f,eave-2.98f)
         path.cubicTo(.68f,eave-2.69f,4.12f,eave-1.92f,6.72f,eave-1.20f)
-        path.lineTo(corner+.83f,eave+.04f)
+        path.quadTo(corner+.93f,eave-.39f,corner+.83f,eave+.04f)
         path.quadTo(corner+.87f,eave+.19f,corner+.64f,eave+.22f)
         path.cubicTo(4.6f,eave-.50f,1.42f,eave-1.11f,-1.30f,eave-1.68f)
         path.close()
@@ -345,7 +358,7 @@ internal class YardLandscape {
         path.reset()
         path.moveTo(-1.30f,eave-1.68f)
         path.cubicTo(1.42f,eave-1.11f,4.6f,eave-.50f,corner+.64f,eave+.22f)
-        path.lineTo(corner+.48f,eave+.49f)
+        path.quadTo(corner+.78f,eave+.55f,corner+.48f,eave+.49f)
         path.cubicTo(4.52f,eave-.16f,1.34f,eave-.74f,-1.30f,eave-1.34f)
         path.close()
         shape(c,mix(roof,outline,.36f),outline,.074f)
@@ -356,7 +369,7 @@ internal class YardLandscape {
         path.quadTo(corner-.56f,eave+.66f,corner-1.40f,eave+.40f)
         path.close()
         shape(c,wood,outline,.074f)
-        birdhouse(c,1.02f,f-3.51f,outline)
+        birdhouse(c,6.90f,f-3.61f,outline)
     }
 
     private fun steppingStones(c: Canvas,f: Float, outline: Int) {

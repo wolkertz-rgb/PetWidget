@@ -152,7 +152,7 @@ class PetService : Service() {
         override fun run() {
             if (!screenOn || !this@PetService::sim.isInitialized) return
             val now = SystemClock.elapsedRealtime()
-            val dt = (now - lastFrameAt).coerceIn(50L, 2_000L)
+            val dt = (now - lastFrameAt).coerceIn(0L, 2_000L)
             lastFrameAt = now
             lastWallSaved = System.currentTimeMillis()
 
@@ -174,7 +174,9 @@ class PetService : Service() {
                 }
                 awm?.partiallyUpdateAppWidget(ids, rv)
             }
-            handler.postDelayed(this, 50L) // ТУРБО: 20 ФПС, пока экран включён
+            val elapsed = SystemClock.elapsedRealtime() - now
+            val period = 1_000L / 30L
+            handler.postDelayed(this, (period - elapsed).coerceAtLeast(1L))
         }
     }
 
