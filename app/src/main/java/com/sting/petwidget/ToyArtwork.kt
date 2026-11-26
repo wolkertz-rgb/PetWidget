@@ -43,6 +43,35 @@ internal class ToyArtwork {
         c.drawPath(path,ink)
     }
 
+    fun robot(c: Canvas,x: Float,y: Float,u: Float,time: Float,gait: Float) {
+        c.save()
+        c.translate(x,y)
+        c.scale(u,u)
+        ink.color=0xFF514531.toInt()
+        ink.strokeWidth=.085f
+        for (side in -1..1 step 2) {
+            val step=side*gait
+            val footY=-.03f-step.coerceAtLeast(0f)*.18f
+            box(c,side*.40f-.13f,-.68f,side*.40f+.13f,footY-.12f,gold,.07f)
+            box(c,side*.40f-.29f,footY-.25f,side*.40f+.29f,footY,terra,.12f)
+            oval(c,side*.89f,-1.15f,.20f,.24f,gold)
+            box(c,side*.73f-.13f,-1.83f,side*.73f+.13f,-1.20f,terra,.12f)
+        }
+        box(c,-.65f,-1.96f,.65f,-.55f,terra,.30f)
+        box(c,-.45f,-1.69f,.45f,-.89f,ivory,.15f)
+        oval(c,0f,-1.27f,.17f,.17f,sage)
+        box(c,-.88f,-3.23f,.88f,-1.92f,terra,.32f)
+        box(c,-.64f,-2.99f,.64f,-2.16f,ivory,.24f)
+        for(side in -1..1 step 2) {
+            val blink=.10f + .015f*sin(time*2f)
+            oval(c,side*.30f,-2.62f,.08f,blink,0xFF514531.toInt())
+        }
+        c.drawArc(-.19f,-2.57f,.19f,-2.32f,10f,160f,false,ink)
+        c.drawLine(0f,-3.23f,0f,-3.60f,ink)
+        oval(c,0f,-3.72f,.16f,.16f,gold)
+        c.restore()
+    }
+
     fun draw(id: String,c: Canvas,x: Float,y: Float,u: Float,time: Float) {
         c.save()
         c.translate(x,y)

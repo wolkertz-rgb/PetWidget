@@ -224,8 +224,15 @@ internal class RoomFurniture {
         if (tv) {
             c.save(); c.translate(0.65f, 0f)
             box(c, 8f, -5.7f, 12.3f, -3f, 0xFF354B48.toInt(), 0.18f)
-            box(c, 8.25f, -5.45f, 12.05f, -3.25f, 0xFF8AB3BE.toInt(), 0.08f)
-            p.color = 0xFFB7D8D4.toInt(); c.drawOval(8.6f, -4.8f, 11.6f, -3.5f, p)
+            box(c, 8.25f, -5.45f, 12.05f, -3.25f, 0xFF536C67.toInt(), 0.08f)
+            p.color = 0x24F7EACE
+            val reflection = Path().apply {
+                moveTo(8.43f,-5.33f)
+                lineTo(9.89f,-5.33f)
+                lineTo(8.43f,-3.68f)
+                close()
+            }
+            c.drawPath(reflection,p)
             c.drawLine(9.5f, -3f, 9.2f, -2.65f, edge); c.drawLine(10.8f, -3f, 11.1f, -2.65f, edge)
             box(c, 7.45f, -2.65f, 12.85f, -.38f, accent, .30f)
             box(c, 7.78f, -2.34f, 9.25f, -.64f, accent, .13f)

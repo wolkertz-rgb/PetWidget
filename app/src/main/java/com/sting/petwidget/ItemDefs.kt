@@ -211,37 +211,8 @@ object ItemDefs {
     }
 
     fun drawRobot(c: Canvas, cx: Float, fy: Float, s: Float, t: Float, gait: Float) {
-        val body = 0xFFD89A72.toInt(); val side = 0xFFAF7457.toInt(); val dark = 0xFF4D5F4F.toInt()
-        val blink = sin(t * 3.0f) > 0f
-        contactShadow(c, cx, fy, s * 1.15f, s)
-        line(c, cx - s * 0.86f, fy - s * 1.55f, cx - s * 1.27f, fy - s * 0.85f, s * 0.22f, side)
-        line(c, cx + s * 0.86f, fy - s * 1.55f, cx + s * 1.27f, fy - s * 0.85f, s * 0.22f, side)
-        circle(c, cx - s * 1.3f, fy - s * 0.75f, s * 0.2f, body)
-        circle(c, cx + s * 1.3f, fy - s * 0.75f, s * 0.2f, body)
-        roundRect(c, cx - s * 0.85f, fy - s * 1.85f, cx + s * 0.85f, fy - s * 0.45f, s * 0.25f, body)
-        roundRect(c, cx + s * 0.48f, fy - s * 1.76f, cx + s * 0.74f, fy - s * 0.55f, s * 0.1f, side)
-        inkRound(c, cx - s * 0.85f, fy - s * 1.85f, cx + s * 0.85f, fy - s * 0.45f, s * 0.25f, s * 0.1f)
-        roundRect(c, cx - s * 0.47f, fy - s * 1.52f, cx + s * 0.25f, fy - s * 0.94f, s * 0.12f, 0xFFF0F6F7.toInt())
-        circle(c, cx - s * 0.22f, fy - s * 1.23f, s * 0.11f, 0xFFEF6F6C.toInt())
-        circle(c, cx + s * 0.08f, fy - s * 1.23f, s * 0.11f, 0xFFF4C95D.toInt())
-        for (leg in -1..1 step 2) {
-            val hip = cx + leg * s * .48f
-            val step = gait * leg
-            val toe = hip + step * s * .17f
-            val ground = fy - step.coerceAtLeast(0f) * s * .20f
-            line(c, hip, fy - s * .45f, toe, ground - s * .12f, s * .24f, side)
-            roundRect(c, toe - s * .30f, ground - s * .22f, toe + s * .30f,
-                ground - s * .03f, s * .08f, dark)
-        }
-        roundRect(c, cx - s * 0.72f, fy - s * 3.18f, cx + s * 0.72f, fy - s * 1.82f, s * 0.3f, body)
-        inkRound(c, cx - s * 0.72f, fy - s * 3.18f, cx + s * 0.72f, fy - s * 1.82f, s * 0.3f, s * 0.1f)
-        roundRect(c, cx - s * 0.52f, fy - s * 2.95f, cx + s * 0.52f, fy - s * 2.14f, s * 0.2f, dark)
-        val glow = if (blink) 0xFFB9F4D8.toInt() else 0xFF63D6AE.toInt()
-        roundRect(c, cx - s * 0.36f, fy - s * 2.72f, cx - s * 0.08f, fy - s * 2.48f, s * 0.08f, glow)
-        roundRect(c, cx + s * 0.08f, fy - s * 2.72f, cx + s * 0.36f, fy - s * 2.48f, s * 0.08f, glow)
-        line(c, cx - s * 0.2f, fy - s * 2.3f, cx + s * 0.2f, fy - s * 2.3f, s * 0.07f, glow)
-        line(c, cx, fy - s * 3.18f, cx, fy - s * 3.58f, s * 0.09f, side)
-        circle(c, cx, fy - s * 3.73f, s * 0.17f, if (blink) 0xFFFFD166.toInt() else 0xFFCF9D39.toInt())
+        if (!carrying) contactShadow(c,cx,fy,s*.92f,s)
+        toyArtwork.robot(c,cx,fy,s,t,gait)
     }
 
     /** Игрушечная ракета: цельный корпус, два плавника и сопло. */
