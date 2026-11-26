@@ -54,9 +54,10 @@ class VisualV5RenderTest {
                 renderer.lastPrefs!!.edit().putInt("room_lamp", 1).apply()
                 sim.x = sim.switchX
             }
-            for (frame in 0..20) {
-                sim.stateTime = sim.stateDur * frame / 20
-                sim.animPhase = frame * .05f
+            val count = (sim.stateDur / 50).toInt()
+            for (frame in 0..count) {
+                sim.stateTime = frame * 50L
+                sim.animPhase = sim.stateTime / 1000f
                 save(renderer.render(sim, 900, 500), state.name, frame)
             }
         }
@@ -68,14 +69,14 @@ class VisualV5RenderTest {
             sim.reaction = def.reaction
             sim.state = PetSim.State.INTERACT
             sim.stateDur = 3600L
-            for (frame in 0..24) {
+            for (frame in 0..72) {
                 sim.dir = 1
-                sim.stateTime = sim.stateDur * frame / 24
-                sim.animPhase = frame * .15f
+                sim.stateTime = frame * 50L
+                sim.animPhase = sim.stateTime / 1000f
                 save(renderer.render(sim, 900, 500), def.id, frame)
                 sim.dir = -1
                 sim.targetItem!!.x = .43f
-                save(renderer.render(sim, 900, 500), def.id + "-left", frame)
+                if (frame % 6 == 0) save(renderer.render(sim, 900, 500), def.id + "-left", frame)
                 sim.targetItem!!.x = .57f
             }
         }
@@ -86,15 +87,15 @@ class VisualV5RenderTest {
             val (sim, renderer) = scene("yard$style", yard = true)
             renderer.lastPrefs!!.edit().putInt("yard_fence_style", style)
                 .putInt("yard_swing_style", style).apply()
-            for (frame in 0..12) {
+            for (frame in 0..200) {
                 // The real outing controller animates a seated pet and bench together.
                 sim.outing.javaClass.getDeclaredField("phase").apply { isAccessible = true }.setInt(sim.outing, 5)
-                sim.outing.javaClass.getDeclaredField("time").apply { isAccessible = true }.setLong(sim.outing, frame * 800L)
+                sim.outing.javaClass.getDeclaredField("time").apply { isAccessible = true }.setLong(sim.outing, frame * 50L)
                 sim.state = PetSim.State.SIT
                 sim.stateDur = 10_000
                 sim.x = .8f
-                sim.stateTime = frame * 800L
-                sim.animPhase = frame * .8f
+                sim.stateTime = frame * 50L
+                sim.animPhase = frame * .05f
                 save(renderer.render(sim, 900, 500), "yard$style", frame)
             }
         }

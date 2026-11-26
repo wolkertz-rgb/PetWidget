@@ -21,7 +21,7 @@ for folder in sorted(source.iterdir()):
             with Image.open(path) as frame:
                 frames.append(frame.convert("RGB").resize((720, 400)))
         frames[0].save(output / (folder.name + ".gif"), save_all=True,
-                       append_images=frames[1:], duration=120, loop=0)
+                       append_images=frames[1:], duration=50, loop=0)
         mid = len(paths) // 2
         Image.open(paths[mid]).save(output / (folder.name + ".png"))
     # Readable key poses from every rendered action, including all food and toys.
