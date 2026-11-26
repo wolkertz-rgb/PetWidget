@@ -22,9 +22,9 @@ object ThemePresets {
     private fun c(hex: String): Int = android.graphics.Color.parseColor(hex)
 
     val MINT = mapOf(
-        "room_bg_top" to c("#F2F2EF"), "room_bg_bottom" to c("#E8E8E4"),
-        "room_panel" to c("#E5E5E0"), "room_skirt" to c("#DCDCD6"),
-        "floor_top" to c("#E1E1DC"), "floor_bottom" to c("#D3D3CE"),
+        "room_bg_top" to c("#F8EAD2"), "room_bg_bottom" to c("#EBD4B0"),
+        "room_panel" to c("#E9D6B7"), "room_skirt" to c("#77927C"),
+        "floor_top" to c("#DCA06E"), "floor_bottom" to c("#BD8058"),
         "pet_top" to c("#A8E6C3"), "pet_mid" to c("#6FBE97"),
         "pet_bottom" to c("#4FA379"), "pet_belly" to c("#BDEBCF"),
         "pet_blush" to c("#F3A9A0"),

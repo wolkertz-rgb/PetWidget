@@ -12,6 +12,7 @@ internal class YardScene {
     private val landscape = YardLandscape()
     private var swingWood = 0xFFB58B5F.toInt()
     private var swingStyle = 0
+    private val material = VectorFinish()
     private val doorFinish by lazy { LinearGradient(0f,-5.6f,3.5f,0f,0xFF8DA697.toInt(),0xFF587B6C.toInt(),Shader.TileMode.CLAMP) }
     private val outdoorFinish by lazy {
         LinearGradient(0f, -5.6f, 3.5f, 0f, 0xFFA88059.toInt(), 0xFF685241.toInt(), Shader.TileMode.CLAMP)
@@ -20,24 +21,29 @@ internal class YardScene {
         style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
     }
     private fun box(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int, radius: Float = 0f) {
-        p.color = color; c.drawRoundRect(l,t,r,b,radius,radius,p)
+        material.apply(p, color, l, t, r, b)
+        c.drawRoundRect(l,t,r,b,radius,radius,p)
+        p.shader=null
     }
     fun door(c: Canvas, x: Float, floor: Float, u: Float, open: Float, style: Int) {
         c.save(); c.translate(x, floor); c.scale(u,u)
         // Ширина чистого проёма 3.5 единицы при диаметре пета 3.1.
         p.color=0x24000000;c.drawOval(-2.1f,-.12f,2.2f,.22f,p)
-        box(c,-1.98f,-5.85f,1.98f,.02f,0xFF62564B.toInt(),.12f)
-        box(c,-1.88f,-5.76f,1.88f,-.02f,0xFFE3D3B6.toInt(),.08f)
-        box(c,-1.75f,-5.6f,1.75f,-.04f,0xFF263B35.toInt(),.035f)
+        box(c,-2.02f,-5.93f,2.02f,.02f,0xFF5A513D.toInt(),.45f)
+        box(c,-1.89f,-5.80f,1.89f,-.02f,0xFFE9CE9C.toInt(),.36f)
+        box(c,-1.75f,-5.6f,1.75f,-.04f,0xFF263B35.toInt(),.27f)
         val squeeze=1f-open.coerceIn(0f,1f)*.91f
         c.save();c.translate(-1.75f,0f);c.scale(squeeze,1f)
         p.shader = if (style == 1) outdoorFinish else doorFinish
-        c.drawRoundRect(0f,-5.6f,3.5f,-.06f,.04f,.04f,p);p.shader=null
+        c.drawRoundRect(0f,-5.6f,3.5f,-.06f,.26f,.26f,p);p.shader=null
         edge.color=0xFF415D50.toInt();edge.strokeWidth=.055f
-        c.drawRoundRect(.22f,-5.34f,3.28f,-.3f,.04f,.04f,edge)
-        box(c,.42f,-5.12f,3.08f,-3.55f,0xFF41655D.toInt(),.06f)
-        box(c,.5f,-5.04f,3f,-3.63f,0xFFB7D4CC.toInt(),.04f)
-        edge.color=0x66FFFFFF;edge.strokeWidth=.055f;c.drawLine(.7f,-4.85f,2.4f,-3.82f,edge)
+        c.drawRoundRect(.22f,-5.34f,3.28f,-.3f,.19f,.19f,edge)
+        box(c,.40f,-5.18f,3.10f,-3.48f,0xFF526A52.toInt(),.54f)
+        box(c,.52f,-5.06f,2.98f,-3.60f,0xFFC1DBCB.toInt(),.43f)
+        edge.color=0x77FFFFFF
+        edge.strokeWidth=.07f
+        c.drawLine(.78f,-4.80f,1.40f,-4.08f,edge)
+        c.drawLine(.96f,-4.91f,1.63f,-4.15f,edge)
         box(c,.42f,-3.3f,3.08f,-.55f,if (style == 1) 0xFF8F7051.toInt() else 0xFF739382.toInt(),.05f)
         edge.color = if (style == 1) 0xFF705940.toInt() else 0xFF597868.toInt()
         edge.strokeWidth=.035f

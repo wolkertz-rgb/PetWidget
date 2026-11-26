@@ -35,6 +35,7 @@ class SceneRenderer {
     }
     private val rect = RectF()
     private val path = Path()
+    private val petSilhouette = Path()
     private val furniture = RoomFurniture()
     private val yardScene = YardScene()
     private val gradientPaints = HashMap<String, Paint>()
@@ -42,6 +43,8 @@ class SceneRenderer {
     /** Превью не должно записывать общую позу живого питомца. */
     var persistPose = true
     var previewYard = false
+    internal var previewTime: Long? = null
+    internal var strictRendering = false
 
     fun render(sim: PetSim, newW: Int, newH: Int): Bitmap? {
         if (newW <= 0 || newH <= 0) return null
@@ -55,6 +58,7 @@ class SceneRenderer {
     }
 
     private fun logErr(section: String, t: Throwable) {
+        if (strictRendering) throw IllegalStateException("Render failed in $section", t)
         android.util.Log.e("PetRender", "[$section] ${t.javaClass.simpleName}: ${t.message}", t)
     }
 
@@ -109,13 +113,13 @@ class SceneRenderer {
 
         // фон (тема-токены)
         val bg = gradientPaint("bg").apply {
-            shader = LinearGradient(0f, pad, 0f, floorY, th("room_bg_top", 0xFFF2F2EF.toInt()), th("room_bg_bottom", 0xFFE8E8E4.toInt()), Shader.TileMode.CLAMP)
+            shader = LinearGradient(0f, pad, 0f, floorY, th("room_bg_top", 0xFFF8EAD2.toInt()), th("room_bg_bottom", 0xFFEBD4B0.toInt()), Shader.TileMode.CLAMP)
         }
         c.drawRect(0f, 0f, w.toFloat(), floorY + 1f, bg)
         c.drawRect(0f, floorY, w.toFloat(), h.toFloat(), bg)
 
         // время суток
-        val worldTime = System.currentTimeMillis()
+        val worldTime = previewTime ?: System.currentTimeMillis()
         val night = WindowScene.night(worldTime)
 
         // стены/потолок
@@ -126,6 +130,11 @@ class SceneRenderer {
         val ceil = gradientPaint("ceil").apply { shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, w.toFloat(), pad * 1.6f, ceil)
 
+        pF.color = 0x14FFFFFF
+        val stripe = unit * .95f
+        for (i in 0..(w / stripe).toInt()) {
+            if (i % 2 == 0) c.drawRect(i * stripe, 0f, (i + 1) * stripe, floorY, pF)
+        }
         // узор обоев (читается из кастомизации)
         drawWallPattern(c, unit, pad, floorY)
         pF.color = 0xFF555550.toInt()
@@ -144,7 +153,7 @@ class SceneRenderer {
         pF.alpha = 255
 
         // панель нижней части стены + линия кромки
-        pF.color = th("room_panel", 0xFFE5E5E0.toInt())
+        pF.color = th("room_panel", 0xFFE9D6B7.toInt())
         rect.set(pad, floorY - unit * 2.0f, w - pad, floorY - unit * 0.2f)
         c.drawRect(rect, pF)
         pS.color = 0x2ECFCFC9.toInt()
@@ -163,7 +172,7 @@ class SceneRenderer {
             c.drawLine(left + unit * .09f, floorY - unit * .34f, right - unit * .09f, floorY - unit * .34f, pS)
         }
         // пол + плинтус (тема-токены)
-        val floor = gradientPaint("floor").apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFE1E1DC.toInt()), th("floor_bottom", 0xFFD3D3CE.toInt()), Shader.TileMode.CLAMP) }
+        val floor = gradientPaint("floor").apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFDCA06E.toInt()), th("floor_bottom", 0xFFBD8058.toInt()), Shader.TileMode.CLAMP) }
         rect.set(pad, floorY, w - pad, h - pad)
         c.drawRect(rect, floor)
         pS.color = 0x38FFF5E4
@@ -172,7 +181,7 @@ class SceneRenderer {
             val y = lerp(floorY, h - pad, i * .22f)
             c.drawLine(pad, y, w - pad, y, pS)
         }
-        pF.color = th("room_skirt", 0xFFDCDCD6.toInt())
+        pF.color = th("room_skirt", 0xFF77927C.toInt())
         rect.set(pad, floorY - unit * 0.22f, w - pad, floorY)
         c.drawRect(rect, pF)
         pS.color = 0xFFB9B9B2.toInt()
@@ -283,7 +292,7 @@ class SceneRenderer {
     }
 
     private fun drawYard(c: Canvas, sim: PetSim, unit: Float, floor: Float, itemX: (Float) -> Float) {
-        yardScene.draw(c, w.toFloat(), h.toFloat(), floor, unit, System.currentTimeMillis(), sim.outing, lastPrefs)
+        yardScene.draw(c, w.toFloat(), h.toFloat(), floor, unit, previewTime ?: System.currentTimeMillis(), sim.outing, lastPrefs)
         val inter = readInteract(sim, itemX, floor, unit)
         val a = sim.outing.swingAngle
         val center=itemX(sim.x)
@@ -998,11 +1007,23 @@ class SceneRenderer {
                 null, Shader.TileMode.CLAMP
             )
         }
-        rect.set(px - r * sx, cy - r * sy, px + r * sx, cy + r * sy)
-        c.drawOval(rect, body)
+        petSilhouette.reset()
+        val rx = r * sx
+        val ry = r * sy
+        petSilhouette.moveTo(px, cy - ry)
+        petSilhouette.cubicTo(px + rx * .75f, cy - ry * 1.07f,
+            px + rx * .79f, cy - ry * .30f, px + rx * .97f, cy + ry * .32f)
+        petSilhouette.cubicTo(px + rx * 1.13f, cy + ry * .97f,
+            px + rx * .61f, cy + ry * .99f, px, cy + ry)
+        petSilhouette.cubicTo(px - rx * .61f, cy + ry * .99f,
+            px - rx * 1.13f, cy + ry * .97f, px - rx * .97f, cy + ry * .32f)
+        petSilhouette.cubicTo(px - rx * .79f, cy - ry * .30f,
+            px - rx * .75f, cy - ry * 1.07f, px, cy - ry)
+        petSilhouette.close()
+        c.drawPath(petSilhouette, body)
         pS.color = th("pet_outline", 0xFF4A4038.toInt())
         pS.strokeWidth = unit * 0.12f
-        c.drawOval(rect, pS)
+        c.drawPath(petSilhouette, pS)
 
         // обводка-кромка слоя света (rim-light)
         pS.color = 0x20FFFFFF.toInt()
@@ -1686,7 +1707,13 @@ class SceneRenderer {
                     else -> Unit
                 }
             }
-            else -> {}
+            else -> {
+                val wave = sin(sim.animPhase * 3f) * r * .025f
+                for (side in -1..1 step 2) {
+                    arm(cx + side * r * .81f, cy + r * .16f,
+                        cx + side * r * .97f, cy + r * .43f + side * wave, false)
+                }
+            }
         }
     }
 
@@ -1750,107 +1777,15 @@ class SceneRenderer {
     // ------------------------------------------------------ кожаное кресло
 
     private fun drawChairBack(c: Canvas, unit: Float, floorY: Float) {
-        val bx = floorXfor(PetSim.BED_X, unit)
-        val style = th("room_bed", 0)
-        if (style != 0) {
-            furniture.bed(c, bx, floorY, unit, style, th("chair_back1", 0xFFAB7B44.toInt()), false)
-            return
-        }
-        val outline = 0xFF4C3528.toInt()
-
-        // широкая контактная тень
-        pF.color = 0x1C000000
-        rect.set(bx - unit * 2.05f, floorY - unit * 0.2f, bx + unit * 2.05f, floorY + unit * 0.16f)
-        c.drawOval(rect, pF)
-
-        // цельный силуэт современной wingback-спинки
-        val back = gradientPaint("back").apply {
-            shader = LinearGradient(bx - unit * 1.2f, floorY - unit * 3.25f, bx + unit * 1.1f, floorY - unit * 0.65f,
-                th("chair_back1", 0xFFAB7B44.toInt()), th("chair_back2", 0xFF6D4523.toInt()), Shader.TileMode.CLAMP)
-        }
-        path.reset()
-        path.moveTo(bx - unit * 1.08f, floorY - unit * 3.22f)
-        path.quadTo(bx, floorY - unit * 3.5f, bx + unit * 1.08f, floorY - unit * 3.22f)
-        path.quadTo(bx + unit * 1.46f, floorY - unit * 2.8f, bx + unit * 1.35f, floorY - unit * 1.0f)
-        path.lineTo(bx - unit * 1.35f, floorY - unit * 1.0f)
-        path.quadTo(bx - unit * 1.46f, floorY - unit * 2.8f, bx - unit * 1.08f, floorY - unit * 3.22f)
-        path.close()
-        c.drawPath(path, back)
-        pS.color = outline; pS.strokeWidth = unit * 0.11f; c.drawPath(path, pS)
-
-        // внутренняя мягкая панель и кожаный кант
-        val panel = gradientPaint("panel").apply {
-            shader = LinearGradient(0f, floorY - unit * 3.0f, 0f, floorY - unit * 1.0f,
-                th("chair_back1", 0xFFAB7B44.toInt()), th("chair_back2", 0xFF6D4523.toInt()), Shader.TileMode.CLAMP)
-        }
-        rect.set(bx - unit * 0.93f, floorY - unit * 3.0f, bx + unit * 0.93f, floorY - unit * 1.08f)
-        c.drawRoundRect(rect, unit * 0.48f, unit * 0.48f, panel)
-        pS.color = 0x55F1D1A7; pS.strokeWidth = unit * 0.07f; c.drawRoundRect(rect, unit * 0.48f, unit * 0.48f, pS)
-
-        // простёжка с утопленными пуговицами
-        pS.color = 0x38513425; pS.strokeWidth = unit * 0.055f
-        c.drawLine(bx - unit * 0.68f, floorY - unit * 2.55f, bx + unit * 0.68f, floorY - unit * 1.55f, pS)
-        c.drawLine(bx + unit * 0.68f, floorY - unit * 2.55f, bx - unit * 0.68f, floorY - unit * 1.55f, pS)
-        for ((dx, dy) in listOf(-0.5f to -2.35f, 0.5f to -2.35f, 0f to -1.95f, -0.5f to -1.55f, 0.5f to -1.55f)) {
-            pF.color = 0x66402B20
-            c.drawCircle(bx + unit * dx, floorY + unit * dy, unit * 0.09f, pF)
-            pF.color = 0x55F4D2A5
-            c.drawCircle(bx + unit * dx - unit * 0.025f, floorY + unit * dy - unit * 0.025f, unit * 0.03f, pF)
-        }
-
-        // глубокая отдельная подушка сиденья
-        val seat = gradientPaint("seat").apply {
-            shader = LinearGradient(0f, floorY - unit * 1.05f, 0f, floorY - unit * 0.08f,
-                th("chair_seat1", 0xFFC08A57.toInt()), th("chair_seat2", 0xFF94613A.toInt()), Shader.TileMode.CLAMP)
-        }
-        rect.set(bx - unit * 1.28f, floorY - unit * 1.08f, bx + unit * 1.28f, floorY - unit * 0.12f)
-        c.drawRoundRect(rect, unit * 0.36f, unit * 0.36f, seat)
-        pS.color = outline; pS.strokeWidth = unit * 0.09f; c.drawRoundRect(rect, unit * 0.36f, unit * 0.36f, pS)
-        pF.color = 0x32FFFFFF
-        rect.set(bx - unit * 1.08f, floorY - unit * 1.0f, bx + unit * 0.62f, floorY - unit * 0.66f)
-        c.drawOval(rect, pF)
+        furniture.bed(c, floorXfor(PetSim.BED_X, unit), floorY, unit,
+            th("room_bed", 0), th("chair_back1", 0xFFDFA04F.toInt()), false)
     }
 
     private fun drawChairFront(c: Canvas, unit: Float, floorY: Float) {
-        val bx = floorXfor(PetSim.BED_X, unit)
-        val style = th("room_bed", 0)
-        if (style != 0) {
-            furniture.bed(c, bx, floorY, unit, style, th("chair_back1", 0xFFAB7B44.toInt()), true)
-            return
-        }
-
-        val outline = 0xFF4C3528.toInt()
-        val roll = gradientPaint("roll").apply {
-            shader = LinearGradient(0f, floorY - unit * 2.0f, 0f, floorY,
-                th("chair_roll1", 0xFFB98350.toInt()), th("chair_roll2", 0xFF8A5A2E.toInt()), Shader.TileMode.CLAMP)
-        }
-        // скруглённые подлокотники с мягкими передними роллами
-        rect.set(bx - unit * 1.78f, floorY - unit * 1.82f, bx - unit * 1.02f, floorY - unit * 0.12f)
-        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll); pS.color = outline; pS.strokeWidth = unit * 0.09f; c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, pS)
-        rect.set(bx + unit * 1.02f, floorY - unit * 1.82f, bx + unit * 1.78f, floorY - unit * 0.12f)
-        c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, roll); c.drawRoundRect(rect, unit * 0.34f, unit * 0.34f, pS)
-        pF.color = th("chair_seat1", 0xFFC08A57.toInt())
-        pS.color = outline; pS.strokeWidth = unit * 0.09f
-        rect.set(bx - unit * 1.72f, floorY - unit * 1.92f, bx - unit * 1.08f, floorY - unit * 1.55f); c.drawOval(rect, pF); c.drawOval(rect, pS)
-        rect.set(bx + unit * 1.08f, floorY - unit * 1.92f, bx + unit * 1.72f, floorY - unit * 1.55f); c.drawOval(rect, pF); c.drawOval(rect, pS)
-        pS.color = 0x66F2D0A4; pS.strokeWidth = unit * 0.055f
-        c.drawLine(bx - unit * 1.43f, floorY - unit * 1.5f, bx - unit * 1.39f, floorY - unit * 0.32f, pS)
-        c.drawLine(bx + unit * 1.39f, floorY - unit * 1.5f, bx + unit * 1.43f, floorY - unit * 0.32f, pS)
-
-        // передняя царга и четыре скошенные деревянные ножки
-        pF.color = th("chair_roll2", 0xFF8A5A2E.toInt())
-        rect.set(bx - unit * 1.2f, floorY - unit * 0.42f, bx + unit * 1.2f, floorY - unit * 0.1f)
-        c.drawRoundRect(rect, unit * 0.13f, unit * 0.13f, pF)
-        pS.color = outline; pS.strokeWidth = unit * 0.08f
-        c.drawRoundRect(rect, unit * 0.13f, unit * 0.13f, pS)
-        pF.color = 0xFF493327.toInt()
-        path.reset(); path.moveTo(bx - unit * 1.08f, floorY - unit * 0.16f); path.lineTo(bx - unit * 0.82f, floorY - unit * 0.16f)
-        path.lineTo(bx - unit * 0.9f, floorY); path.lineTo(bx - unit * 1.14f, floorY); path.close(); c.drawPath(path, pF)
-        path.reset(); path.moveTo(bx + unit * 0.82f, floorY - unit * 0.16f); path.lineTo(bx + unit * 1.08f, floorY - unit * 0.16f)
-        path.lineTo(bx + unit * 1.14f, floorY); path.lineTo(bx + unit * 0.9f, floorY); path.close(); c.drawPath(path, pF)
+        furniture.bed(c, floorXfor(PetSim.BED_X, unit), floorY, unit,
+            th("room_bed", 0), th("chair_back1", 0xFFDFA04F.toInt()), true)
     }
 
-    /** мягкая подпись предмета при появлении: 250 мс въезд, 500 мс уход */
     private fun drawSpawnLabel(c: Canvas, name: String, x: Float, floorY: Float, unit: Float, age: Long) {
         val a = when {
             age < 250L -> age / 250f

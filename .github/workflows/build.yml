@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ main, visual-v2, visual-v4, restore-1.100 ]
+    branches: [ main, visual-v2, visual-v4, restore-1.100, visual-v5 ]
   workflow_dispatch:
 
 permissions:
@@ -58,3 +58,12 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 90
+
+      - name: Сохраняем отрисованные кадры
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-v5-frames
+          path: app/build/visual-v5/
+          if-no-files-found: warn
+          retention-days: 30

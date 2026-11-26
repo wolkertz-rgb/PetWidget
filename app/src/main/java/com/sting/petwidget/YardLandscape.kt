@@ -159,27 +159,25 @@ internal class YardLandscape {
         if(prefs?.getInt("yard_nightlife",1)!=0)nightGarden(c,f,now,outline)
     }
 
-    private fun tree(c: Canvas,x: Float,y: Float,s: Float,outline: Int){
-        c.save();c.translate(x,y);c.scale(s,s)
-        box(c,-.11f,-2.3f,.11f,.08f,tone(0xFF8B7954,0xFF41594F),.03f,outline)
-        for(tier in 0..3) {
-            val tip=-3.65f+tier*.68f
-            val spread=.34f+tier*.23f
-            val base=tip+1.18f
-            path.reset();path.moveTo(0f,tip)
-            path.cubicTo(spread*.18f,tip+.37f,spread*.62f,base-.46f,spread,base-.12f)
-            path.quadTo(spread*.72f,base+.01f,spread*.42f,base-.04f)
-            path.quadTo(0f,base+.17f,-spread*.42f,base-.04f)
-            path.quadTo(-spread*.72f,base+.01f,-spread,base-.12f)
-            path.cubicTo(-spread*.58f,base-.46f,-spread*.18f,tip+.37f,0f,tip);path.close()
-            ramp(pineIds[tier],tip,base,tone(0xFF77AB85,0xFF426B61),tone(0xFF3D765B,0xFF294D49))
-            shape(c,Color.WHITE,outline,.035f)
-            // Освещённая левая грань и тёмные кончики ветвей каждого яруса.
-            path.reset();path.moveTo(-.035f,tip+.19f)
-            path.quadTo(-spread*.28f,base-.43f,-spread*.77f,base-.15f)
-            path.quadTo(-spread*.35f,base-.20f,-.035f,tip+.19f);path.close()
-            shape(c,tone(0x558FC79A,0x335C8F79))
-            line(c,-spread*.67f,base-.13f,-spread*.32f,base-.18f,tone(0x88406C51,0x88304D45),.025f)
+    private fun tree(c: Canvas, x: Float, y: Float, s: Float, outline: Int) {
+        c.save()
+        c.translate(x, y)
+        c.scale(s, s)
+        // Tall organic leaves give the groves a clean silhouette at widget size.
+        for (side in -1..1) {
+            val crownX = side * .66f
+            val tip = -3.8f + kotlin.math.abs(side) * .65f
+            path.reset()
+            path.moveTo(crownX, tip)
+            path.cubicTo(crownX + .50f, tip + .43f, crownX + .76f, -1.07f, crownX + .36f, -.63f)
+            path.quadTo(crownX, -.20f, crownX - .36f, -.63f)
+            path.cubicTo(crownX - .76f, -1.07f, crownX - .50f, tip + .43f, crownX, tip)
+            path.close()
+            ramp(pineIds[side + 1], tip, -.45f,
+                tone(0xFFA8BF78,0xFF527C72), tone(0xFF557F50,0xFF2D5551))
+            shape(c, Color.WHITE, outline, .035f)
+            line(c, crownX, 0f, crownX, tip + .62f, tone(0xFF96774E,0xFF52665D), .065f)
+            line(c, crownX, -1.33f, crownX - .26f, -1.70f, tone(0xFF96774E,0xFF52665D), .035f)
         }
         c.restore()
     }
@@ -275,6 +273,14 @@ internal class YardLandscape {
             val x = .32f + i * 1.98f
             box(c, x, eave + .17f, x + .2f, eave + .53f, timber, .035f, outline)
         }
+        path.reset()
+        path.moveTo(corner - 1.52f, eave + .22f)
+        path.lineTo(corner - .20f, eave + .22f)
+        path.lineTo(corner - .20f, eave + 1.88f)
+        path.quadTo(corner - .48f, eave + .62f, corner - 1.52f, eave + .51f)
+        path.close()
+        ramp("corbel", eave + .22f, eave + 1.88f, tone(0xFFE7B36B,0xFF8E8C76), timber)
+        shape(c, Color.WHITE, outline, .07f)
         birdhouse(c, 1.23f, f - 3.65f, outline)
     }
     private fun steppingStones(c: Canvas,f: Float,outline: Int) {

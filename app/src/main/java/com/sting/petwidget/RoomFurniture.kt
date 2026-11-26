@@ -3,9 +3,6 @@ package com.sting.petwidget
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.LinearGradient
-import android.graphics.Shader
-import android.util.LruCache
 
 /** Мебель в координатах комнаты; выбор хранится в существующих настройках. */
 internal class RoomFurniture {
@@ -15,40 +12,26 @@ internal class RoomFurniture {
         strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
         color = 0xFF4A4038.toInt()
     }
-    private data class Finish(val color: Int, val top: Float, val bottom: Float)
-    private val finishes = LruCache<Finish, Shader>(96)
-
-    private fun finish(color: Int, top: Float, bottom: Float) {
-        p.color = color
-        if (color ushr 24 != 255 || top >= bottom) return
-        val key = Finish(color, top, bottom)
-        p.shader = finishes.get(key) ?: LinearGradient(0f, top, 0f, bottom,
-            blend(color, 0xFFF9EED9.toInt(), .23f), color,
-            Shader.TileMode.CLAMP).also { finishes.put(key, it) }
-    }
-
-    private fun blend(color: Int, light: Int, amount: Float): Int {
-        fun channel(shift: Int): Int {
-            val a = (color ushr shift) and 255
-            val b = (light ushr shift) and 255
-            return (a + (b - a) * amount).toInt()
-        }
-        return android.graphics.Color.rgb(channel(16), channel(8), channel(0))
-    }
+    private val material = VectorFinish()
 
     private fun box(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int, radius: Float = 0.2f) {
-        finish(color, t, b)
+        material.apply(p, color, l, t, r, b)
         c.drawRoundRect(l, t, r, b, radius, radius, p)
         p.shader = null
         c.drawRoundRect(l, t, r, b, radius, radius, edge)
     }
 
     private fun shape(c: Canvas, path: Path, color: Int) {
-        p.color = color; c.drawPath(path, p); c.drawPath(path, edge)
+        val bounds = android.graphics.RectF()
+        path.computeBounds(bounds, true)
+        material.apply(p, color, bounds.left, bounds.top, bounds.right, bounds.bottom)
+        c.drawPath(path, p)
+        p.shader = null
+        c.drawPath(path, edge)
     }
 
     private fun oval(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int) {
-        finish(color, t, b)
+        material.apply(p, color, l, t, r, b)
         c.drawOval(l, t, r, b, p)
         p.shader = null
         c.drawOval(l, t, r, b, edge)
@@ -56,7 +39,36 @@ internal class RoomFurniture {
 
     fun bed(c: Canvas, x: Float, floor: Float, u: Float, style: Int, color: Int, front: Boolean) {
         c.save(); c.translate(x, floor); c.scale(u, u)
-        if (style == 1) {
+        if (style == 0) {
+            if (!front) {
+                oval(c, -1.9f, -.16f, 1.9f, .13f, 0x21000000)
+                box(c, -1.65f, -3.65f, 1.65f, -.28f, color, .98f)
+                box(c, -1.37f, -3.35f, 1.37f, -1.03f, color, .84f)
+                box(c, -1.39f, -1.06f, 1.39f, -.40f, color, .27f)
+                // Small embroidered cushion, with an uninterrupted silhouette.
+                box(c, -.79f, -2.61f, .79f, -1.16f, 0xFFF8E8C7.toInt(), .30f)
+                for (side in -1..1 step 2) {
+                    oval(c, side * .29f - .15f, -2.30f, side * .29f + .15f, -1.98f, 0xFFD58F63.toInt())
+                    edge.color = 0xFF6E8B61.toInt()
+                    edge.strokeWidth = .05f
+                    c.drawLine(side * .29f, -1.95f, side * .29f, -1.49f, edge)
+                }
+                edge.color = 0xFF4A4038.toInt()
+                edge.strokeWidth = .09f
+            } else {
+                box(c, -1.63f, -.46f, 1.63f, -.16f, color, .14f)
+                for (side in -1..1 step 2) {
+                    val x0 = side * 1.45f
+                    box(c, x0 - .43f, -2.04f, x0 + .43f, -.20f, color, .41f)
+                    edge.color = 0x66FFF0CE
+                    edge.strokeWidth = .045f
+                    c.drawLine(x0 - .23f, -1.71f, x0 - .23f, -.54f, edge)
+                    edge.color = 0xFF4A4038.toInt()
+                    edge.strokeWidth = .09f
+                    box(c, x0 - .17f, -.20f, x0 + .17f, .02f, 0xFF665039.toInt(), .06f)
+                }
+            }
+        } else if (style == 1) {
             if (!front) {
                 p.color = 0x22000000; c.drawOval(-1.95f, -0.18f, 1.95f, 0.12f, p)
                 oval(c, -2f, -1.4f, 2f, -0.05f, color)
@@ -201,7 +213,11 @@ internal class RoomFurniture {
               rugColor: Int, accent: Int) {
         c.save(); c.translate(0f, floor); c.scale(u, u)
         if (rug) {
-            p.color = rugColor; c.drawOval(7f, -0.35f, 17f, 0.95f, p)
+            p.color = 0x22000000
+            c.drawOval(6.8f, -.22f, 17.2f, .99f, p)
+            material.apply(p, rugColor, 7f, -.35f, 17f, .95f)
+            c.drawOval(7f, -.35f, 17f, .95f, p)
+            p.shader = null
             edge.color = 0xFFE0D6BD.toInt(); c.drawOval(7.5f, -0.18f, 16.5f, 0.75f, edge)
             edge.color = 0xFF4A4038.toInt()
         }
@@ -211,7 +227,15 @@ internal class RoomFurniture {
             box(c, 8.25f, -5.45f, 12.05f, -3.25f, 0xFF8AB3BE.toInt(), 0.08f)
             p.color = 0xFFB7D8D4.toInt(); c.drawOval(8.6f, -4.8f, 11.6f, -3.5f, p)
             c.drawLine(9.5f, -3f, 9.2f, -2.65f, edge); c.drawLine(10.8f, -3f, 11.1f, -2.65f, edge)
-            box(c, 7.8f, -2.65f, 12.5f, -2.4f, accent, 0.08f)
+            box(c, 7.45f, -2.65f, 12.85f, -.38f, accent, .30f)
+            box(c, 7.78f, -2.34f, 9.25f, -.64f, accent, .13f)
+            box(c, 11.04f, -2.34f, 12.52f, -.64f, accent, .13f)
+            box(c, 9.54f, -2.30f, 10.78f, -.71f, 0xFF70503C.toInt(), .10f)
+            box(c, 9.70f, -1.35f, 10.62f, -1.05f, 0xFFE9D5A5.toInt(), .06f)
+            box(c, 9.63f, -1.01f, 10.68f, -.78f, 0xFF91AC80.toInt(), .05f)
+            for (x0 in listOf(8f, 12.2f)) box(c, x0, -.38f, x0 + .27f, 0f, 0xFF68503D.toInt(), .06f)
+            oval(c, 8.88f, -1.61f, 9.02f, -1.47f, 0xFFF5D18B.toInt())
+            oval(c, 11.29f, -1.61f, 11.43f, -1.47f, 0xFFF5D18B.toInt())
             c.restore()
         }
         if (plant) {
