@@ -69,9 +69,14 @@ class VisualV5RenderTest {
             sim.state = PetSim.State.INTERACT
             sim.stateDur = 3600L
             for (frame in 0..24) {
+                sim.dir = 1
                 sim.stateTime = sim.stateDur * frame / 24
                 sim.animPhase = frame * .15f
                 save(renderer.render(sim, 900, 500), def.id, frame)
+                sim.dir = -1
+                sim.targetItem!!.x = .43f
+                save(renderer.render(sim, 900, 500), def.id + "-left", frame)
+                sim.targetItem!!.x = .57f
             }
         }
     }
@@ -99,6 +104,16 @@ class VisualV5RenderTest {
             theme.forEach { (key, value) -> editor.putInt(key, value) }
             editor.apply()
             save(renderer.render(sim, 900, 500), "themes", ThemePresets.PRESETS.keys.indexOf(name))
+        }
+        for (bed in 0..2) for (lamp in 0..2) for (curtain in -1..2) {
+            val (sim, renderer) = scene("interior-$bed-$lamp-$curtain")
+            renderer.lastPrefs!!.edit().putInt("room_bed", bed).putInt("room_lamp", lamp)
+                .putInt("room_curtain", curtain).putInt("curtain_closed", 1).apply()
+            sim.sleepingInBed = true
+            sim.state = PetSim.State.SLEEP
+            sim.x = PetSim.BED_X
+            sim.stateTime = 1500
+            save(renderer.render(sim, 900, 500), "interiors", bed*12 + lamp*4 + curtain + 1)
         }
         val (sim, renderer) = scene("night", yard = true)
         renderer.previewTime = 180_000L
