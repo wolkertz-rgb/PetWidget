@@ -1588,8 +1588,9 @@ class SceneRenderer {
         val armDark = th("pet_bottom", 0xFF4FA379.toInt())
         val armInk = th("pet_outline", 0xFF4A4038.toInt())
         val material = gradientPaint("arm")
+        val bodyScale = PetMotion.pose(sim).sx
 
-        fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean) {
+        fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean, bend: Float = 0f) {
             val reach = kotlin.math.hypot(hxRaw - cx, hyRaw - cy)
             val clamp = if (reach > r * 2.15f) r * 2.15f / reach else 1f
             val hx = cx + (hxRaw - cx) * clamp
@@ -1603,19 +1604,19 @@ class SceneRenderer {
             val nx = -ty
             val ny = tx
             val width = unit * (.20f + .045f * (length / r).coerceAtMost(1f))
+            val palm = width + abs(bend) * unit * .19f
             val flex = length.coerceAtMost(r) * (if (up) -.13f else .19f)
-            val bodyScale = PetMotion.pose(sim).sx
             val rootX = cx + (ax-cx) * bodyScale - side * unit * .20f
-            val mx = (rootX + hx) * .50f
+            val mx = (rootX + hx) * .50f + side * r * bend
             val my = (ay + hy) * .50f + flex
 
             path.reset()
             path.moveTo(rootX + nx * width, ay + ny * width)
             path.quadTo(mx + nx * width * 1.23f, my + ny * width * 1.23f,
-                hx + nx * width, hy + ny * width)
-            path.cubicTo(hx + nx * width + tx * width, hy + ny * width + ty * width,
-                hx - nx * width + tx * width, hy - ny * width + ty * width,
-                hx - nx * width, hy - ny * width)
+                hx + nx * palm, hy + ny * palm)
+            path.cubicTo(hx + nx * palm + tx * palm, hy + ny * palm + ty * palm,
+                hx - nx * palm + tx * palm, hy - ny * palm + ty * palm,
+                hx - nx * palm, hy - ny * palm)
             path.quadTo(mx - nx * width, my - ny * width,
                 rootX - nx * width * .70f, ay - ny * width * .70f)
             material.shader = LinearGradient(hx - width, hy - width, hx + width, hy + width,
@@ -1646,20 +1647,22 @@ class SceneRenderer {
             }
 
             PetSim.State.STRETCH -> {
-                val sp = sin(((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)) * PI.toFloat())
-                val up = sp * r * 1.35f
-                arm(cx - r * 0.30f, cy - r * 0.85f, cx - r * 0.55f * sp, cy - r * 0.85f - up, true)
-                arm(cx + r * 0.30f, cy - r * 0.85f, cx + r * 0.55f * sp, cy - r * 0.85f - up, true)
+                val stretch = PetMotion.accent(sim.stateTime.toFloat() / sim.stateDur, 0f, .32f, .58f, 1f)
+                for (side in -1..1 step 2) {
+                    arm(cx + side * r * .84f, cy + r * .08f,
+                        cx + side * r * (1.09f + .11f * stretch), cy + r * (.40f - 1.20f * stretch),
+                        true, bend = .37f * stretch)
+                }
             }
 
             PetSim.State.WAVE -> {
                 val reach = PetMotion.envelope((sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f))
-                val sw = sin(sim.stateTime / 1000f * 7f) * unit * 0.35f * reach
-                arm(
-                    cx + r * .83f, cy + r * .08f,
-                    cx + r * (0.55f + 0.55f * reach) + sw, cy - r * (0.15f + 1.45f * reach),
-                    true
-                )
+                val swing = sin(sim.stateTime / 1000f * 8f) * reach
+                arm(cx - r * .81f, cy + r * .16f, cx - r * 1.07f, cy + r * .38f, false)
+                arm(cx + r * .83f, cy + r * .16f,
+                    cx + r * (1.07f + .12f * reach + .16f * swing),
+                    cy + r * (.40f - .99f * reach + .10f * swing),
+                    true, bend = .34f * reach)
             }
 
             PetSim.State.PULL -> {
@@ -1682,15 +1685,14 @@ class SceneRenderer {
             PetSim.State.HUNGRY, PetSim.State.HAPPY, PetSim.State.TICKLE -> {
                 val p = sim.stateTime.toFloat() / sim.stateDur.coerceAtLeast(1)
                 val reach = PetMotion.accent(p, .02f, .23f, .70f, .96f)
-                if (reach <= .01f) return
                 val sob = PetMotion.sob(p, sim.stateTime / 1000f)
                 val handX = when (st) {
-                    PetSim.State.HAPPY -> 1.36f
+                    PetSim.State.HAPPY -> 1.20f
                     PetSim.State.HUNGRY -> .46f
                     else -> .44f
                 }
                 val handY = when (st) {
-                    PetSim.State.HAPPY -> -.57f
+                    PetSim.State.HAPPY -> -.45f
                     PetSim.State.HUNGRY -> -.36f - .15f * sob
                     else -> .62f - .19f * sin(p * 15f)
                 }
@@ -1698,8 +1700,9 @@ class SceneRenderer {
                     val shoulderX = cx + side * r * .84f
                     val shoulderY = cy + r * .20f
                     arm(shoulderX, shoulderY,
-                        lerp(shoulderX, cx + side * handX * r, reach),
-                        lerp(shoulderY, cy + handY * r, reach), handY < 0f)
+                        lerp(cx + side * r * 1.07f, cx + side * handX * r, reach),
+                        cy + r * lerp(.40f, handY, reach), handY < 0f,
+                        bend = if (st == PetSim.State.HAPPY) .34f * reach else 0f)
                 }
             }
 
