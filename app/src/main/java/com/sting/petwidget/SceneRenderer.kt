@@ -91,7 +91,14 @@ class SceneRenderer {
     var font: android.graphics.Typeface? = null
 
     /** читатель темы: значения можно переопределить из «ателье» (prefs) */
+    private val legacyRoom = mapOf(
+        "room_bg_top" to 0xFFF2F2EF.toInt(), "room_bg_bottom" to 0xFFE8E8E4.toInt(),
+        "room_panel" to 0xFFE5E5E0.toInt(), "room_skirt" to 0xFFDCDCD6.toInt(),
+        "floor_top" to 0xFFE1E1DC.toInt(), "floor_bottom" to 0xFFD3D3CE.toInt())
+    private var useNewMintRoom = false
+
     private fun th(key: String, def: Int): Int {
+        if (useNewMintRoom && key in legacyRoom) return ThemePresets.MINT.getValue(key)
         return try {
             lastPrefs?.getInt(key, def) ?: def
         } catch (_: Throwable) {
@@ -102,6 +109,7 @@ class SceneRenderer {
     // ---------------------------------------------------------------- сцена
 
     private fun paintScene(c: Canvas, sim: PetSim) {
+        useNewMintRoom = legacyRoom.all { (key, value) -> lastPrefs?.getInt(key, value) == value }
         val unit = (w / 24f).coerceAtLeast(8f)
         val pad = unit * 0.7f
         val floorY = h - h * 0.115f

@@ -62,7 +62,7 @@ internal object WindowScene {
         // Внешняя рама и глубокая оконная ниша.
         fill.color = 0x26000000
         c.drawRoundRect(left - unit * 0.22f, top + unit * 0.08f, right + unit * 0.3f, bottom + unit * 0.35f, unit * 0.5f, unit * 0.5f, fill)
-        fill.color = 0xFFE9DCC7.toInt()
+        fill.color = 0xFF8FA98A.toInt()
         c.drawRoundRect(left - unit * 0.2f, top - unit * 0.2f, right + unit * 0.2f, bottom + unit * 0.2f, unit * 0.46f, unit * 0.46f, fill)
         c.save()
         bounds.set(left, top, right, bottom)
@@ -86,22 +86,29 @@ internal object WindowScene {
             c.drawCircle(left + unit * (0.3f + (i * 1.17f) % 4.1f), top + unit * (0.35f + (i * 0.61f) % 2f), unit * 0.035f, fill)
         }
         fill.alpha = 255
-        // Дальний лес и полянка: деревья имеют отдельные стволы и кроны.
-        val horizon = top + (bottom - top) * 0.64f
-        for (i in 0..8) {
-            val tx = left + i * unit * 0.65f
-            val ty = horizon + sin(i * 2f) * unit * 0.18f
-            fill.color = mix(0xFF548F78.toInt(), 0xFF263F49.toInt(), n)
-            path.reset(); path.moveTo(tx, ty - unit * (0.9f + (i % 3) * 0.2f))
-            path.lineTo(tx + unit * 0.5f, ty + unit * 0.35f); path.lineTo(tx - unit * 0.5f, ty + unit * 0.35f); path.close()
-            c.drawPath(path, fill)
-            stroke.color = mix(0xFF55715B.toInt(), 0xFF283A40.toInt(), n); stroke.strokeWidth = unit * 0.07f
-            c.drawLine(tx, ty, tx, ty + unit * 0.55f, stroke)
+        val horizon = top + (bottom - top) * .65f
+        for (layer in 0..2) {
+            val y = horizon + layer * unit * .44f
+            path.reset()
+            path.moveTo(left - unit, y)
+            path.cubicTo(left + unit, y - unit * (1.3f - layer * .22f),
+                right - unit, y + unit * .35f, right + unit, y - unit * .7f)
+            path.lineTo(right + unit,bottom + unit)
+            path.lineTo(left - unit,bottom + unit)
+            path.close()
+            val day = intArrayOf(0xFFA6C6AE.toInt(),0xFF8CB57D.toInt(),0xFFB4CA8B.toInt())[layer]
+            fill.color = mix(day,0xFF405E5B.toInt(),n)
+            c.drawPath(path,fill)
         }
-        fill.color = mix(0xFF8CB878.toInt(), 0xFF405B56.toInt(), n)
-        c.drawOval(left - unit, horizon + unit * 0.15f, right + unit, bottom + unit * 1.4f, fill)
-        fill.color = mix(0xFFB0CA88.toInt(), 0xFF4D695F.toInt(), n)
-        c.drawOval(left - unit, bottom - unit * 0.65f, right + unit, bottom + unit * 1.4f, fill)
+        for (i in 0..3) {
+            val tx = left + unit * (.55f + i * 1.07f)
+            val ty = horizon + unit * .68f
+            fill.color = mix(0xFF6D9469.toInt(),0xFF304C49.toInt(),n)
+            c.drawOval(tx-unit*.19f,ty-unit*.81f,tx+unit*.19f,ty,fill)
+            stroke.color = mix(0xFF9D8057.toInt(),0xFF4D615B.toInt(),n)
+            stroke.strokeWidth = unit * .045f
+            c.drawLine(tx,ty-unit*.43f,tx,ty+unit*.15f,stroke)
+        }
         // Тучи плавно набирают плотность вместе с дождём.
         fill.color = 0xFF647889.toInt(); fill.alpha = (rain * 175).toInt()
         c.drawOval(left - unit, top - unit * 0.3f, right + unit, top + unit * 1.0f, fill)
@@ -133,8 +140,9 @@ internal object WindowScene {
         c.restore()
         stroke.color = 0xFF6B6356.toInt(); stroke.strokeWidth = unit * 0.1f
         c.drawRoundRect(left, top, right, bottom, unit * 0.3f, unit * 0.3f, stroke)
-        stroke.color = 0xFFE9DCC7.toInt(); stroke.strokeWidth = unit * 0.14f
+        stroke.color = 0xFF8FA98A.toInt(); stroke.strokeWidth = unit * 0.14f
         c.drawLine(x, top, x, bottom, stroke)
+        c.drawLine(left, top + (bottom-top)*.56f, right, top + (bottom-top)*.56f, stroke)
         fill.color = 0xFFF0E5D3.toInt()
         c.drawRoundRect(left - unit * 0.37f, bottom, right + unit * 0.37f, bottom + unit * 0.25f, unit * 0.1f, unit * 0.1f, fill)
     }
