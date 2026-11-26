@@ -392,7 +392,7 @@ class AtelierActivity : Activity() {
             getThemePrefs().edit().putInt("room_lamp", it).apply(); refreshAll()
         })
         card.addView(label("ШТОРЫ"))
-        card.addView(chipRow(listOf("Без штор", "Классические", "С подхватами", "Римская штора"), getThemePrefs().getInt("room_curtain", -1) + 1) {
+        card.addView(chipRow(listOf("Без штор", "Классические", "С подхватами", "Римская штора"), getThemePrefs().getInt("room_curtain", RoomFurniture.DEFAULT_CURTAIN) + 1) {
             getThemePrefs().edit().putInt("room_curtain", it - 1).apply(); refreshAll()
         })
         card.addView(chipRow(listOf("Открыты", "Закрыты"), getThemePrefs().getInt("curtain_closed", 0)) {
@@ -412,7 +412,7 @@ class AtelierActivity : Activity() {
         })
         listOf("Коврик" to "decor_rug", "Телевизор" to "decor_tv", "Растение" to "decor_plant").forEach { (title, key) ->
             card.addView(label(title))
-            card.addView(chipRow(listOf("Убрать", "Добавить"), getThemePrefs().getInt(key, 0)) {
+            card.addView(chipRow(listOf("Убрать", "Добавить"), getThemePrefs().getInt(key, RoomFurniture.DEFAULT_DECOR)) {
                 getThemePrefs().edit().putInt(key, it).apply(); refreshAll()
             })
         }

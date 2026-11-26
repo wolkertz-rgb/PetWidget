@@ -2,6 +2,7 @@ package com.sting.petwidget
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.LinearGradient
 import android.graphics.Shader
 import kotlin.math.PI
@@ -9,6 +10,7 @@ import kotlin.math.PI
 /** Ясный двор: общие с комнатой часы, собственное небо и игровая площадка. */
 internal class YardScene {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val doorPath = Path()
     private val landscape = YardLandscape()
     private var swingWood = 0xFFB58B5F.toInt()
     private var swingStyle = 0
@@ -38,20 +40,47 @@ internal class YardScene {
         c.drawRoundRect(0f,-5.6f,3.5f,-.06f,.26f,.26f,p);p.shader=null
         edge.color=0xFF415D50.toInt();edge.strokeWidth=.055f
         c.drawRoundRect(.22f,-5.34f,3.28f,-.3f,.19f,.19f,edge)
-        box(c,.40f,-5.18f,3.10f,-3.48f,0xFF526A52.toInt(),.54f)
-        box(c,.52f,-5.06f,2.98f,-3.60f,0xFFC1DBCB.toInt(),.43f)
-        edge.color=0x77FFFFFF
-        edge.strokeWidth=.07f
-        c.drawLine(.78f,-4.80f,1.40f,-4.08f,edge)
-        c.drawLine(.96f,-4.91f,1.63f,-4.15f,edge)
+        if (style == 2) {
+            p.color = 0xFF415F53.toInt()
+            c.drawCircle(1.75f, -4.33f, .74f, p)
+            p.color = 0xFFE7CD93.toInt()
+            c.drawCircle(1.75f, -4.33f, .67f, p)
+            p.color = 0xFFADCDD2.toInt()
+            c.drawCircle(1.75f, -4.33f, .54f, p)
+        } else {
+            doorPath.reset()
+            doorPath.moveTo(.45f, -3.51f)
+            doorPath.lineTo(.45f, -4.28f)
+            doorPath.cubicTo(.45f, -5.59f, 3.05f, -5.59f, 3.05f, -4.28f)
+            doorPath.lineTo(3.05f, -3.51f)
+            doorPath.close()
+            c.save()
+            c.clipPath(doorPath)
+            material.apply(p, if (style == 1) 0xFFEDC57C.toInt() else 0xFFBBD8CC.toInt(),
+                .4f, -5.3f, 3.1f, -3.45f)
+            c.drawPath(doorPath, p)
+            p.shader = null
+            edge.color = 0x89FFFBE0.toInt()
+            edge.strokeWidth = .12f
+            c.drawLine(.48f, -3.77f, 1.92f, -5.15f, edge)
+            edge.strokeWidth = .063f
+            c.drawLine(.68f, -3.66f, 2.19f, -5.12f, edge)
+            if (style == 1) {
+                edge.color = 0xFF947250.toInt()
+                edge.strokeWidth = .092f
+                c.drawLine(1.75f, -5.20f, 1.75f, -3.52f, edge)
+                c.drawLine(.46f, -4.25f, 3.04f, -4.25f, edge)
+            }
+            c.restore()
+            edge.color = if (style == 1) 0xFF775B42.toInt() else 0xFF4D6A59.toInt()
+            edge.strokeWidth = .115f
+            c.drawPath(doorPath, edge)
+        }
         box(c,.42f,-3.3f,3.08f,-.55f,if (style == 1) 0xFF8F7051.toInt() else 0xFF739382.toInt(),.05f)
         edge.color = if (style == 1) 0xFF705940.toInt() else 0xFF597868.toInt()
         edge.strokeWidth=.035f
         c.drawRoundRect(.55f,-3.16f,2.95f,-.7f,.03f,.03f,edge)
         if (style == 1) {
-            edge.color = 0x55F0D7AA
-            c.drawLine(1.75f, -4.98f, 1.75f, -3.69f, edge)
-            c.drawLine(.56f, -4.32f, 2.94f, -4.32f, edge)
             for (i in 1..3) {
                 val boardX = .57f + i * .6f
                 edge.color = 0x37705B43
@@ -60,15 +89,13 @@ internal class YardScene {
                 c.drawLine(boardX + .045f, -3.1f, boardX + .045f, -1.1f, edge)
             }
         }
-        if (style == 2) {
-            box(c,.42f,-5.12f,3.08f,-3.55f,0xFF739382.toInt(),.06f)
-            p.color=0xFFE8CD95.toInt()
-            c.drawCircle(1.75f,-4.34f,.66f,p)
-            p.color=0xFF9FCAC8.toInt()
-            c.drawCircle(1.75f,-4.34f,.52f,p)
-        }
-        box(c,2.95f,-2.9f,3.15f,-2.2f,0xFFB59A61.toInt(),.07f)
-        edge.color=0xFFF1D99B.toInt();edge.strokeWidth=.09f;c.drawLine(3.04f,-2.52f,2.65f,-2.52f,edge)
+        p.color = 0x345A451E
+        c.drawOval(2.88f, -2.79f, 3.26f, -2.23f, p)
+        box(c,2.87f,-2.83f,3.22f,-2.24f,0xFFB78E4D.toInt(),.145f)
+        box(c,2.57f,-2.60f,3.10f,-2.43f,0xFFEEC277.toInt(),.078f)
+        edge.color = 0xA9FFF4C1.toInt()
+        edge.strokeWidth = .044f
+        c.drawLine(2.66f,-2.56f,3.02f,-2.56f,edge)
         c.restore()
         box(c,-2.05f,-.06f,2.05f,.1f,0xFFA6987F.toInt(),.035f)
         c.restore()

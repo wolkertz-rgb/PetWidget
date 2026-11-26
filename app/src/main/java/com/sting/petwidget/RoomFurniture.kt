@@ -6,6 +6,11 @@ import android.graphics.Path
 
 /** Мебель в координатах комнаты; выбор хранится в существующих настройках. */
 internal class RoomFurniture {
+    companion object {
+        const val DEFAULT_CURTAIN = 0
+        const val DEFAULT_DECOR = 1
+    }
+
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val edge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeWidth = 0.09f
@@ -255,6 +260,38 @@ internal class RoomFurniture {
         c.restore()
     }
 
+    fun wallArt(c: Canvas, u: Float, floor: Float, accent: Int) {
+        if (floor < u * 10.65f) return
+        c.save()
+        c.translate(u * 4.25f, floor - u * 8.37f)
+        c.scale(u, u)
+        p.color = 0x234D3624
+        c.drawRoundRect(-1.23f, -.92f, 1.34f, 1.12f, .09f, .09f, p)
+        box(c, -1.31f, -1.05f, 1.31f, 1f, 0xFF845C43.toInt(), .092f)
+        p.color = 0xFFF8EAD0.toInt()
+        c.drawRect(-1.12f, -.86f, 1.12f, .81f, p)
+        p.color = accent
+        c.drawCircle(.56f, -.43f, .24f, p)
+        detail.reset()
+        detail.moveTo(-1.12f, .32f)
+        detail.cubicTo(-.64f, -.33f, -.35f, -.43f, .17f, .15f)
+        detail.quadTo(.65f, -.08f, 1.12f, .13f)
+        detail.lineTo(1.12f, .81f)
+        detail.lineTo(-1.12f, .81f)
+        detail.close()
+        p.color = 0xFFA4B888.toInt()
+        c.drawPath(detail, p)
+        detail.reset()
+        detail.moveTo(-1.12f, .63f)
+        detail.cubicTo(-.48f, .28f, .57f, .57f, 1.12f, .22f)
+        detail.lineTo(1.12f, .81f)
+        detail.lineTo(-1.12f, .81f)
+        detail.close()
+        p.color = 0xFF719780.toInt()
+        c.drawPath(detail, p)
+        c.restore()
+    }
+
     fun decor(c: Canvas, u: Float, floor: Float, rug: Boolean, tv: Boolean, plant: Boolean,
               rugColor: Int, accent: Int) {
         c.save(); c.translate(0f, floor); c.scale(u, u)
@@ -277,7 +314,7 @@ internal class RoomFurniture {
             c.save(); c.translate(0.65f, 0f)
             box(c, 7.93f, -5.75f, 12.36f, -2.97f, 0xFF554D41.toInt(), .29f)
             box(c, 8.10f, -5.58f, 12.22f, -3.14f, 0xFF445B54.toInt(), .18f)
-            box(c, 8.25f, -5.45f, 12.05f, -3.25f, 0xFF536C67.toInt(), 0.08f)
+            box(c, 8.25f, -5.45f, 12.05f, -3.25f, 0xFF465451.toInt(), 0.08f)
             p.color = 0x24F7EACE
             val reflection = Path().apply {
                 moveTo(8.43f,-5.33f)
@@ -286,6 +323,14 @@ internal class RoomFurniture {
                 close()
             }
             c.drawPath(reflection,p)
+            detail.reset()
+            detail.moveTo(10.12f, -5.35f)
+            detail.lineTo(11.26f, -5.35f)
+            detail.lineTo(9.43f, -3.34f)
+            detail.lineTo(8.45f, -3.34f)
+            detail.close()
+            p.color = 0x13FFF4D6
+            c.drawPath(detail, p)
             c.drawLine(9.5f, -3f, 9.2f, -2.65f, edge); c.drawLine(10.8f, -3f, 11.1f, -2.65f, edge)
             box(c, 7.45f, -2.65f, 12.85f, -.38f, accent, .30f)
             box(c, 7.32f, -2.74f, 12.98f, -2.46f,

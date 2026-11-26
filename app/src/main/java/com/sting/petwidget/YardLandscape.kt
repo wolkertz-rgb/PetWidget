@@ -101,7 +101,7 @@ internal class YardLandscape {
         path.cubicTo(w*.53f,valley+2.29f,w*.66f,valley+2.15f,w*.66f,valley+1.67f)
         path.cubicTo(w*.72f,valley+1.04f,w*.51f,valley+.67f,source,valley+.34f)
         path.close()
-        ramp("river", valley+.3f, f-.85f, tone(0xFFABD5C6,0xFF597F95), tone(0xFF639EA3,0xFF315970))
+        ramp("river", valley+.3f, f-.85f, tone(0xFFB5DEDF,0xFF597F95), tone(0xFF73AFC8,0xFF315970))
         c.save()
         c.clipPath(path)
         fill.color=Color.WHITE
@@ -122,12 +122,17 @@ internal class YardLandscape {
         shrub(c, w*.51f, f-2.52f, .78f, tone(0xFF88AA5C,0xFF4A745D))
         shrub(c, w*.74f, f-2.32f, 1.10f, tone(0xFF84A656,0xFF456C5B))
         shrub(c, w*.97f, f-2.67f, .91f, tone(0xFF8EAF61,0xFF4D745D))
-        hill(c,w,f-1.46f,h,.46f,.025f,"lawn",0xFFA5BC6A,0xFFD1D98F,0xFF5A8059,0xFF78976B)
+        hill(c,w,f-1.46f,h,.46f,.025f,"lawn",0xFFABC06E,0xFFE1DE8E,0xFF5A8059,0xFF78976B)
         meadowGlint.draw(c,w,h,f,(1f-night)*.8f+.18f)
         fence(c,f,outline,prefs?.getInt("yard_fence",0xFFE5CCA0.toInt())?:0xFFE5CCA0.toInt(),
             (prefs?.getInt("yard_fence_style",0)?:0).coerceIn(0,2))
+        shrub(c, w * .34f, f - .24f, .46f, tone(0xFF8AA05C, 0xFF45674E))
+        shrub(c, w * .59f, f - .34f, .55f, tone(0xFF87A05E, 0xFF4A6F54))
+        shrub(c, w * .96f, f - .28f, .74f, tone(0xFF8AA25F, 0xFF456A53))
         house(c,f,outline,prefs?.getInt("yard_house",0xFFF1DDBB.toInt())?:0xFFF1DDBB.toInt())
         steppingStones(c,f,outline)
+        borderLeaves(c, .75f, h + .16f, .76f)
+        borderLeaves(c, w - .78f, h + .22f, 1f)
         // Irregular grass sits at the back and near the edges, leaving the pet's route clear.
         for (i in 0..42) {
             val x = 7.4f + (i * 1.71f) % 16.4f
@@ -147,6 +152,35 @@ internal class YardLandscape {
         if(decor==3)birdbath(c,10.7f,f,outline)
         if(prefs?.getInt("yard_butterflies",1)!=0 && night<.65f)butterflies(c,f,now)
         if(prefs?.getInt("yard_nightlife",1)!=0)nightGarden(c,f,now,outline)
+    }
+
+    private fun borderLeaves(c: Canvas, x: Float, y: Float, size: Float) {
+        val dark = tone(0xFF658649,0xFF31594D)
+        val light = tone(0xFFA8B65B,0xFF638364)
+        c.save()
+        c.translate(x, y)
+        c.scale(size, size)
+        for (i in 0..5) {
+            val rotation = -69f + i * 28f
+            val reach = 1.14f + (i * 7 % 5) * .13f
+            c.save()
+            c.rotate(rotation)
+            path.reset()
+            path.moveTo(0f, .04f)
+            path.cubicTo(-.75f,-.38f,-.57f,-reach*.87f,-.04f,-reach)
+            path.cubicTo(.36f,-reach*.82f,.48f,-.34f,0f,.04f)
+            path.close()
+            ramp("borderLeaf",-reach,0f,if (i%2==0) light else mix(light,dark,.27f),dark)
+            shape(c,Color.WHITE, dark, .049f)
+            path.reset()
+            path.moveTo(0f, -.08f)
+            path.quadTo(-.19f, -.48f, -.05f, -reach*.82f)
+            ink.color = mix(light,dark,.36f)
+            ink.strokeWidth = .045f
+            c.drawPath(path, ink)
+            c.restore()
+        }
+        c.restore()
     }
 
     private fun hill(c: Canvas, w: Float, y: Float, bottom: Float, rise: Float, skew: Float,

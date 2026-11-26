@@ -100,14 +100,25 @@ internal object WindowScene {
             fill.color = mix(day,0xFF405E5B.toInt(),n)
             c.drawPath(path,fill)
         }
-        for (i in 0..3) {
-            val tx = left + unit * (.55f + i * 1.07f)
-            val ty = horizon + unit * .68f
-            fill.color = mix(0xFF6D9469.toInt(),0xFF304C49.toInt(),n)
-            c.drawOval(tx-unit*.19f,ty-unit*.81f,tx+unit*.19f,ty,fill)
-            stroke.color = mix(0xFF9D8057.toInt(),0xFF4D615B.toInt(),n)
-            stroke.strokeWidth = unit * .045f
-            c.drawLine(tx,ty-unit*.43f,tx,ty+unit*.15f,stroke)
+        for (i in 0..4) {
+            val tx = left + unit * (.35f + i * 1.03f)
+            val ty = horizon + unit * (.64f + (i * 4 % 3) * .20f)
+            val size = unit * (.35f + (i * 3 % 4) * .095f)
+            fill.color = mix(0xFF729668.toInt(), 0xFF304C49.toInt(), n)
+            c.drawOval(tx - size, ty - size * 1.72f, tx + size * .8f, ty, fill)
+            fill.color = mix(0xFF9AB580.toInt(), 0xFF416357.toInt(), n)
+            c.drawOval(tx - size * .90f, ty - size * 1.62f, tx + size * .42f, ty - size * .48f, fill)
+            stroke.color = mix(0xFF8B7B53.toInt(), 0xFF4D615B.toInt(), n)
+            stroke.strokeWidth = unit * .042f
+            c.drawLine(tx, ty - size * .87f, tx, ty + unit * .14f, stroke)
+        }
+        for (i in 0..11) {
+            val tx = left - unit * .1f + unit * (i * .45f)
+            val ty = bottom + unit * .14f - unit * ((i * 3 % 7) * .062f)
+            val size = unit * (.23f + (i * 5 % 6) * .044f)
+            fill.color = mix(if (i % 2 == 0) 0xFF8EAA64.toInt() else 0xFFA9C47D.toInt(),
+                0xFF426852.toInt(), n)
+            c.drawCircle(tx, ty, size, fill)
         }
         // Тучи плавно набирают плотность вместе с дождём.
         fill.color = 0xFF647889.toInt(); fill.alpha = (rain * 175).toInt()

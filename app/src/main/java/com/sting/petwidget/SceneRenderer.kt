@@ -112,7 +112,7 @@ class SceneRenderer {
         useNewMintRoom = legacyRoom.all { (key, value) -> lastPrefs?.getInt(key, value) == value }
         val unit = (w / 24f).coerceAtLeast(8f)
         val pad = unit * 0.7f
-        val floorY = h - h * 0.115f
+        val floorY = h - h * 0.145f
         val itemX: (Float) -> Float = { pad + it.coerceIn(0f, 1f) * (w - 2 * pad) }
         if (sim.outing.yard || previewYard) {
             drawYard(c, sim, unit, floorY, itemX)
@@ -124,7 +124,6 @@ class SceneRenderer {
             shader = LinearGradient(0f, pad, 0f, floorY, th("room_bg_top", 0xFFF8EAD2.toInt()), th("room_bg_bottom", 0xFFEBD4B0.toInt()), Shader.TileMode.CLAMP)
         }
         c.drawRect(0f, 0f, w.toFloat(), floorY + 1f, bg)
-        c.drawRect(0f, floorY, w.toFloat(), h.toFloat(), bg)
 
         // время суток
         val worldTime = previewTime ?: System.currentTimeMillis()
@@ -138,8 +137,8 @@ class SceneRenderer {
         val ceil = gradientPaint("ceil").apply { shader = LinearGradient(0f, 0f, 0f, pad * 1.6f, 0x16606058, 0x00606058, Shader.TileMode.CLAMP) }
         c.drawRect(0f, 0f, w.toFloat(), pad * 1.6f, ceil)
 
-        pF.color = 0x14FFFFFF
-        val stripe = unit * .95f
+        pF.color = 0x22FFF0D2
+        val stripe = unit * 1.12f
         for (i in 0..(w / stripe).toInt()) {
             if (i % 2 == 0) c.drawRect(i * stripe, 0f, (i + 1) * stripe, floorY, pF)
         }
@@ -181,38 +180,43 @@ class SceneRenderer {
         }
         // пол + плинтус (тема-токены)
         val floor = gradientPaint("floor").apply { shader = LinearGradient(0f, floorY, 0f, h.toFloat(), th("floor_top", 0xFFDCA06E.toInt()), th("floor_bottom", 0xFFBD8058.toInt()), Shader.TileMode.CLAMP) }
-        rect.set(pad, floorY, w - pad, h - pad)
+        rect.set(0f, floorY, w.toFloat(), h.toFloat())
         c.drawRect(rect, floor)
         c.save()
         c.clipRect(rect)
-        for (i in 1..4) {
-            val y = lerp(floorY, h - pad, i * .20f)
-            pS.color = 0x39795238
-            pS.strokeWidth = unit * .043f
-            c.drawLine(pad, y, w - pad, y, pS)
-            pS.color = 0x37FFF2D3
-            c.drawLine(pad, y + unit*.064f, w - pad, y + unit*.064f, pS)
-            val spacing = unit * 4.3f
-            for (column in 0..5) {
-                val x = pad + column * spacing + (i % 2) * spacing * .48f
-                pS.color = 0x2E795238
-                c.drawLine(x,y-unit*.27f,x+unit*.11f,y,pS)
+        var lastSeam = floorY
+        val spacing = unit * 4.3f
+        for (i in 1..5) {
+            val y = lerp(floorY, h.toFloat(), i * i / 25f)
+            for (column in 0..6) {
+                val x = (column - .4f) * spacing + (i % 2) * spacing * .48f
+                pF.color = if ((column + i) % 3 == 0) 0x22FFE2AA else 0x10834D31
+                c.drawRect(x, lastSeam, x + spacing, y, pF)
+                pS.color = 0x38735036
+                pS.strokeWidth = unit * .037f
+                c.drawLine(x, lastSeam, x + unit*.065f, y, pS)
             }
+            pS.color = 0x48795238
+            pS.strokeWidth = unit * .043f
+            c.drawLine(0f, y, w.toFloat(), y, pS)
+            pS.color = 0x37FFF2D3
+            c.drawLine(0f, y + unit*.064f, w.toFloat(), y + unit*.064f, pS)
+            lastSeam = y
         }
         c.restore()
         pF.color = th("room_skirt", 0xFF77927C.toInt())
-        rect.set(pad, floorY - unit * 0.22f, w - pad, floorY)
+        rect.set(0f, floorY - unit * 0.28f, w.toFloat(), floorY)
         c.drawRect(rect, pF)
-        pS.color = 0xFFB9B9B2.toInt()
-        pS.strokeWidth = unit * 0.1f
-        c.drawLine(pad + 1, floorY, w - pad - 1, floorY, pS)
-        pS.color = 0x40FFFFFF
-        c.drawLine(pad + 1, floorY + 1, w - pad - 1, floorY + 1, pS)
+        pS.color = 0x59563827
+        pS.strokeWidth = unit * .075f
+        c.drawLine(0f, floorY, w.toFloat(), floorY, pS)
+        pS.color = 0x50FFF0CD
+        c.drawLine(0f, floorY - unit * .25f, w.toFloat(), floorY - unit * .25f, pS)
 
         // рамка
         pS.color = 0x24C9C9C3.toInt()
         pS.strokeWidth = unit * 0.12f
-        c.drawRoundRect(pad, pad, w - pad, h - pad, unit * 0.65f, unit * 0.65f, pS)
+        c.drawRoundRect(pad, pad, w - pad, floorY - unit * .25f, unit * .65f, unit * .65f, pS)
 
         // Мягкая смена времени суток и окно в свободной левой части стены.
         c.drawColor(((night * 30).toInt() shl 24) or 0x002E3A55)
@@ -222,13 +226,16 @@ class SceneRenderer {
         c.save()
         c.translate(unit * 15f, 0f)
         WindowScene.draw(c, unit, floorY, worldTime)
-        val curtainStyle = th("room_curtain", -1)
+        val curtainStyle = th("room_curtain", RoomFurniture.DEFAULT_CURTAIN)
         if (curtainStyle >= 0) furniture.curtains(c, unit, floorY, curtainStyle,
             th("curtain_closed", 0) == 1, th("curtain_color", 0xFF8AAFA3.toInt()))
         c.restore()
-        furniture.decor(c, unit, floorY, th("decor_rug", 0) == 1,
-            th("decor_tv", 0) == 1, th("decor_plant", 0) == 1,
-            th("rug_color", 0xFF7FA89D.toInt()), th("decor_accent", 0xFFD18F6C.toInt()))
+        val accent = th("decor_accent", 0xFFD18F6C.toInt())
+        furniture.wallArt(c, unit, floorY, accent)
+        furniture.decor(c, unit, floorY, th("decor_rug", RoomFurniture.DEFAULT_DECOR) == 1,
+            th("decor_tv", RoomFurniture.DEFAULT_DECOR) == 1,
+            th("decor_plant", RoomFurniture.DEFAULT_DECOR) == 1,
+            th("rug_color", 0xFF7FA89D.toInt()), accent)
 
         // кожаное мини-кресло: задняя часть (спинка+сидушка) — ФОН
         drawChairBack(c, unit, floorY)
@@ -640,7 +647,7 @@ class SceneRenderer {
     }
 
     private fun applyLightOverlay(c: Canvas, floorY: Float, worldTime: Long) {
-        val curtainsBlockLight = th("room_curtain", -1) >= 0 && th("curtain_closed", 0) == 1
+        val curtainsBlockLight = th("room_curtain", RoomFurniture.DEFAULT_CURTAIN) >= 0 && th("curtain_closed", 0) == 1
         val daylight = if (curtainsBlockLight) 0f else WindowScene.daylight(worldTime)
         SceneLighting.draw(c, w.toFloat(), h.toFloat(), floorY,
             26f * density, lightLevel, daylight)
@@ -1233,7 +1240,7 @@ class SceneRenderer {
         // щёчки: формы по кастомизации
         val blushBase = th("pet_blush", 0xFFF3A9A0.toInt())
         val blushCol = if (st == PetSim.State.BLUSH) (0xB4 shl 24) or (blushBase and 0x00FFFFFF)
-                       else (0x52 shl 24) or (blushBase and 0x00FFFFFF)
+                       else (0x84 shl 24) or (blushBase and 0x00FFFFFF)
         val cheekY = eyeY + r * 0.24f
         val cheekLX = px - eyeDx - r * 0.3f
         val cheekRX = px + eyeDx + r * 0.3f
