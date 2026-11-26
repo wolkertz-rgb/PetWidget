@@ -86,7 +86,7 @@ internal class ToyArtwork {
                 path.cubicTo(-.34f,-1.59f,.28f,-.60f,0f,-.04f)
                 c.drawPath(path,ink)
                 oval(c,sway,-3.28f,.94f,1.25f,terra)
-                p.color=0x99FFF5D6
+                p.color=0x99FFF5D6.toInt()
                 c.drawOval(sway-.59f,-4.11f,sway-.32f,-3.54f,p)
             }
             "rocket" -> {

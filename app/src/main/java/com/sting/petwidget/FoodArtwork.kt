@@ -116,7 +116,7 @@ internal class FoodArtwork {
                 path.quadTo(.60f,-2.46f,.79f,-2.02f)
                 path.quadTo(.45f,-1.72f,.08f,-1.98f)
                 shape(c,0xFF8AA87A.toInt())
-                fill.color=0x80FFF2D5
+                fill.color=0x80FFF2D5.toInt()
                 c.drawOval(-.65f,-1.72f,-.43f,-1.19f,fill)
             }
             "icecream" -> {
