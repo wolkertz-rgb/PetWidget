@@ -373,13 +373,13 @@ class SceneRenderer {
         // современный колоколообразный плафон
         val shade = gradientPaint("shade").apply {
             shader = LinearGradient(bx - unit, by - unit * 0.7f, bx + unit, by + unit * 0.4f,
-                0xFF587067.toInt(), 0xFF263A34.toInt(), Shader.TileMode.CLAMP)
+                0xFFA4B58B.toInt(), 0xFF5D7A61.toInt(), Shader.TileMode.CLAMP)
         }
         path.reset()
-        path.moveTo(bx - unit * 0.34f, by - unit * 0.72f)
-        path.quadTo(bx - unit * 0.78f, by - unit * 0.25f, bx - unit * 1.03f, by + unit * 0.34f)
-        path.quadTo(bx, by + unit * 0.62f, bx + unit * 1.03f, by + unit * 0.34f)
-        path.quadTo(bx + unit * 0.78f, by - unit * 0.25f, bx + unit * 0.34f, by - unit * 0.72f)
+        path.moveTo(bx - unit * 1.26f, by + unit * .34f)
+        path.cubicTo(bx - unit * 1.18f, by - unit * .92f,
+            bx + unit * 1.18f, by - unit * .92f, bx + unit * 1.26f, by + unit * .34f)
+        path.quadTo(bx, by + unit * .65f, bx - unit * 1.26f, by + unit * .34f)
         path.close()
         c.drawPath(path, shade)
         pS.color = 0xFF20312C.toInt(); pS.strokeWidth = unit * 0.09f; c.drawPath(path, pS)
@@ -1551,8 +1551,8 @@ class SceneRenderer {
 
         // руки красятся токенами тела (утолщённый контур + светлые ладошки)
         val armColor = th("pet_bottom", 0xFF5CA985.toInt())
-        val palmColor = th("pet_belly", 0xFF9ADDB8.toInt())
-        val grip = unit * .17f
+        val palmColor = th("pet_mid", 0xFF6FBE97.toInt())
+        val grip = unit * .23f
 
         fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean) {
             // руки не резиновые до бесконечности: максимум ~2 радиуса тела
@@ -1572,13 +1572,11 @@ class SceneRenderer {
             path.reset()
             path.moveTo(ax, ay)
             path.quadTo(mx, my, hx, hy)
-            // мягкое свечение под рукой
-            pS.color = (0x2E shl 24) or (palmColor and 0x00FFFFFF)
-            pS.strokeWidth = unit * 0.29f
+            pS.color = th("pet_outline", 0xFF4A4038.toInt())
+            pS.strokeWidth = unit * .42f
             c.drawPath(path, pS)
-            // основная рука
             pS.color = armColor
-            pS.strokeWidth = unit * 0.22f
+            pS.strokeWidth = unit * .28f
             c.drawPath(path, pS)
             circleAt(c, hx, hy, grip, palmColor)
             pS.color = th("pet_outline", 0xFF4A4038.toInt())

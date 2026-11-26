@@ -183,21 +183,25 @@ object ItemDefs {
 
     /** Деревянный кубик в три четверти: верх, лицевая и боковая грани. */
     private fun block() = Def("block", "Кубик", Kind.TOY, Reaction.PUSH, 2.2f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("block",c,x,y,u,t)
     }
 
     /** Игральная кость с мягким скруглением и утопленными точками. */
     private fun dice() = Def("dice", "Кости", Kind.TOY, Reaction.LIFT, 2.2f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("dice",c,x,y,u,t)
     }
 
     /** Воздушный шарик — капля + узелок + верёвочка */
     private fun balloon() = Def("balloon", "Шарик", Kind.TOY, Reaction.LIFT, 2.1f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("balloon",c,x,y,u,t)
     }
 
     /** Мягкий мишка — круглые уши, светлая морда */
     private fun plushie() = Def("plushie", "Мишка", Kind.TOY, Reaction.RUB, 2.6f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("plushie",c,x,y,u,t)
     }
 
@@ -242,21 +246,25 @@ object ItemDefs {
 
     /** Игрушечная ракета: цельный корпус, два плавника и сопло. */
     private fun rocket() = Def("rocket", "Ракета", Kind.TOY, Reaction.LIFT, 2.4f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("rocket",c,x,y,u,t)
     }
 
     /** Кораблик — корпус-трапеция, белый парус, красный флажок */
     private fun boat() = Def("boat", "Кораблик", Kind.TOY, Reaction.LIFT, 2.8f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("boat",c,x,y,u,t)
     }
 
     /** Цветок в горшке — крупный бутон из пяти лепестков */
     private fun flower() = Def("flower", "Цветок", Kind.TOY, Reaction.SMELL, 2.2f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("flower",c,x,y,u,t)
     }
 
     /** Юла — жёлтая шапочка, фиолетовый диск, наконечник */
     private fun top() = Def("top", "Юла", Kind.TOY, Reaction.PLAY, 2.2f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         toyArtwork.draw("top",c,x,y,u,t)
     }
 
@@ -264,30 +272,37 @@ object ItemDefs {
 
     /** Пицца — сектор с толстой корочкой и крупной пепперони */
     private fun pizza() = Def("pizza", "Пицца", Kind.FOOD, Reaction.EAT, 2.8f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         foodArtwork.draw("pizza",c,x,y,u,t)
     }
 
     private fun sushi() = Def("sushi", "Суши", Kind.FOOD, Reaction.EAT, 2.4f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         foodArtwork.draw("sushi",c,x,y,u,t)
     }
 
     private fun donut() = Def("donut", "Пончик", Kind.FOOD, Reaction.EAT, 2.8f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         foodArtwork.draw("donut",c,x,y,u,t)
     }
 
     private fun cookie() = Def("cookie", "Печенье", Kind.FOOD, Reaction.EAT, 2.4f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         foodArtwork.draw("cookie",c,x,y,u,t)
     }
 
     private fun coffee() = Def("coffee", "Кофе", Kind.FOOD, Reaction.EAT, 2.2f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         foodArtwork.draw("coffee",c,x,y,u,t)
     }
 
     private fun apple() = Def("apple", "Яблоко", Kind.FOOD, Reaction.EAT, 2.4f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         foodArtwork.draw("apple",c,x,y,u,t)
     }
 
     private fun icecream() = Def("icecream", "Мороженое", Kind.FOOD, Reaction.EAT, 2.4f) { c,x,y,u,t ->
+        if (!carrying) contactShadow(c,x,y,u*.92f,u)
         foodArtwork.draw("icecream",c,x,y,u,t)
     }
 
