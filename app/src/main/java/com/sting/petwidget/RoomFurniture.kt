@@ -13,6 +13,18 @@ internal class RoomFurniture {
         color = 0xFF4A4038.toInt()
     }
     private val material = VectorFinish()
+    private val bounds = android.graphics.RectF()
+    private val detail = Path()
+
+    private fun seam(c: Canvas, color: Int, width: Float) {
+        val previousColor = edge.color
+        val previousWidth = edge.strokeWidth
+        edge.color = color
+        edge.strokeWidth = width
+        c.drawPath(detail, edge)
+        edge.color = previousColor
+        edge.strokeWidth = previousWidth
+    }
 
     private fun box(c: Canvas, l: Float, t: Float, r: Float, b: Float, color: Int, radius: Float = 0.2f) {
         material.apply(p, color, l, t, r, b)
@@ -22,7 +34,6 @@ internal class RoomFurniture {
     }
 
     private fun shape(c: Canvas, path: Path, color: Int) {
-        val bounds = android.graphics.RectF()
         path.computeBounds(bounds, true)
         material.apply(p, color, bounds.left, bounds.top, bounds.right, bounds.bottom)
         c.drawPath(path, p)
@@ -39,73 +50,78 @@ internal class RoomFurniture {
 
     fun bed(c: Canvas, x: Float, floor: Float, u: Float, style: Int, color: Int, front: Boolean) {
         c.save(); c.translate(x, floor); c.scale(u, u)
-        if (style == 0) {
+        val shade = VectorFinish.blend(color, 0xFF69442B.toInt(), .36f)
+        val lit = VectorFinish.blend(color, 0xFFF9D896.toInt(), .23f)
+        if (style == 1) {
             if (!front) {
-                oval(c, -1.9f, -.16f, 1.9f, .13f, 0x21000000)
-                box(c, -1.65f, -3.65f, 1.65f, -.28f, color, .98f)
-                box(c, -1.37f, -3.35f, 1.37f, -1.03f, color, .84f)
-                box(c, -1.39f, -1.06f, 1.39f, -.40f, color, .27f)
-                // Small embroidered cushion, with an uninterrupted silhouette.
-                box(c, -.79f, -2.61f, .79f, -1.16f, 0xFFF8E8C7.toInt(), .30f)
-                for (side in -1..1 step 2) {
-                    oval(c, side * .29f - .15f, -2.30f, side * .29f + .15f, -1.98f, 0xFFD58F63.toInt())
-                    edge.color = 0xFF6E8B61.toInt()
-                    edge.strokeWidth = .05f
-                    c.drawLine(side * .29f, -1.95f, side * .29f, -1.49f, edge)
-                }
-                edge.color = 0xFF4A4038.toInt()
-                edge.strokeWidth = .09f
+                p.color = 0x2D4C392C
+                c.drawOval(-2.10f, -.20f, 2.10f, .13f, p)
+                oval(c,-2.02f,-1.31f,2.02f,-.05f,shade)
+                oval(c,-1.95f,-1.34f,1.95f,-.14f,color)
+                oval(c,-1.58f,-1.13f,1.58f,-.28f,0xFFF0D9AD.toInt())
             } else {
-                box(c, -1.63f, -.46f, 1.63f, -.16f, color, .14f)
-                for (side in -1..1 step 2) {
-                    val x0 = side * 1.45f
-                    box(c, x0 - .43f, -2.04f, x0 + .43f, -.20f, color, .41f)
-                    edge.color = 0x66FFF0CE
-                    edge.strokeWidth = .045f
-                    c.drawLine(x0 - .23f, -1.71f, x0 - .23f, -.54f, edge)
-                    edge.color = 0xFF4A4038.toInt()
-                    edge.strokeWidth = .09f
-                    box(c, x0 - .17f, -.20f, x0 + .17f, .02f, 0xFF665039.toInt(), .06f)
-                }
-            }
-        } else if (style == 1) {
-            if (!front) {
-                p.color = 0x22000000; c.drawOval(-1.95f, -0.18f, 1.95f, 0.12f, p)
-                oval(c, -2f, -1.4f, 2f, -0.05f, color)
-                oval(c, -1.67f, -1.14f, 1.67f, -0.22f, 0xFF64564C.toInt())
-                oval(c, -1.47f, -0.95f, 1.47f, -0.25f, 0xFFE9DDC3.toInt())
-                p.color = 0x33FFFFFF; c.drawOval(-1.2f, -0.9f, 1.15f, -0.55f, p)
-            } else {
-                val rim = Path().apply {
-                    moveTo(-2f, -0.83f)
-                    cubicTo(-1.85f, 0.14f, 1.85f, 0.14f, 2f, -0.83f)
-                    lineTo(1.55f, -0.75f)
-                    cubicTo(1.25f, -0.2f, -1.25f, -0.2f, -1.55f, -0.75f); close()
-                }
-                shape(c, rim, color)
-                edge.color = 0x77E9DDC3; edge.strokeWidth = 0.045f
-                c.drawArc(-1.76f, -0.93f, 1.76f, -0.15f, 10f, 160f, false, edge)
-                edge.color = 0xFF4A4038.toInt(); edge.strokeWidth = 0.09f
+                detail.reset()
+                detail.moveTo(-2f,-.74f)
+                detail.cubicTo(-1.35f,-.31f,1.35f,-.31f,2f,-.74f)
+                detail.cubicTo(1.98f,.20f,-1.98f,.20f,-2f,-.74f)
+                detail.close()
+                shape(c,detail,color)
+                detail.reset()
+                detail.moveTo(-1.76f,-.57f)
+                detail.cubicTo(-1.11f,-.24f,1.11f,-.24f,1.76f,-.57f)
+                seam(c,0x8FFFF0CC.toInt(),.043f)
             }
         } else {
-            // Диван шире кресла на 45%, но остаётся внутри правой стены.
+            val half = if (style == 2) 2.40f else 1.58f
+            val crown = if (style == 2) -3.12f else -3.57f
             if (!front) {
-                p.color = 0x22000000; c.drawOval(-2.7f, -0.2f, 2.7f, 0.15f, p)
-                box(c, -2.45f, -3.15f, 2.45f, -0.35f, color, 0.55f)
-                box(c, -2.15f, -2.92f, -0.05f, -1.05f, color, 0.38f)
-                box(c, 0.05f, -2.92f, 2.15f, -1.05f, color, 0.38f)
-                edge.color = 0x55FFFFFF; edge.strokeWidth = 0.05f
-                c.drawLine(-1.86f, -2.65f, -0.3f, -2.65f, edge)
-                c.drawLine(0.3f, -2.65f, 1.86f, -2.65f, edge)
-                edge.color = 0xFF4A4038.toInt(); edge.strokeWidth = 0.09f
-                box(c, -2.16f, -1.08f, -0.04f, -0.46f, color, 0.24f)
-                box(c, 0.04f, -1.08f, 2.16f, -0.46f, color, 0.24f)
+                p.color = 0x35433020
+                c.drawOval(-half-.52f,-.23f,half+.65f,.15f,p)
+                detail.reset()
+                detail.moveTo(-half,-.43f)
+                detail.cubicTo(-half-.11f,-1.47f,-half-.13f,crown+.61f,-half+.52f,crown+.19f)
+                detail.cubicTo(-half+.93f,crown-.21f,half-.81f,crown-.16f,half-.41f,crown+.18f)
+                detail.cubicTo(half+.20f,crown+.57f,half+.20f,-1.67f,half,-.43f)
+                detail.close()
+                shape(c,detail,shade)
+                box(c,-half+.15f,crown+.17f,half-.15f,-.77f,color,.73f)
+                detail.reset()
+                detail.moveTo(-half+.36f,crown+.84f)
+                detail.quadTo(-half+.61f,crown+.27f,-half+1.10f,crown+.29f)
+                seam(c,0x80FFF0C0.toInt(),.061f)
+                if (style == 2) {
+                    detail.reset()
+                    detail.moveTo(.04f,crown+.31f)
+                    detail.quadTo(-.08f,-2.03f,.05f,-1.05f)
+                    seam(c,0x65573828,.058f)
+                }
+                box(c,-half+.12f,-1.19f,half-.12f,-.44f,lit,.35f)
+                // A compressed fold at the seat edge suggests soft upholstery.
+                detail.reset()
+                detail.moveTo(-half+.42f,-.86f)
+                detail.quadTo(0f,-1.04f,half-.42f,-.86f)
+                seam(c,0x7EFFF0CD,.051f)
             } else {
-                box(c, -2.65f, -1.88f, -1.96f, -0.23f, color, 0.32f)
-                box(c, 1.96f, -1.88f, 2.65f, -0.23f, color, 0.32f)
-                box(c, -2.15f, -0.53f, 2.15f, -0.23f, color, 0.12f)
-                box(c, -2.18f, -0.23f, -1.85f, 0f, 0xFF594638.toInt(), 0.04f)
-                box(c, 1.85f, -0.23f, 2.18f, 0f, 0xFF594638.toInt(), 0.04f)
+                box(c,-half,-.59f,half,-.16f,shade,.20f)
+                for (side in -1..1 step 2) {
+                    c.save()
+                    c.translate(side*(half-.08f),0f)
+                    c.scale(side.toFloat(),1f)
+                    box(c,-.26f,-.32f,.10f,.02f,0xFF684A32.toInt(),.08f)
+                    detail.reset()
+                    detail.moveTo(-.41f,-.65f)
+                    detail.cubicTo(-.55f,-1.35f,-.55f,-2.02f,-.17f,-2.13f)
+                    detail.cubicTo(.34f,-2.28f,.55f,-1.94f,.52f,-1.49f)
+                    detail.cubicTo(.51f,-.49f,.35f,-.22f,.06f,-.20f)
+                    detail.cubicTo(-.15f,-.19f,-.36f,-.36f,-.41f,-.65f)
+                    detail.close()
+                    shape(c,detail,color)
+                    detail.reset()
+                    detail.moveTo(-.33f,-1.08f)
+                    detail.cubicTo(-.44f,-1.87f,-.25f,-2.04f,.05f,-2.02f)
+                    seam(c,0xAAFFF0C2.toInt(),.047f)
+                    c.restore()
+                }
             }
         }
         c.restore()
@@ -196,14 +212,43 @@ internal class RoomFurniture {
                 c.restore()
             }
         } else {
-            val extent = if (closed) 2.45f else 0.78f
+            val height = bottom-top
             for (side in 0..1) {
-                val l = if (side == 0) 1.4f else 6.8f - extent
-                val r = l + extent
-                box(c, l, top - 0.12f, r, bottom + 0.14f, color, 0.13f)
-                p.color = 0x22FFFFFF
-                for (fold in 0..2) c.drawRect(l + extent * (fold + 0.2f) / 3f, top, l + extent * (fold + 0.6f) / 3f, bottom, p)
-                if (!closed) box(c, l - 0.04f, bottom - 1.4f, r + 0.04f, bottom - 1.22f, 0xFFCAAC72.toInt(), 0.05f)
+                c.save()
+                if (side == 1) { c.translate(8.2f,0f); c.scale(-1f,1f) }
+                val hem = if (closed) 4.10f else 2.63f
+                detail.reset()
+                detail.moveTo(1.37f, top-.16f)
+                detail.quadTo(2.75f,top-.32f,3.98f,top-.14f)
+                if (closed) {
+                    detail.cubicTo(4.17f,top+height*.31f,3.96f,bottom-.41f,4.10f,bottom+.09f)
+                } else {
+                    detail.cubicTo(3.91f,top+height*.29f,2.23f,top+height*.44f,2.02f,top+height*.62f)
+                    detail.quadTo(2.08f,bottom-.35f,hem,bottom+.09f)
+                }
+                detail.quadTo(2.12f,bottom+.39f,1.35f,bottom+.11f)
+                detail.cubicTo(1.56f,bottom-1f,1.40f,top+height*.26f,1.37f,top-.16f)
+                detail.close()
+                shape(c,detail,color)
+                c.save()
+                c.clipPath(detail)
+                for (i in 0..3) {
+                    val x=1.64f+i*.55f
+                    val mid=if (closed) x+.13f else 1.55f+i*.12f
+                    detail.reset()
+                    detail.moveTo(x,top-.12f)
+                    detail.cubicTo(x+.11f,top+height*.24f,mid,top+height*.51f,mid,top+height*.62f)
+                    detail.quadTo(mid+.04f,bottom-.46f,mid+.22f+i*.10f,bottom+.20f)
+                    seam(c,0x326B5E3F,.14f)
+                    seam(c,0x43FFFAE4,.054f)
+                }
+                c.restore()
+                if (!closed) {
+                    val tie=top+height*.64f
+                    oval(c,1.33f,tie-.13f,2.13f,tie+.15f,0xFFE7BD79.toInt())
+                    oval(c,1.78f,tie-.14f,2.11f,tie+.18f,0xFFF5D697.toInt())
+                }
+                c.restore()
             }
         }
         c.restore()

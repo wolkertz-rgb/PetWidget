@@ -22,10 +22,7 @@ internal class YardLandscape {
     private data class Ramp(val top: Float, val bottom: Float, val a: Int, val b: Int, val shader: Shader)
     private val ramps = HashMap<String,Ramp>()
     private val cloudIds = arrayOf("cloud0","cloud1","cloud2")
-    private val pineIds = arrayOf("pine0","pine1","pine2","pine3")
     private val stoneIds = arrayOf("stone0","stone1","stone2")
-    private val forestX = floatArrayOf(8.3f,9.15f,10.4f,14.6f,15.7f,21.1f,22.35f)
-    private val forestScale = floatArrayOf(.37f,.49f,.40f,.36f,.46f,.42f,.34f)
     private val sunHalo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         shader = RadialGradient(0f, 0f, 2.6f, 0x51FFE9A7, 0x00FFE9A7, Shader.TileMode.CLAMP)
     }
@@ -33,7 +30,6 @@ internal class YardLandscape {
         shader = RadialGradient(0f, 0f, 1.9f, 0x46BBD5FA, 0x00BBD5FA, Shader.TileMode.CLAMP)
     }
     private val meadowGlint = SceneLighting.AmbientGlow(.62f, .93f, .36f, 0x29F5F2C0, .30f)
-    private fun meadowEdge(x: Float,f: Float) = f-2.55f+sin(x*.45f)*.18f
     private var night = 0f
     private fun mix(a: Int,b: Int,t: Float) = Color.argb(
         (Color.alpha(a)*(1-t)+Color.alpha(b)*t).toInt(),
@@ -90,67 +86,61 @@ internal class YardLandscape {
             path.cubicTo(x+1.65f,y-.65f,x+2.15f,y+.4f,x+1.25f,y+.4f)
             path.lineTo(x-1.2f,y+.4f);path.close();shape(c,Color.WHITE)
         }
-        val ridge = f - 4.15f
-        val rise = (f * .25f).coerceIn(.65f, 2.8f)
+        // Air perspective: increasingly warm greens towards the yard, blue ridges behind the river.
+        val valley = f - 4.8f
+        hill(c, w, valley-.94f, f, 1.85f, 0f, "ridge", 0xFF8EBAB7, 0xFFCADBD0, 0xFF3C6376, 0xFF769092)
+        hill(c, w, valley, f, 1.60f, .12f, "farMeadow", 0xFF8DB68E, 0xFFC5D5A4, 0xFF406C68, 0xFF628B77)
+        hill(c, w, valley+.95f, f, 1.48f, -.10f, "nearMeadow", 0xFF83AA68, 0xFFADC87C, 0xFF466E55, 0xFF698A62)
+
+        val source = w * .64f
         path.reset()
-        path.moveTo(0f, ridge)
-        path.cubicTo(w * .18f, ridge - rise * .16f, w * .31f, ridge - rise * .86f, w * .45f, ridge - rise * .64f)
-        path.cubicTo(w * .54f, ridge - rise * .52f, w * .57f, ridge - rise * .81f, w * .64f, ridge - rise * .96f)
-        path.cubicTo(w * .72f, ridge - rise * 1.16f, w * .83f, ridge - rise * .24f, w, ridge - rise * .56f)
-        path.lineTo(w, f)
-        path.lineTo(0f, f)
+        path.moveTo(source, valley + .34f)
+        path.cubicTo(w*.49f,valley+.71f,w*.68f,valley+1.22f,w*.60f,valley+1.68f)
+        path.cubicTo(w*.58f,valley+2.08f,w*.46f,valley+2.20f,w*.53f,f-.85f)
+        path.lineTo(w*.69f,f-.85f)
+        path.cubicTo(w*.53f,valley+2.29f,w*.66f,valley+2.15f,w*.66f,valley+1.67f)
+        path.cubicTo(w*.72f,valley+1.04f,w*.51f,valley+.67f,source,valley+.34f)
         path.close()
-        ramp("ridge", ridge - rise, ridge + .7f, tone(0xFF9EBAC2,0xFF415870),tone(0xFFCADBCD,0xFF68818B))
-        shape(c, Color.WHITE)
-        path.reset();path.moveTo(0f,f-3.4f)
-        path.cubicTo(4f,f-5.1f,8f,f-5.3f,13f,f-3.9f)
-        path.cubicTo(17f,f-5.2f,21f,f-4.9f,w,f-3.8f)
-        path.lineTo(w,f);path.lineTo(0f,f);path.close()
-        ramp("farMeadow",f-5.1f,f,tone(0xFFAFCDB2,0xFF476A70),tone(0xFFD0E1B7,0xFF627F72))
-        shape(c,Color.WHITE)
-        // A winding strip of water narrows into the valley behind the meadow.
-        path.reset()
-        path.moveTo(w * .57f, f - 3.86f)
-        path.cubicTo(w * .64f, f - 3.67f, w * .39f, f - 3.53f, w * .47f, f - 3.23f)
-        path.quadTo(w * .59f, f - 2.98f, w * .67f, f - 2.28f)
-        path.lineTo(w * .52f, f - 2.26f)
-        path.cubicTo(w * .55f, f - 2.88f, w * .35f, f - 3.23f, w * .46f, f - 3.50f)
-        path.quadTo(w * .61f, f - 3.78f, w * .57f, f - 3.86f)
-        path.close()
-        ramp("river", f - 3.86f, f - 2.26f, tone(0xFFBFDED7, 0xFF6F909F), tone(0xFF75ADA9, 0xFF40596E))
-        fill.color = Color.WHITE
-        c.drawPath(path, fill)
-        fill.shader = null
+        ramp("river", valley+.3f, f-.85f, tone(0xFFABD5C6,0xFF597F95), tone(0xFF639EA3,0xFF315970))
         c.save()
         c.clipPath(path)
-        for (i in 0..4) {
-            val y = f - 3.46f + i * .23f
-            val shimmer = .04f * sin(now / 800f + i)
-            val x = w * (.44f + .033f * i + shimmer)
-            line(c, x, y, x + w * .055f, y, tone(0x7BE6FAE7, 0x4EBDE0F3), .04f)
+        fill.color=Color.WHITE
+        c.drawRect(0f,valley,w,f,fill)
+        fill.shader=null
+        for (i in 0..11) {
+            val y = valley+.48f+i*.33f
+            val trip = ((now % 2700L) / 2700f+i*.23f) % 1f
+            val x = w*(.46f+.20f*trip)
+            line(c,x,y,x+.45f+i*.09f,y,tone(0xA8E2FAE2,0x67A7CFD8),.037f)
         }
         c.restore()
-        path.reset();path.moveTo(0f,meadowEdge(0f,f))
-        for(i in 1..24)path.lineTo(i.toFloat(),meadowEdge(i.toFloat(),f))
-        path.lineTo(w,f+.2f);path.lineTo(0f,f+.2f);path.close()
-        ramp("nearMeadow",f-2.7f,f,tone(0xFF93B77E,0xFF486D5B),tone(0xFFB9D292,0xFF658260))
-        shape(c,Color.WHITE)
-        // Каждая группа стоит на одной поверхности, с корнями ниже её верхнего края.
-        for(i in forestX.indices) {
-            val x=forestX[i]
-            tree(c,x,meadowEdge(x,f)+.28f,forestScale[i],outline)
-            fill.color=tone(0x55698E57,0x55465F4B)
-            c.drawOval(x-.25f,meadowEdge(x,f)+.23f,x+.25f,meadowEdge(x,f)+.33f,fill)
-        }
-        path.reset();path.moveTo(0f,f-.3f);path.cubicTo(7f,f-.9f,16f,f-.4f,24f,f-.65f);path.lineTo(w,h);path.lineTo(0f,h);path.close()
-        ramp("lawn",f-.7f,h,tone(0xFF8DBB78,0xFF486E54),tone(0xFFBDD78F,0xFF678464));shape(c,Color.WHITE,outline,.06f)
-        meadowGlint.draw(c, w, h, f, (1f - night) * .8f + .18f)
-        fence(c,f,outline,prefs?.getInt("yard_fence",0xFFD8BB8B.toInt())?:0xFFD8BB8B.toInt(),
+        tree(c,w*.42f,valley+.82f,.40f,outline)
+        tree(c,w*.38f,valley+.91f,.30f,outline)
+        tree(c,w*.77f,valley+.80f,.35f,outline)
+        tree(c,w*.85f,valley+.49f,.46f,outline)
+        tree(c,w*.89f,valley+.60f,.36f,outline)
+        shrub(c, w*.51f, f-2.52f, .78f, tone(0xFF88AA5C,0xFF4A745D))
+        shrub(c, w*.74f, f-2.32f, 1.10f, tone(0xFF84A656,0xFF456C5B))
+        shrub(c, w*.97f, f-2.67f, .91f, tone(0xFF8EAF61,0xFF4D745D))
+        hill(c,w,f-1.46f,h,.46f,.025f,"lawn",0xFFA5BC6A,0xFFD1D98F,0xFF5A8059,0xFF78976B)
+        meadowGlint.draw(c,w,h,f,(1f-night)*.8f+.18f)
+        fence(c,f,outline,prefs?.getInt("yard_fence",0xFFE5CCA0.toInt())?:0xFFE5CCA0.toInt(),
             (prefs?.getInt("yard_fence_style",0)?:0).coerceIn(0,2))
-        house(c,f,outline,prefs?.getInt("yard_house",0xFFE9D9BB.toInt())?:0xFFE9D9BB.toInt())
-        // Плиты у крыльца, травяные островки и цветы в глубине участка.
+        house(c,f,outline,prefs?.getInt("yard_house",0xFFF1DDBB.toInt())?:0xFFF1DDBB.toInt())
         steppingStones(c,f,outline)
-        for(i in 0..27){val x=7.4f+(i*1.71f)%16f;val y=f-.35f+(i%3)*.32f;line(c,x,y,x-.07f,y-.13f,tone(0x8861864D,0x88517250),.025f)}
+        // Irregular grass sits at the back and near the edges, leaving the pet's route clear.
+        for (i in 0..42) {
+            val x = 7.4f + (i * 1.71f) % 16.4f
+            val y = f - .34f + (i * 13 % 19) * .08f
+            val height = .10f + (i % 4) * .06f
+            path.reset()
+            path.moveTo(x-.15f,y)
+            path.quadTo(x-.29f,y-height,x-.09f,y-height*.45f)
+            path.quadTo(x,y-.06f,x+.08f,y-height)
+            path.quadTo(x+.25f,y-height*.67f,x+.09f,y)
+            path.close()
+            shape(c,tone(0x74708747,0x8052744C))
+        }
         val decor=prefs?.getInt("yard_decor",1)?:1
         if(decor==1)flowerbed(c,10.7f,f,outline)
         if(decor==2)rockGarden(c,10.7f,f,outline)
@@ -159,37 +149,73 @@ internal class YardLandscape {
         if(prefs?.getInt("yard_nightlife",1)!=0)nightGarden(c,f,now,outline)
     }
 
-    private fun tree(c: Canvas, x: Float, y: Float, s: Float, outline: Int) {
+    private fun hill(c: Canvas, w: Float, y: Float, bottom: Float, rise: Float, skew: Float,
+                     id: String, dayTop: Long, dayBase: Long, nightTop: Long, nightBase: Long) {
+        path.reset()
+        path.moveTo(0f,y)
+        path.cubicTo(w*.13f,y-rise*.64f,w*(.28f+skew),y-rise*1.23f,w*(.43f+skew),y-rise*.40f)
+        path.cubicTo(w*(.61f+skew),y+rise*.55f,w*.78f,y-rise*1.36f,w,y-rise*.53f)
+        path.lineTo(w,bottom)
+        path.lineTo(0f,bottom)
+        path.close()
+        ramp(id,y-rise,bottom,tone(dayTop,nightTop),tone(dayBase,nightBase))
+        shape(c,Color.WHITE)
+    }
+
+    private fun shrub(c: Canvas,x: Float,y: Float,s: Float,color: Int) {
         c.save()
-        c.translate(x, y)
-        c.scale(s, s)
-        // Tall organic leaves give the groves a clean silhouette at widget size.
-        for (side in -1..1) {
-            val crownX = side * .66f
-            val tip = -3.8f + kotlin.math.abs(side) * .65f
-            path.reset()
-            path.moveTo(crownX, tip)
-            path.cubicTo(crownX + .50f, tip + .43f, crownX + .76f, -1.07f, crownX + .36f, -.63f)
-            path.quadTo(crownX, -.20f, crownX - .36f, -.63f)
-            path.cubicTo(crownX - .76f, -1.07f, crownX - .50f, tip + .43f, crownX, tip)
-            path.close()
-            ramp(pineIds[side + 1], tip, -.45f,
-                tone(0xFFA8BF78,0xFF527C72), tone(0xFF557F50,0xFF2D5551))
-            shape(c, Color.WHITE, outline, .035f)
-            line(c, crownX, 0f, crownX, tip + .62f, tone(0xFF96774E,0xFF52665D), .065f)
-            line(c, crownX, -1.33f, crownX - .26f, -1.70f, tone(0xFF96774E,0xFF52665D), .035f)
-        }
+        c.translate(x,y)
+        c.scale(s,s)
+        path.reset()
+        path.moveTo(-1.9f,0f)
+        path.cubicTo(-2f,-.68f,-1.16f,-.98f,-.92f,-.44f)
+        path.cubicTo(-1.04f,-1.33f,.15f,-1.57f,.30f,-.78f)
+        path.cubicTo(.88f,-1.10f,1.30f,-.72f,1.30f,-.45f)
+        path.quadTo(2.03f,-.68f,2.08f,0f)
+        path.quadTo(0f,.20f,-1.9f,0f)
+        path.close()
+        ramp("shrub",-1.2f,0f,mix(color,Color.WHITE,.19f),color)
+        shape(c,Color.WHITE)
+        c.restore()
+    }
+
+    private fun tree(c: Canvas,x: Float,y: Float,s: Float,outline: Int) {
+        c.save()
+        c.translate(x,y)
+        c.scale(s,s)
+        val trunk = tone(0xFF816743,0xFF536254)
+        val leaf = tone(0xFF679459,0xFF406C61)
+        path.reset()
+        path.moveTo(-.29f,-.50f)
+        path.cubicTo(-1.02f,-.52f,-1.14f,-1.25f,-.72f,-1.65f)
+        path.cubicTo(-.93f,-2.35f,-.48f,-2.70f,-.22f,-2.81f)
+        path.cubicTo(-.03f,-3.40f,.64f,-3.20f,.64f,-2.55f)
+        path.cubicTo(1.24f,-2.22f,.85f,-1.69f,.83f,-1.57f)
+        path.cubicTo(1.05f,-.85f,.57f,-.42f,-.29f,-.50f)
+        path.close()
+        ramp("tree",-3.10f,-.46f,mix(leaf,Color.WHITE,.22f),leaf)
+        shape(c,Color.WHITE,mix(leaf,outline,.24f),.040f)
+        line(c,0f,.04f,.11f,-2.33f,trunk,.14f)
+        line(c,.06f,-1.17f,-.43f,-1.74f,trunk,.073f)
+        line(c,.07f,-1.54f,.49f,-2.06f,trunk,.067f)
+        path.reset()
+        path.moveTo(-.56f,-1.98f)
+        path.quadTo(-.53f,-2.46f,-.14f,-2.58f)
+        path.quadTo(-.19f,-2.21f,-.56f,-1.98f)
+        shape(c,tone(0x6FE2E6A0,0x435D8B72))
         c.restore()
     }
     private fun fence(c: Canvas,f: Float,outline: Int,color: Int,style: Int){
-        val wood=mix(color,0xFF455D59.toInt(),night*.55f)
+        val wood=mix(color,0xFF485F54.toInt(),night*.58f)
+        val edgeColor=mix(outline,wood,.57f)
         val light=mix(wood,Color.WHITE,.16f)
         val dark=mix(wood,outline,.18f)
         if(style==1) {
             // Широкие горизонтальные доски, регулярные стойки одной высоты.
             for(i in 0..3){
                 val y=f-2.45f+i*.51f
-                box(c,7f,y,24f,y+.40f,wood,.035f,outline)
+                box(c,7f,y,24f,y+.40f,wood,.055f,edgeColor)
+                line(c,7.16f,y+.33f,24f,y+.33f,dark,.033f)
                 line(c,7.08f,y+.07f,24f,y+.07f,light,.035f)
             }
         } else if(style==2) {
@@ -215,7 +241,7 @@ internal class YardLandscape {
                 path.lineTo(x + .52f, f - .43f)
                 path.close()
                 ramp("pickets", f - 2.58f, f - .43f, light, dark)
-                shape(c, Color.WHITE, outline)
+                shape(c, Color.WHITE, edgeColor, .050f)
                 line(c,x+.09f,f-2.22f,x+.09f,f-.67f,light,.035f)
                 disc(c,x+.26f,f-1.99f,.022f,outline)
                 disc(c,x+.26f,f-.95f,.022f,outline)
@@ -228,94 +254,129 @@ internal class YardLandscape {
         }
     }
     private fun house(c: Canvas, f: Float, outline: Int, color: Int) {
-        val corner = 8.7f
-        val eave = f - 7.55f
-        val wall = mix(color, outline, night * .48f)
-        val batten = mix(wall, outline, .18f)
-        val timber = tone(0xFFAE815C, 0xFF62645D)
-        // Straight-on cottage elevation, cropped at the left edge.
-        ramp("facade", eave, f, mix(wall, outline, .16f), mix(wall, Color.WHITE, .15f))
-        box(c, -.3f, eave, corner, f, Color.WHITE, 0f, outline)
-        for (i in 0..9) {
-            val x = .32f + i * .9f
-            box(c, x, eave, x + .085f, f - .45f, batten, .01f)
-            line(c, x + .09f, eave, x + .09f, f - .45f, mix(wall, Color.WHITE, .28f), .03f)
-        }
-        box(c, 0f, f - .48f, corner, f, tone(0xFFB1A89A, 0xFF657573), .02f, outline)
-        for (i in 0..7) {
-            val x = .6f + i * 1.14f
-            line(c, x, f - .46f, x - .12f, f, batten)
-        }
-        box(c, corner - .32f, eave, corner, f - .46f, timber, .025f, outline)
-        val roofEnd = corner + .48f
+        val corner = 7.68f
+        val eave = f-7.58f
+        val wall = mix(color,0xFF6D8B82.toInt(),night*.64f)
+        val shadow = mix(wall,outline,.37f)
+        val wood = tone(0xFFC58C50,0xFF6B7460)
+        val woodLight = tone(0xFFE9B676,0xFF8F9475)
+        val roof = tone(0xFF617E60,0xFF314E54)
+
+        ramp("facade",eave,f,mix(wall,outline,.15f),mix(wall,Color.WHITE,.14f))
         path.reset()
-        path.moveTo(-1f, eave - 2.5f)
-        path.lineTo(corner - .36f, eave - 2.5f)
-        path.lineTo(roofEnd, eave)
-        path.lineTo(-1f, eave)
+        path.moveTo(-.6f,eave-1.36f)
+        path.cubicTo(1.34f,eave-.91f,4.60f,eave-.22f,corner,eave+.34f)
+        path.lineTo(corner,f)
+        path.lineTo(-.6f,f)
         path.close()
-        ramp("roof", eave - 2.5f, eave, tone(0xFF879C90, 0xFF526978), tone(0xFF4A625D, 0xFF263D48))
-        shape(c, Color.WHITE, outline)
+        shape(c,Color.WHITE,outline,.075f)
+        for (i in 0..9) {
+            val x = i * .82f
+            line(c,x,eave,x,f-.37f,mix(shadow,wall,.44f),.031f)
+            line(c,x+.045f,eave,x+.045f,f-.37f,mix(wall,Color.WHITE,.41f),.023f)
+        }
+
+        path.reset()
+        path.moveTo(-1f,eave)
+        path.lineTo(corner+.46f,eave+.10f)
+        path.lineTo(corner-.02f,eave+.81f)
+        path.lineTo(-1f,eave+.92f)
+        path.close()
+        shape(c,shadow)
+        box(c,corner-.40f,eave+.16f,corner+.12f,f-.13f,wood,.073f,outline)
+        box(c,corner-.39f,eave+.22f,corner-.23f,f-.21f,woodLight,.045f)
+        box(c,-.6f,f-.37f,corner+.14f,f+.02f,tone(0xFFD9C09B,0xFF7D8E7D),.04f,outline)
+        box(c,2.13f,f-.11f,6.63f,f+.22f,tone(0xFFE7CCA0,0xFF829B88),.11f,outline)
+
+        path.reset()
+        path.moveTo(-1.30f,eave-2.98f)
+        path.cubicTo(.68f,eave-2.69f,4.12f,eave-1.92f,6.72f,eave-1.20f)
+        path.lineTo(corner+.83f,eave+.04f)
+        path.quadTo(corner+.87f,eave+.19f,corner+.64f,eave+.22f)
+        path.cubicTo(4.6f,eave-.50f,1.42f,eave-1.11f,-1.30f,eave-1.68f)
+        path.close()
+        ramp("roof",eave-3f,eave+.20f,mix(roof,Color.WHITE,.29f),roof)
+        shape(c,Color.WHITE,outline,.085f)
         c.save()
         c.clipPath(path)
         for (row in 0..4) {
-            val y = eave - row * .52f
-            line(c, -1f, y, roofEnd, y, tone(0xFF516864, 0xFF30444D), .055f)
-            for (col in 0..9) {
-                val x = col * 1.1f + (row % 2) * .55f
-                line(c, x, y, x - .14f, y - .52f, tone(0xBB516864, 0xBB30444D), .035f)
+            val y=eave-2.90f+row*.29f
+            line(c,-.60f,y,corner+.83f,y+1.87f,mix(roof,outline,.34f),.052f)
+            for (i in 0..8) {
+                val x=i*1f+(row%2)*.46f
+                line(c,x,y+x*.21f,x+.17f,y+.33f+x*.21f,mix(roof,outline,.27f),.044f)
             }
         }
         c.restore()
-        box(c, -.3f, eave, roofEnd, eave + .21f, timber, .035f, outline)
-        box(c, -.3f, eave + .21f, corner, eave + .42f, mix(wall, outline, .23f), .02f)
-        for (i in 0..4) {
-            val x = .32f + i * 1.98f
-            box(c, x, eave + .17f, x + .2f, eave + .53f, timber, .035f, outline)
-        }
         path.reset()
-        path.moveTo(corner - 1.52f, eave + .22f)
-        path.lineTo(corner - .20f, eave + .22f)
-        path.lineTo(corner - .20f, eave + 1.88f)
-        path.quadTo(corner - .48f, eave + .62f, corner - 1.52f, eave + .51f)
+        path.moveTo(-1.30f,eave-1.68f)
+        path.cubicTo(1.42f,eave-1.11f,4.6f,eave-.50f,corner+.64f,eave+.22f)
+        path.lineTo(corner+.48f,eave+.49f)
+        path.cubicTo(4.52f,eave-.16f,1.34f,eave-.74f,-1.30f,eave-1.34f)
         path.close()
-        ramp("corbel", eave + .22f, eave + 1.88f, tone(0xFFE7B36B,0xFF8E8C76), timber)
-        shape(c, Color.WHITE, outline, .07f)
-        birdhouse(c, 1.23f, f - 3.65f, outline)
+        shape(c,mix(roof,outline,.36f),outline,.074f)
+        path.reset()
+        path.moveTo(corner-1.40f,eave+.15f)
+        path.lineTo(corner-.20f,eave+.44f)
+        path.lineTo(corner-.20f,eave+1.69f)
+        path.quadTo(corner-.56f,eave+.66f,corner-1.40f,eave+.40f)
+        path.close()
+        shape(c,wood,outline,.074f)
+        birdhouse(c,1.02f,f-3.51f,outline)
     }
-    private fun steppingStones(c: Canvas,f: Float,outline: Int) {
-        // Между независимыми плитами остаётся трава, а нижняя грань даёт толщину.
-        for(i in 0..3) {
-            val x=4.3f+i*1.35f;val y=f+.15f+i*.14f
-            fill.color=0x223B513B;c.drawOval(x-.6f,y-.04f,x+.62f,y+.26f,fill)
-            path.reset();path.moveTo(x-.48f,y-.07f);path.lineTo(x-.22f,y-.17f)
-            path.lineTo(x+.39f,y-.12f);path.lineTo(x+.53f,y+.04f)
-            path.lineTo(x+.22f,y+.17f);path.lineTo(x-.43f,y+.13f);path.close()
-            shape(c,tone(0xFF9DA58E,0xFF61796E),outline,.035f)
-            path.reset();path.moveTo(x-.48f,y-.13f);path.lineTo(x-.22f,y-.23f)
-            path.lineTo(x+.39f,y-.18f);path.lineTo(x+.53f,y-.02f)
-            path.lineTo(x+.22f,y+.09f);path.lineTo(x-.43f,y+.05f);path.close()
-            shape(c,tone(0xFFCFD0B9,0xFF8CA093),outline,.03f)
-            line(c,x-.29f,y-.13f,x+.21f,y-.15f,tone(0xAFFFF2D4,0x668EA89A),.03f)
+
+    private fun steppingStones(c: Canvas,f: Float, outline: Int) {
+        for (i in 0..4) {
+            val x=4.52f+i*1.14f
+            val y=f+.30f+i*.19f
+            val width=.49f+i*.10f
+            fill.color=tone(0x4E536238,0x674A6650)
+            c.drawOval(x-width,y-.09f,x+width+.19f,y+.29f,fill)
+            path.reset()
+            path.moveTo(x-width,y)
+            path.cubicTo(x-width*.72f,y-.36f,x+width*.89f,y-.39f,x+width,y-.04f)
+            path.quadTo(x+width*.95f,y+.25f,x+.10f,y+.22f)
+            path.quadTo(x-width*.97f,y+.23f,x-width,y)
+            path.close()
+            ramp("step$i",y-.23f,y+.25f,tone(0xFFF5DBAB,0xFF94A997),tone(0xFFC6A778,0xFF697F73))
+            shape(c,Color.WHITE,mix(outline,0xFFB79E6C.toInt(),.55f),.045f)
+            line(c,x-width*.55f,y-.10f,x+width*.22f,y-.17f,tone(0x94FFF0C8,0x69CCDED1),.040f)
         }
     }
+
     private fun birdhouse(c: Canvas,x: Float,y: Float,outline: Int) {
-        // Скворечник на кронштейнах заменяет несуществующее окно фасада.
-        box(c,x-.96f,y+.1f,x+1.03f,y+.28f,tone(0xFFB89C70,0xFF7C8C74),.035f,outline)
-        line(c,x-.60f,y+.29f,x-.60f,y+.68f,outline,.09f)
-        line(c,x-.60f,y+.64f,x-.22f,y+.29f,outline,.08f)
-        path.reset();path.moveTo(x-.65f,y+.1f);path.lineTo(x-.65f,y-1.18f)
-        path.lineTo(x,y-1.69f);path.lineTo(x+.65f,y-1.18f);path.lineTo(x+.65f,y+.1f);path.close()
-        ramp("birdhouse",y-1.6f,y+.1f,tone(0xFFE1C89A,0xFFA0AB8C),tone(0xFFB99968,0xFF718773));shape(c,Color.WHITE,outline,.055f)
-        path.reset();path.moveTo(x+.65f,y-1.18f);path.lineTo(x+.84f,y-1.04f)
-        path.lineTo(x+.84f,y+.02f);path.lineTo(x+.65f,y+.1f);path.close();shape(c,tone(0xFF9A825E,0xFF5E7868),outline,.035f)
-        path.reset();path.moveTo(x-.83f,y-1.12f);path.lineTo(x,y-1.86f);path.lineTo(x+.88f,y-1.12f)
-        path.lineTo(x+.72f,y-.99f);path.lineTo(x,y-1.59f);path.lineTo(x-.7f,y-.99f);path.close()
-        shape(c,tone(0xFF9E7561,0xFF677B73),outline,.055f)
-        disc(c,x,y-.82f,.23f,outline)
-        line(c,x-.18f,y-.29f,x+.22f,y-.29f,tone(0xFFE4D0A0,0xFF9FAE8E),.09f)
-        for(i in 0..1)line(c,x-.4f,y-.09f-i*.12f,x+.42f,y-.09f-i*.12f,0x44705F44,.025f)
+        c.save()
+        c.translate(x,y)
+        val clay=tone(0xFFD89161,0xFF9C8565)
+        val dark=tone(0xFF99643E,0xFF596C55)
+        fill.color=tone(0x33745333,0x4C415948)
+        c.drawRoundRect(-.70f,-1.22f,.86f,.57f,.18f,.18f,fill)
+        path.reset()
+        path.moveTo(-.62f,-.68f)
+        path.lineTo(.03f,-1.38f)
+        path.lineTo(.58f,-.68f)
+        path.lineTo(.58f,.34f)
+        path.quadTo(0f,.44f,-.62f,.30f)
+        path.close()
+        ramp("birdhouse",-1.32f,.37f,mix(clay,Color.WHITE,.23f),clay)
+        shape(c,Color.WHITE,outline,.067f)
+        path.reset()
+        path.moveTo(-.83f,-.65f)
+        path.lineTo(-.01f,-1.64f)
+        path.lineTo(.80f,-.68f)
+        path.lineTo(.61f,-.55f)
+        path.lineTo(-.01f,-1.31f)
+        path.lineTo(-.63f,-.54f)
+        path.close()
+        shape(c,dark,outline,.069f)
+        disc(c,0f,-.51f,.26f,dark)
+        disc(c,0f,-.53f,.20f,mix(outline,dark,.22f))
+        line(c,-.11f,-.03f,.16f,-.03f,tone(0xFFF4C98D,0xFFB0A47F),.091f)
+        box(c,-.82f,.35f,.82f,.51f,dark,.038f,outline)
+        line(c,-.60f,.53f,-.32f,.76f,dark,.080f)
+        c.restore()
     }
+
     private fun flowerbed(c: Canvas,x: Float,f: Float,outline: Int){
         fill.color=0x223B513B;c.drawOval(x-1.55f,f-.07f,x+1.55f,f+.3f,fill)
         box(c,x-1.4f,f-.48f,x+1.4f,f+.14f,tone(0xFFAD805B,0xFF64796A),.08f,outline)

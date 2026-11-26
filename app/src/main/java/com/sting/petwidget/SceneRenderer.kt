@@ -1018,40 +1018,42 @@ class SceneRenderer {
         petSilhouette.reset()
         val rx = r * sx
         val ry = r * sy
-        petSilhouette.moveTo(px, cy - ry)
-        petSilhouette.cubicTo(px + rx * .75f, cy - ry * 1.07f,
-            px + rx * .79f, cy - ry * .30f, px + rx * .97f, cy + ry * .32f)
-        petSilhouette.cubicTo(px + rx * 1.13f, cy + ry * .97f,
-            px + rx * .61f, cy + ry * .99f, px, cy + ry)
-        petSilhouette.cubicTo(px - rx * .61f, cy + ry * .99f,
-            px - rx * 1.13f, cy + ry * .97f, px - rx * .97f, cy + ry * .32f)
-        petSilhouette.cubicTo(px - rx * .79f, cy - ry * .30f,
-            px - rx * .75f, cy - ry * 1.07f, px, cy - ry)
+        val lean = (sin(yaw) * sim.dir + if (st == PetSim.State.WALK) sim.dir * .20f else 0f) * rx * .10f
+        petSilhouette.moveTo(px + lean, cy - ry)
+        petSilhouette.cubicTo(px + rx * .58f + lean, cy - ry, px + rx * .87f, cy - ry * .50f,
+            px + rx * .98f, cy + ry * .10f)
+        petSilhouette.cubicTo(px + rx * 1.13f, cy + ry * .79f, px + rx * .70f, cy + ry,
+            px, cy + ry)
+        petSilhouette.cubicTo(px - rx * .70f, cy + ry, px - rx * 1.13f, cy + ry * .79f,
+            px - rx * .98f, cy + ry * .10f)
+        petSilhouette.cubicTo(px - rx * .87f, cy - ry * .50f, px - rx * .58f + lean, cy - ry,
+            px + lean, cy - ry)
         petSilhouette.close()
         c.drawPath(petSilhouette, body)
-        pS.color = th("pet_outline", 0xFF4A4038.toInt())
-        pS.strokeWidth = unit * 0.12f
-        c.drawPath(petSilhouette, pS)
-
-        // обводка-кромка слоя света (rim-light)
-        pS.color = 0x20FFFFFF.toInt()
-        pS.strokeWidth = unit * 0.07f
-        rect.set(px - r * sx - unit * 0.07f, cy - r * sy - unit * 0.07f, px + r * sx + unit * 0.07f, cy + r * sy + unit * 0.07f)
-        c.drawArc(rect, 205f, 115f, false, pS)
-
-        // «пятки-няшки» убраны по решению: чистый силуэт выглядит круче
-
-
-        // Small markings follow the same stretch as the body and inherit its palette.
         c.save()
+        c.clipPath(petSilhouette)
         c.translate(px, cy)
-        c.scale(r * sx, r * sy)
-        pF.color = 0x38FFFFFF
-        c.rotate(-20f)
-        c.drawOval(-.44f, -.86f, -.04f, -.74f, pF)
-        c.drawOval(.02f, -.83f, .16f, -.75f, pF)
-        c.rotate(20f)
+        c.scale(rx, ry)
+        // A translucent crescent follows the body and leaves every custom palette visible.
+        pF.color = 0x21405138
+        path.reset()
+        path.moveTo(.33f, -1.08f)
+        path.cubicTo(.92f, -.73f, .93f, .05f, .72f, .46f)
+        path.cubicTo(.40f, .91f, -.56f, .96f, -1.08f, .55f)
+        path.lineTo(-1.10f, 1.08f)
+        path.lineTo(1.14f, 1.08f)
+        path.lineTo(1.14f, -1.08f)
+        path.close()
+        c.drawPath(path, pF)
+        c.rotate(-33f)
+        pF.color = 0x59FFFFE5
+        c.drawOval(-.21f, -.88f, .17f, -.77f, pF)
+        pF.color = 0x37FFFFE5
+        c.drawOval(-.34f, -.83f, -.25f, -.75f, pF)
         c.restore()
+        pS.color = th("pet_outline", 0xFF4A4038.toInt())
+        pS.strokeWidth = unit * .091f
+        c.drawPath(petSilhouette, pS)
 
         val faceAmount = cos(yaw)
         if (faceAmount <= .015f) {
@@ -1064,9 +1066,12 @@ class SceneRenderer {
         } else c.save()
         c.translate(sim.dir * r * .79f * sin(yaw), 0f)
         c.scale(faceAmount, 1f, px, cy)
-        pF.color = th("pet_belly", 0xFFBDEBCF.toInt())
-        c.drawRoundRect(px - r * sx * .56f, cy + r * sy * .08f,
-            px + r * sx * .56f, cy + r * sy * .84f, r * sx * .42f, r * sy * .38f, pF)
+        val belly = gradientPaint("belly")
+        val bellyColor = th("pet_belly", 0xFFBDEBCF.toInt())
+        belly.shader = LinearGradient(px, cy, px, cy + ry,
+            VectorFinish.blend(bellyColor, 0xFFFFF1C6.toInt(), .15f),
+            VectorFinish.blend(bellyColor, th("pet_mid", 0xFF6FBE97.toInt()), .27f), Shader.TileMode.CLAMP)
+        c.drawOval(px - rx * .56f, cy + ry * .14f, px + rx * .56f, cy + ry * .89f, belly)
 
         // лицо
         val eyeY = cy - r * sy * 0.30f
@@ -1549,39 +1554,47 @@ class SceneRenderer {
         val cy = petCy(sim, floorY, unit, r)
         val st = sim.state
 
-        // руки красятся токенами тела (утолщённый контур + светлые ладошки)
-        val armColor = th("pet_bottom", 0xFF5CA985.toInt())
-        val palmColor = th("pet_mid", 0xFF6FBE97.toInt())
-        val grip = unit * .23f
+        val armLight = th("pet_top", 0xFFA8E6C3.toInt())
+        val armMid = th("pet_mid", 0xFF6FBE97.toInt())
+        val armDark = th("pet_bottom", 0xFF4FA379.toInt())
+        val armInk = th("pet_outline", 0xFF4A4038.toInt())
+        val material = gradientPaint("arm")
 
         fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean) {
-            // руки не резиновые до бесконечности: максимум ~2 радиуса тела
-            var hx = hxRaw
-            var hy = hyRaw
-            val vx = hx - cx
-            val vy = hy - cy
-            val d = kotlin.math.sqrt(vx * vx + vy * vy)
-            val maxD = r * 2.15f
-            if (d > maxD) {
-                hx = cx + vx / d * maxD
-                hy = cy + vy / d * maxD
-            }
-            val mx = (ax + hx) / 2f
-            val bend = kotlin.math.hypot(hx - ax, hy - ay).coerceAtMost(unit * 1.4f)
-            val my = (ay + hy) / 2f + bend * (if (up) -.18f else .25f)
+            val reach = kotlin.math.hypot(hxRaw - cx, hyRaw - cy)
+            val clamp = if (reach > r * 2.15f) r * 2.15f / reach else 1f
+            val hx = cx + (hxRaw - cx) * clamp
+            val hy = cy + (hyRaw - cy) * clamp
+            val length = kotlin.math.hypot(hx - ax, hy - ay)
+            if (length < unit * .09f) return
+
+            val tx = (hx - ax) / length
+            val ty = (hy - ay) / length
+            val side = if (ax < cx) -1f else 1f
+            val nx = -ty
+            val ny = tx
+            val width = unit * (.20f + .045f * (length / r).coerceAtMost(1f))
+            val flex = length.coerceAtMost(r) * (if (up) -.13f else .19f)
+            val rootX = ax - side * unit * .19f
+            val mx = (rootX + hx) * .50f
+            val my = (ay + hy) * .50f + flex
+
             path.reset()
-            path.moveTo(ax, ay)
-            path.quadTo(mx, my, hx, hy)
-            pS.color = th("pet_outline", 0xFF4A4038.toInt())
-            pS.strokeWidth = unit * .42f
+            path.moveTo(rootX + nx * width, ay + ny * width)
+            path.quadTo(mx + nx * width * 1.23f, my + ny * width * 1.23f,
+                hx + nx * width, hy + ny * width)
+            path.cubicTo(hx + nx * width + tx * width, hy + ny * width + ty * width,
+                hx - nx * width + tx * width, hy - ny * width + ty * width,
+                hx - nx * width, hy - ny * width)
+            path.quadTo(mx - nx * width, my - ny * width,
+                rootX - nx * width * .70f, ay - ny * width * .70f)
+            material.shader = LinearGradient(hx - width, hy - width, hx + width, hy + width,
+                intArrayOf(armLight, armMid, armDark), null, Shader.TileMode.CLAMP)
+            // Fill closes the shoulder. Stroke only the visible contour, leaving the root open.
+            c.drawPath(path, material)
+            pS.color = armInk
+            pS.strokeWidth = unit * .073f
             c.drawPath(path, pS)
-            pS.color = armColor
-            pS.strokeWidth = unit * .28f
-            c.drawPath(path, pS)
-            circleAt(c, hx, hy, grip, palmColor)
-            pS.color = th("pet_outline", 0xFF4A4038.toInt())
-            pS.strokeWidth = unit * 0.08f
-            c.drawCircle(hx, hy, grip, pS)
         }
 
         val doorReach = sim.outing.doorReach
@@ -1714,10 +1727,11 @@ class SceneRenderer {
                 }
             }
             else -> {
-                val wave = sin(sim.animPhase * 3f) * r * .025f
+                val walking = st == PetSim.State.WALK || st == PetSim.State.CHASE
+                val wave = sin(sim.animPhase * (if (walking) 11f else 3f)) * r * (if (walking) .17f else .025f)
                 for (side in -1..1 step 2) {
                     arm(cx + side * r * .81f, cy + r * .16f,
-                        cx + side * r * .97f, cy + r * .43f + side * wave, false)
+                        cx + side * r * 1.07f + wave * .16f, cy + r * .40f + side * wave, false)
                 }
             }
         }
