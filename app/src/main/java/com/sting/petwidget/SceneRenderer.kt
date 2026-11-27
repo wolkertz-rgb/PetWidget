@@ -254,14 +254,9 @@ class SceneRenderer {
         val actionFloor = petFloor(sim, floorY, playFloor)
         val inter = readInteract(sim, itemX, playFloor, unit)
 
-        if (inter.target != null) {
+        if (inter.target != null || sim.state == PetSim.State.PULL || sim.outing.doorReach > .01f) {
             try { drawArms(c, sim, inter, unit, actionFloor, itemX, rear = true) }
             catch (t: Throwable) { logErr("rear arm", t) }
-        }
-
-        if (sim.state == PetSim.State.PULL) {
-            try { drawArms(c, sim, inter, unit, actionFloor, itemX, rear = true) }
-            catch (t: Throwable) { logErr("switch arm", t) }
         }
 
         // питомец
@@ -332,7 +327,9 @@ class SceneRenderer {
         val perspective=SwingMotion.scale(a)
         c.scale(perspective,perspective)
         c.translate(-center,-actionFloor)
-        if (inter.target != null) drawArms(c, sim, inter, unit, actionFloor, itemX, rear = true)
+        if (inter.target != null || sim.outing.doorReach > .01f) {
+            drawArms(c, sim, inter, unit, actionFloor, itemX, rear = true)
+        }
         drawPet(c, sim, itemX(sim.x), actionFloor, unit, inter)
         if (inter.target == null) drawArms(c, sim, inter, unit, actionFloor, itemX)
         c.restore()
@@ -1596,8 +1593,10 @@ class SceneRenderer {
     private fun drawArms(
         c: Canvas, sim: PetSim, inter: InteractInfo, unit: Float, floorY: Float, itemX: (Float) -> Float, rear: Boolean = false
     ) {
-        if (sim.state == PetSim.State.PULL && !rear) return
-        if (rear && sim.state != PetSim.State.INTERACT && sim.state != PetSim.State.PULL) return
+        val doorReach = sim.outing.doorReach
+        val reachingDoor = doorReach > .01f
+        if ((sim.state == PetSim.State.PULL || reachingDoor) && !rear) return
+        if (rear && !reachingDoor && sim.state != PetSim.State.INTERACT && sim.state != PetSim.State.PULL) return
         val r = unit * 1.55f
         val cx = itemX(sim.x) + switchOffset(sim, unit)
         val cy = petCy(sim, floorY, unit, r)
@@ -1608,7 +1607,7 @@ class SceneRenderer {
         val armDark = th("pet_bottom", 0xFF4FA379.toInt())
         val armInk = th("pet_outline", 0xFF4A4038.toInt())
         val material = gradientPaint("arm")
-        val followsBody = !rear && inter.target == null && sim.outing.doorReach <= .01f
+        val followsBody = !rear && inter.target == null
         val bodyScale = if (followsBody) lastPose[0] else PetMotion.pose(sim).sx
 
         fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean, bend: Float = 0f) {
@@ -1656,8 +1655,7 @@ class SceneRenderer {
             c.restore()
         }
 
-        val doorReach = sim.outing.doorReach
-        if (doorReach > .01f) {
+        if (reachingDoor) {
             val shoulderX = cx + r * .46f
             val shoulderY = cy - r * .14f
             val knobX = itemX(sim.outing.doorX) + unit * (-1.75f + 2.85f * (1f - sim.outing.doorOpen * .91f))
