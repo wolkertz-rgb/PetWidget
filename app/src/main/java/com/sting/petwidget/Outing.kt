@@ -14,13 +14,30 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
     private val roomItems = ArrayList<PetSim.SpawnedItem>()
     private val yardItems = ArrayList<PetSim.SpawnedItem>()
     val doorX get() = 0.16f
-    val doorReach get() = if (phase == 2) PetMotion.accent(time / 1300f, 0f, .22f, .33f, .59f) else 0f
-    val doorOpen get() = if (phase == 2) PetMotion.ease((time - 286f) / 364f) else if (phase == 3) 1f - PetMotion.ease(time / 700f) else 0f
-    val fade get() = if (phase == 2) PetMotion.ease((time - 650f) / 650f) else if (phase == 3) 1f - PetMotion.ease(time / 850f) else 0f
+    val doorTurn: Float get() = when (phase) {
+        2 -> PetMotion.ease(time / 380f)
+        3 -> 1f - PetMotion.ease((time - 740f) / 420f)
+        else -> 0f
+    }
+    val doorReach: Float get() = when (phase) {
+        2 -> PetMotion.accent(time / 1300f, .19f, .34f, .61f, .80f)
+        3 -> PetMotion.accent(time / 1160f, .02f, .22f, .53f, .69f)
+        else -> 0f
+    }
+    val doorOpen: Float get() = when (phase) {
+        2 -> PetMotion.ease((time - 442f) / 404f)
+        3 -> 1f - PetMotion.ease((time - 256f) / 359f)
+        else -> 0f
+    }
+    val fade: Float get() = when (phase) {
+        2 -> PetMotion.ease((time - 825f) / 475f)
+        3 -> 1f - PetMotion.ease(time / 339f)
+        else -> 0f
+    }
     internal fun routeDepth(x: Float): Float = when (phase) {
         1 -> PetMotion.ease(abs(x - doorX) / .19f)
         2 -> 0f
-        3 -> PetMotion.ease(time / 900f)
+        3 -> PetMotion.ease((time - 740f) / 420f)
         4 -> PetMotion.ease(abs(x - .80f) / .19f)
         5 -> PetMotion.ease((time - 9100f) / 900f)
         else -> 1f
@@ -48,7 +65,7 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
             val target = if (phase == 1) doorX else 0.80f
             sim.state = PetSim.State.WALK; sim.walkMode = PetSim.WalkMode.NONE
             sim.dir = if (target > sim.x) 1 else -1
-            val step = dt / 1000f * 0.10f
+            val step = dt / 1000f * PetSim.WALK_SPEED
             if (abs(target - sim.x) <= step) {
                 sim.x = target; phase = if (phase == 1) 2 else 5; time = 0
                 sim.state = PetSim.State.SIT; sim.stateTime = 0
@@ -61,7 +78,7 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
             sim.x = doorX; phase = 3; time = 0; elapsed = 0; swingDue = 25_000
             sim.state = PetSim.State.IDLE; sim.stateTime = 0
             save()
-        } else if (phase == 3 && time >= 900L || phase == 5 && time >= 10_000L) {
+        } else if (phase == 3 && time >= 1160L || phase == 5 && time >= 10_000L) {
             if (phase == 5) swingDue = elapsed + 40_000L
             phase = 0; time = 0; sim.state = PetSim.State.IDLE
             sim.stateTime = 0; sim.stateDur = 1800L

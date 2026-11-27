@@ -232,6 +232,7 @@ class SceneRenderer {
         c.restore()
         val accent = th("decor_accent", 0xFFD18F6C.toInt())
         furniture.wallArt(c, unit, floorY, accent)
+        furniture.shelf(c, unit, floorY, accent)
         furniture.decor(c, unit, floorY, th("decor_rug", RoomFurniture.DEFAULT_DECOR) == 1,
             th("decor_tv", RoomFurniture.DEFAULT_DECOR) == 1,
             th("decor_plant", RoomFurniture.DEFAULT_DECOR) == 1,
@@ -934,7 +935,7 @@ class SceneRenderer {
         c.drawOval(rect, pF)
 
         val p = (sim.stateTime.toFloat() / sim.stateDur).coerceIn(0f, 1f)
-        val turning = if (st == PetSim.State.PULL) SwitchMotion.turn(sim.stateTime) else 0f
+        val turning = if (st == PetSim.State.PULL) SwitchMotion.turn(sim.stateTime) else sim.outing.doorTurn
         val facingSide = when (st) {
             PetSim.State.WALK, PetSim.State.CHASE -> .35f
             PetSim.State.INTERACT -> .23f
@@ -1788,7 +1789,7 @@ class SceneRenderer {
             }
             else -> {
                 val walking = st == PetSim.State.WALK || st == PetSim.State.CHASE
-                val wave = sin(sim.animPhase * (if (walking) 11f else 3f)) * r * (if (walking) .17f else .025f)
+                val wave = sin(sim.animPhase * (if (walking) 8.7f else 3f)) * r * (if (walking) .108f else .025f)
                 for (side in -1..1 step 2) {
                     arm(cx + side * r * .81f, cy + r * .16f,
                         cx + side * r * .99f + wave * .16f, cy + r * .46f + side * wave, false)

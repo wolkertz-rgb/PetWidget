@@ -36,11 +36,11 @@ internal object PetMotion {
         val e = envelope(p)
         val t = sim.stateTime / 1000f
         val breath = sin(sim.animPhase * 1.6f)
-        val step = (1f - cos(sim.animPhase * 11f)) * .5f
+        val step = (1f - cos(sim.animPhase * 8.7f)) * .5f
         val settle = accent(p, 0f, .24f, .72f, 1f)
         val itemId = sim.targetItem?.defId.orEmpty()
         return when (sim.state) {
-            PetSim.State.WALK -> squash(.965f + .065f * step, lift = .13f * step)
+            PetSim.State.WALK -> squash(.978f + .041f * step, lift = .073f * step)
             PetSim.State.SLEEP -> {
                 // Сон — это спокойное дыхание всем телом, а не растяжение «резины».
                 // В кресле питомец чуть сворачивается и кладёт голову набок.

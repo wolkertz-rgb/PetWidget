@@ -128,6 +128,29 @@ class VisualV5RenderTest {
         save(renderer.render(sim, 900, 500), "night", 0)
     }
 
+    @Test fun renderRoomLightingAndDoorTransition() {
+        for ((name, time) in listOf("room-day-unlit" to 60_000L, "room-night-unlit" to 180_000L)) {
+            val (sim, renderer) = scene(name)
+            renderer.lastPrefs!!.edit().putBoolean("light_on", false).apply()
+            renderer.previewTime = time
+            save(renderer.render(sim, 900, 500), name, 0)
+        }
+        for (phase in 2..3) {
+            val name = if (phase == 2) "door-opening" else "door-closing"
+            val (sim, renderer) = scene(name, yard = phase == 3)
+            sim.x = sim.outing.doorX
+            sim.state = PetSim.State.SIT
+            val phaseField = Outing::class.java.getDeclaredField("phase").apply { isAccessible = true }
+            val timeField = Outing::class.java.getDeclaredField("time").apply { isAccessible = true }
+            phaseField.setInt(sim.outing, phase)
+            for (frame in 0..23) {
+                timeField.setLong(sim.outing, frame * 50L)
+                sim.animPhase = frame * .05f
+                save(renderer.render(sim, 900, 500), name, frame)
+            }
+        }
+    }
+
     @Test fun renderContactSheet() {
         val image = Bitmap.createBitmap(1200, 800, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(image)

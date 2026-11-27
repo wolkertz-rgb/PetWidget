@@ -33,6 +33,7 @@ class PetService : Service() {
     private var ids: IntArray = IntArray(0)
 
     private var screenOn = false
+    private var frameRemainder = 0
     private var lastFrameAt = 0L      // SystemClock.elapsedRealtime предыдущего кадра
     private var lastWallSaved = 0L    // реальное время последнего тика (для пропусков)
     private var sizeW = 0
@@ -175,7 +176,10 @@ class PetService : Service() {
                 awm?.partiallyUpdateAppWidget(ids, rv)
             }
             val elapsed = SystemClock.elapsedRealtime() - now
-            val period = 1_000L / 30L
+            // Alternate 16 and 17 ms intervals so the target averages 60 fps.
+            frameRemainder += 1_000 % 60
+            val period = 1_000L / 60L + frameRemainder / 60
+            frameRemainder %= 60
             handler.postDelayed(this, (period - elapsed).coerceAtLeast(1L))
         }
     }

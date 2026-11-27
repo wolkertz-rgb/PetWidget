@@ -40,24 +40,22 @@ internal object SceneLighting {
         }
     }
 
+    private val windowGlow = AmbientGlow(.79f, .46f, .70f, 0x54FFEAC0, .76f)
+    private val floorGlow = AmbientGlow(.72f, 1.0f, .49f, 0x45F8E9C5, .18f)
+
     fun draw(c: Canvas, width: Float, height: Float, floor: Float, bulbY: Float, lamp: Float, daylight: Float) {
         val x = width / 2f
-        val darkness = 1f - lamp
+        val darkness = (1f - lamp) * (1f - daylight * .67f)
         if (darkness > .005f) {
             paint.shader = LinearGradient(0f, 0f, width, height,
                 0xAE1C2942.toInt(), 0x55354764, Shader.TileMode.CLAMP)
             paint.alpha = (255 * darkness).toInt()
             c.drawRect(0f, 0f, width, height, paint)
             paint.shader = null
-            if (daylight > .001f) {
-                paint.alpha = (255 * darkness * daylight).toInt()
-                paint.shader = RadialGradient(width * 0.80f, floor * 0.53f, width * 0.46f,
-                    intArrayOf(0x2CFFE7AA, 0x00FFE7AA),
-                    null, Shader.TileMode.CLAMP)
-                c.drawRect(width * 0.36f, 0f, width, height, paint)
-                paint.shader = null
-            }
         }
+        val windowStrength = daylight * (1f - lamp * .73f)
+        windowGlow.draw(c, width, height, floor, windowStrength)
+        floorGlow.draw(c, width, height, floor, windowStrength)
         paint.alpha = 255
         if (lamp <= .005f) {
             return

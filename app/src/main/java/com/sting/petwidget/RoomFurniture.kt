@@ -292,6 +292,28 @@ internal class RoomFurniture {
         c.restore()
     }
 
+    fun shelf(c: Canvas, unit: Float, floor: Float, accent: Int) {
+        if (floor < unit * 8.9f) return
+        c.save()
+        c.translate(unit * 14.52f, floor - unit * 7.18f)
+        c.scale(unit, unit)
+        box(c,-1.35f,-.04f,1.46f,.22f,0xFF9C7053.toInt(),.08f)
+        box(c,-1.04f,-.94f,-.72f,-.06f,0xFF79947E.toInt(),.045f)
+        box(c,-.69f,-1.09f,-.33f,-.06f,0xFFE0AE6A.toInt(),.045f)
+        box(c,-.30f,-.78f,.05f,-.06f,accent,.045f)
+        oval(c,.33f,-.93f,1.21f,-.04f,0xFFB98A69.toInt())
+        oval(c,.43f,-.83f,1.11f,-.15f,0xFFF2E4BE.toInt())
+        p.color = 0xFF625C4E.toInt()
+        c.drawCircle(.77f,-.49f,.04f,p)
+        detail.reset()
+        detail.moveTo(.77f,-.49f)
+        detail.lineTo(.77f,-.71f)
+        detail.moveTo(.77f,-.49f)
+        detail.lineTo(.91f,-.43f)
+        seam(c,0xFF625C4E.toInt(),.045f)
+        c.restore()
+    }
+
     fun decor(c: Canvas, u: Float, floor: Float, rug: Boolean, tv: Boolean, plant: Boolean,
               rugColor: Int, accent: Int) {
         c.save(); c.translate(0f, floor); c.scale(u, u)

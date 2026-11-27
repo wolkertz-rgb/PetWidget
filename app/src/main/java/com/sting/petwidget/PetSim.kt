@@ -30,7 +30,7 @@ class PetSim(
 
     /** У новых светильников настенная кнопка рядом со спальным местом. */
     val switchX: Float
-        get() = if (prefs.getInt("room_lamp", 0) == 0) SWITCH_X else 0.27f
+        get() = if (prefs.getInt("room_lamp", 0) == 0) SWITCH_X else WALL_SWITCH_X
 
     /** Предмет в комнате */
     class SpawnedItem(
@@ -513,12 +513,12 @@ class PetSim(
         val others = items.filter { it != box }.map { it.defId }.toSet()
         //внутри подарка — предмет по весам (голоден → еда чаще)
         var kind = pickKind()
-        var pool = ItemDefs.ALL.filter {
+        var pool = ItemDefs.spawnable.filter {
             it.kind == kind && it.kind != ItemDefs.Kind.BOX && it.id !in others
         }
         if (pool.isEmpty()) {
             kind = if (kind == ItemDefs.Kind.FOOD) ItemDefs.Kind.TOY else ItemDefs.Kind.FOOD
-            pool = ItemDefs.ALL.filter {
+            pool = ItemDefs.spawnable.filter {
                 it.kind == kind && it.kind != ItemDefs.Kind.BOX && it.id !in others
             }
         }
@@ -616,12 +616,12 @@ class PetSim(
         } else {
             // взвешенный выбор типа: голоден → еда чаще; сыт → игрушки чаще
             var kind = pickKind()
-            var pool = ItemDefs.ALL.filter {
+            var pool = ItemDefs.spawnable.filter {
                 it.kind == kind && items.none { i -> i.defId == it.id }
             }
             if (pool.isEmpty()) {
                 kind = if (kind == ItemDefs.Kind.FOOD) ItemDefs.Kind.TOY else ItemDefs.Kind.FOOD
-                pool = ItemDefs.ALL.filter {
+                pool = ItemDefs.spawnable.filter {
                     it.kind == kind && items.none { i -> i.defId == it.id }
                 }
             }
@@ -775,11 +775,12 @@ class PetSim(
         private const val KEY_HUNGER = "hunger"
         private const val KEY_TARGET = "target"
 
-        const val WALK_SPEED = 0.075f
+        const val WALK_SPEED = 0.062f
         const val X_MIN = 0.09f
         const val X_MAX = 0.91f
         const val BED_X = 0.80f
-        const val SWITCH_X = 0.40f          // где висит шнур выключателя
+        const val WALL_SWITCH_X = 0.246f
+        const val SWITCH_X = 0.281f          // где висит шнур выключателя
 
         const val PULL_TOGGLE_MS = 700L     // момент в тяге, когда свет щёлкает
         const val PULL_DUR = 1400L          // полная длительность тяги

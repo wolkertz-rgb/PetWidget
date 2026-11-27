@@ -5,7 +5,8 @@ source = Path("app/build/visual-v5")
 output = Path("app/build/visual-v5-previews")
 output.mkdir(parents=True, exist_ok=True)
 selected = ["IDLE", "WALK", "HAPPY", "HUNGRY", "TICKLE", "PULL", "ROLL",
-            "apple", "coffee", "rocket", "plushie", "robot", "yard0", "yard1", "yard2"]
+            "apple", "coffee", "rocket", "plushie", "robot", "yard0", "yard1", "yard2",
+            "room-day-unlit", "room-night-unlit", "door-opening", "door-closing"]
 
 for folder in sorted(source.iterdir()):
     if not folder.is_dir():

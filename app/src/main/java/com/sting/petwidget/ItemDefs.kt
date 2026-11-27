@@ -41,6 +41,9 @@ object ItemDefs {
         box()
     )
 
+    // Keep the definition for items already present in saved games.
+    val spawnable: List<Def> = ALL.filterNot { it.id == "flower" }
+
     val byId: Map<String, Def> = ALL.associateBy { it.id }
 
     // ------------------------------------------------------------- краски
