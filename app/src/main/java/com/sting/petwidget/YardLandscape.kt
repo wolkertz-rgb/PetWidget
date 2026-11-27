@@ -120,6 +120,14 @@ internal class YardLandscape {
             c.drawPath(path, ink)
         }
         c.restore()
+        // Interrupted tree lines sit behind the bends and leave the channel open.
+        for (i in 0..17) {
+            val x = w * (.27f + i * .043f)
+            if (x in w * .57f..w * .70f) continue
+            val y = valley + .63f + sin(i * .68f) * .36f
+            shrub(c, x, y, .24f + (i % 4) * .042f, tone(0xFF91AD78, 0xFF4E766C))
+            if (i % 3 != 1) tree(c, x, y + .13f, .23f + (i % 4) * .055f, outline)
+        }
         tree(c,w*.42f,valley+.82f,.40f,outline)
         tree(c,w*.38f,valley+.91f,.30f,outline)
         tree(c,w*.77f,valley+.80f,.35f,outline)
@@ -153,6 +161,19 @@ internal class YardLandscape {
             path.quadTo(x+.25f,y-height*.67f,x+.09f,y)
             path.close()
             shape(c,tone(0x74708747,0x8052744C))
+        }
+        for (i in 0..10) {
+            val x = 9.25f + (i * 3.49f) % (w - 9.8f)
+            val y = f + .22f + (i * 11 % 17) * .093f
+            val height = .13f + (i % 3) * .058f
+            line(c, x, y, x + .06f, y - height, tone(0xB16C8E47, 0xA75F865B), .027f)
+            val petal = if (i % 3 == 0) tone(0xFFF1C68A, 0xFF9E8C77)
+                else tone(0xFFF8EAC6, 0xFF9AB0A3)
+            for (part in 0..3) {
+                val angle = part * PI.toFloat() / 2f
+                disc(c, x + .06f + cos(angle) * .053f, y - height + sin(angle) * .053f, .048f, petal)
+            }
+            disc(c, x + .06f, y - height, .044f, tone(0xFFE8AE59, 0xFF928E69))
         }
         val decor=prefs?.getInt("yard_decor",1)?:1
         if(decor==1)flowerbed(c,10.7f,f,outline)
@@ -296,80 +317,97 @@ internal class YardLandscape {
         }
     }
     private fun house(c: Canvas, f: Float, outline: Int, color: Int) {
-        val corner = 7.68f
-        val eave = f-7.58f
-        val wall = mix(color,0xFF6D8B82.toInt(),night*.64f)
-        val shadow = mix(wall,outline,.37f)
-        val wood = tone(0xFFC58C50,0xFF6B7460)
-        val woodLight = tone(0xFFE9B676,0xFF8F9475)
-        val roof = tone(0xFF617E60,0xFF314E54)
+        val eave = f - 6.85f
+        val ridge = eave - 3.70f
+        val corner = 7.53f
+        val wall = mix(color, 0xFF6D8B82.toInt(), night * .64f)
+        val side = mix(wall, outline, .26f)
+        val trim = tone(0xFFAD875C, 0xFF677C72)
+        val trimLight = tone(0xFFD9AB75, 0xFF8A9A83)
+        val roof = tone(0xFF688570, 0xFF354E58)
+        val fascia = mix(roof, outline, .47f)
 
-        ramp("facade",eave,f,mix(wall,outline,.15f),mix(wall,Color.WHITE,.14f))
+        // Side wall recedes into the garden and catches less light than the front.
         path.reset()
-        path.moveTo(-.6f,eave-1.36f)
-        path.cubicTo(1.34f,eave-.91f,4.60f,eave-.22f,corner,eave+.34f)
-        path.lineTo(corner,f)
-        path.lineTo(-.6f,f)
+        path.moveTo(corner, eave)
+        path.lineTo(9.13f, eave - .75f)
+        path.lineTo(9.13f, f - .65f)
+        path.lineTo(corner, f)
         path.close()
-        shape(c,Color.WHITE,outline,.075f)
-        box(c,-.86f,f-5.65f,1.65f,f-2.04f,shadow,.75f)
-        box(c,-.91f,f-5.79f,1.55f,f-2.18f,wood,.90f,outline)
-        box(c,-.72f,f-5.57f,1.34f,f-2.39f,tone(0xFFFFDE99,0xFFD8AD78),.73f)
-        line(c,.32f,f-5.53f,.32f,f-2.37f,wood,.13f)
-        line(c,-.70f,f-3.98f,1.34f,f-3.98f,wood,.13f)
-        box(c,-.95f,f-2.54f,1.75f,f-2.17f,woodLight,.14f,outline)
-        c.save()
-        c.translate(.28f,f-4f)
-        c.scale(.68f,1f)
-        c.drawCircle(0f,0f,1.2f,if(night>.45f) sunHalo else moonHalo)
-        c.restore()
-        path.reset()
-        path.moveTo(-1f,eave)
-        path.lineTo(corner+.46f,eave+.10f)
-        path.lineTo(corner-.02f,eave+.81f)
-        path.lineTo(-1f,eave+.92f)
-        path.close()
-        shape(c,shadow)
-        box(c,corner-.40f,eave+.16f,corner+.12f,f-.13f,wood,.073f,outline)
-        box(c,corner-.39f,eave+.22f,corner-.23f,f-.21f,woodLight,.045f)
-        box(c,-.6f,f-.37f,corner+.14f,f+.02f,tone(0xFFD9C09B,0xFF7D8E7D),.04f,outline)
-        box(c,2.13f,f-.11f,6.63f,f+.22f,tone(0xFFE7CCA0,0xFF829B88),.11f,outline)
+        shape(c, side, outline, .072f)
+        for (row in 0..10) {
+            val y = eave + .26f + row * .57f
+            line(c, corner, y, 9.10f, y - .64f, mix(side, outline, .21f), .034f)
+        }
 
         path.reset()
-        path.moveTo(-1.30f,eave-2.98f)
-        path.cubicTo(.68f,eave-2.69f,4.12f,eave-1.92f,6.72f,eave-1.20f)
-        path.quadTo(corner+.93f,eave-.39f,corner+.83f,eave+.04f)
-        path.quadTo(corner+.87f,eave+.19f,corner+.64f,eave+.22f)
-        path.cubicTo(4.6f,eave-.50f,1.42f,eave-1.11f,-1.30f,eave-1.68f)
+        path.moveTo(-.68f, f)
+        path.lineTo(-.68f, eave)
+        path.lineTo(3.42f, ridge + .35f)
+        path.lineTo(corner, eave)
+        path.lineTo(corner, f)
         path.close()
-        ramp("roof",eave-3f,eave+.20f,mix(roof,Color.WHITE,.29f),roof)
-        shape(c,Color.WHITE,outline,.085f)
+        ramp("cottageWall", ridge, f, mix(wall,Color.WHITE,.17f), wall)
+        shape(c, Color.WHITE, outline, .073f)
+        // Low-contrast limestone courses, with staggered seams.
         c.save()
         c.clipPath(path)
-        for (row in 0..4) {
-            val y=eave-2.90f+row*.29f
-            line(c,-.60f,y,corner+.83f,y+1.87f,mix(roof,outline,.34f),.052f)
-            for (i in 0..8) {
-                val x=i*1f+(row%2)*.46f
-                line(c,x,y+x*.21f,x+.17f,y+.33f+x*.21f,mix(roof,outline,.27f),.044f)
+        for (row in 0..12) {
+            val y = f - .14f - row * .61f
+            for (col in -1..5) {
+                val x = col * 1.58f + (row % 2) * .79f
+                val tint = if ((col + row * 3) % 4 == 0) mix(wall, outline, .085f)
+                    else mix(wall, Color.WHITE, .22f)
+                box(c, x, y - .56f, x + 1.53f, y, tint, .08f)
             }
         }
         c.restore()
+
+        // A second roof plane gives the gable a visible ridge and eave thickness.
         path.reset()
-        path.moveTo(-1.30f,eave-1.68f)
-        path.cubicTo(1.42f,eave-1.11f,4.6f,eave-.50f,corner+.64f,eave+.22f)
-        path.quadTo(corner+.78f,eave+.55f,corner+.48f,eave+.49f)
-        path.cubicTo(4.52f,eave-.16f,1.34f,eave-.74f,-1.30f,eave-1.34f)
+        path.moveTo(3.42f, ridge)
+        path.lineTo(4.97f, ridge - .78f)
+        path.lineTo(9.43f, eave - .83f)
+        path.quadTo(9.63f,eave-.61f,9.36f,eave-.45f)
+        path.lineTo(8.01f, eave + .23f)
         path.close()
-        shape(c,mix(roof,outline,.36f),outline,.074f)
+        ramp("cottageRoof", ridge, eave, mix(roof, Color.WHITE, .26f), roof)
+        shape(c, Color.WHITE, outline, .09f)
+        c.save()
+        c.clipPath(path)
+        for (row in 1..7) {
+            val t = row / 8f
+            val x = 3.42f + (8.01f - 3.42f) * t
+            val y = ridge + (eave + .23f - ridge) * t
+            line(c, x, y, x + 1.66f, y - .76f, mix(roof, outline, .38f), .064f)
+            line(c, x + .39f + (row % 2) * .30f, y - .18f - (row % 2) * .14f,
+                x + .76f + (row % 2) * .30f, y + .13f - (row % 2) * .14f,
+                mix(roof, outline, .31f), .046f)
+        }
+        c.restore()
         path.reset()
-        path.moveTo(corner-1.40f,eave+.15f)
-        path.lineTo(corner-.20f,eave+.44f)
-        path.lineTo(corner-.20f,eave+1.69f)
-        path.quadTo(corner-.56f,eave+.66f,corner-1.40f,eave+.40f)
+        path.moveTo(-1.06f, eave + .27f)
+        path.lineTo(3.17f, ridge + .03f)
+        path.quadTo(3.42f, ridge - .18f, 3.68f, ridge + .04f)
+        path.lineTo(8.07f, eave + .20f)
+        path.quadTo(8.22f, eave + .53f, 7.91f, eave + .58f)
+        path.lineTo(3.42f, ridge + .60f)
+        path.lineTo(-.92f, eave + .67f)
         path.close()
-        shape(c,wood,outline,.074f)
-        birdhouse(c,6.90f,f-3.61f,outline)
+        shape(c, fascia, outline, .08f)
+        line(c, -.85f, eave + .32f, 3.42f, ridge + .12f, mix(roof, Color.WHITE, .29f), .104f)
+        line(c, 3.42f, ridge + .12f, 7.87f, eave + .33f, roof, .115f)
+
+        box(c, -.74f, f - .38f, corner + .04f, f, side, .08f, outline)
+        box(c, 2.04f, f - .10f, 6.67f, f + .30f, side, .16f, outline)
+        box(c, 2.00f, f - .13f, 6.66f, f + .08f, mix(wall, Color.WHITE, .20f), .13f, outline)
+        box(c, -.63f, f - 5.52f, 1.88f, f - 2.03f, side, .58f)
+        box(c, -.75f, f - 5.65f, 1.83f, f - 2.17f, trim, .64f, outline)
+        box(c, -.54f, f - 5.41f, 1.61f, f - 2.40f, tone(0xFFFFDEA0, 0xFFE6AF67), .49f)
+        line(c, .54f, f - 5.36f, .54f, f - 2.45f, trim, .09f)
+        line(c, -.45f, f - 3.90f, 1.54f, f - 3.90f, trim, .10f)
+        box(c, -.82f, f - 2.50f, 2.00f, f - 2.21f, trimLight, .11f, outline)
+        birdhouse(c, 8.39f, f - 3.76f, outline)
     }
 
     private fun steppingStones(c: Canvas,f: Float, outline: Int) {
