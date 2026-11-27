@@ -17,6 +17,15 @@ class Outing(private val prefs: SharedPreferences, private val persist: Boolean)
     val doorReach get() = if (phase == 2) PetMotion.accent(time / 1300f, 0f, .22f, .33f, .59f) else 0f
     val doorOpen get() = if (phase == 2) PetMotion.ease((time - 286f) / 364f) else if (phase == 3) 1f - PetMotion.ease(time / 700f) else 0f
     val fade get() = if (phase == 2) PetMotion.ease((time - 650f) / 650f) else if (phase == 3) 1f - PetMotion.ease(time / 850f) else 0f
+    internal fun routeDepth(x: Float): Float = when (phase) {
+        1 -> PetMotion.ease(abs(x - doorX) / .19f)
+        2 -> 0f
+        3 -> PetMotion.ease(time / 900f)
+        4 -> PetMotion.ease(abs(x - .80f) / .19f)
+        5 -> PetMotion.ease((time - 9100f) / 900f)
+        else -> 1f
+    }
+
     val swinging get() = phase == 5
     val busy get() = phase != 0
     val mount get() = if (swinging) PetMotion.ease(time / 900f) * PetMotion.ease((10_000f-time)/900f) else 0f

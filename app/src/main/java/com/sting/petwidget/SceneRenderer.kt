@@ -249,51 +249,53 @@ class SceneRenderer {
         val sleepingInChair = sim.state == PetSim.State.SLEEP && sim.sleepingInBed
         if (!sleepingInChair) drawChairFront(c, unit, floorY)
 
-        val inter = readInteract(sim, itemX, floorY, unit)
+        val playFloor = floorY + routeInset(floorY, unit)
+        val actionFloor = petFloor(sim, floorY, playFloor)
+        val inter = readInteract(sim, itemX, playFloor, unit)
 
         if (inter.target != null) {
-            try { drawArms(c, sim, inter, unit, floorY, itemX, rear = true) }
+            try { drawArms(c, sim, inter, unit, actionFloor, itemX, rear = true) }
             catch (t: Throwable) { logErr("rear arm", t) }
         }
 
         if (sim.state == PetSim.State.PULL) {
-            try { drawArms(c, sim, inter, unit, floorY, itemX, rear = true) }
+            try { drawArms(c, sim, inter, unit, actionFloor, itemX, rear = true) }
             catch (t: Throwable) { logErr("switch arm", t) }
         }
 
         // питомец
-        try { drawPet(c, sim, itemX(sim.x) + switchOffset(sim, unit), floorY, unit, inter) } catch (t: Throwable) { logErr("pet", t) }
+        try { drawPet(c, sim, itemX(sim.x) + switchOffset(sim, unit), actionFloor, unit, inter) } catch (t: Throwable) { logErr("pet", t) }
 
         // предметы ПОВЕРХ питомца (стоят перед ним)
         for (item in sim.items) {
             if (inter.holding && item === inter.target) continue // этот в руках
-            try { drawFloorItem(c, sim, item, inter, itemX(item.x), floorY, unit) } catch (t: Throwable) { logErr("item", t) }
+            try { drawFloorItem(c, sim, item, inter, itemX(item.x), playFloor, unit) } catch (t: Throwable) { logErr("item", t) }
         }
 
         // метка предмета при появлении — чтобы не угадывать, что упало
         for (item in sim.items) {
             if (item.ageMs in 0L..1_700L) {
-                try { drawSpawnLabel(c, item.def.name, itemX(item.x), floorY, unit, item.ageMs) }
+                try { drawSpawnLabel(c, item.def.name, itemX(item.x), playFloor, unit, item.ageMs) }
                 catch (t: Throwable) { logErr("label", t) }
             }
         }
 
         // предмет в руках
         if (inter.holding) {
-            try { drawHeldItem(c, sim, inter, unit, floorY) } catch (t: Throwable) { logErr("held", t) }
+            try { drawHeldItem(c, sim, inter, unit, playFloor) } catch (t: Throwable) { logErr("held", t) }
         }
 
         // ручки
-        try { drawArms(c, sim, inter, unit, floorY, itemX) } catch (t: Throwable) { logErr("arms", t) }
+        try { drawArms(c, sim, inter, unit, actionFloor, itemX) } catch (t: Throwable) { logErr("arms", t) }
 
         // сердечки при приветствии
-        if (sim.state == PetSim.State.WAVE) drawHearts(c, sim, itemX(sim.x), floorY, unit)
-        drawDiscovery(c, sim, itemX(sim.x), floorY, unit, itemX)
+        if (sim.state == PetSim.State.WAVE) drawHearts(c, sim, itemX(sim.x), actionFloor, unit)
+        drawDiscovery(c, sim, itemX(sim.x), actionFloor, unit, itemX)
 
         // конфетти
         for (item in sim.items) {
             if (item.confetti && item.ageMs in 0L..420L) {
-                drawConfetti(c, itemX(item.x), floorY, unit, item.ageMs / 420f)
+                drawConfetti(c, itemX(item.x), playFloor, unit, item.ageMs / 420f)
             }
         }
 
@@ -319,30 +321,47 @@ class SceneRenderer {
 
     private fun drawYard(c: Canvas, sim: PetSim, unit: Float, floor: Float, itemX: (Float) -> Float) {
         yardScene.draw(c, w.toFloat(), h.toFloat(), floor, unit, previewTime ?: System.currentTimeMillis(), sim.outing, lastPrefs)
-        val inter = readInteract(sim, itemX, floor, unit)
+        val playFloor = floor + routeInset(floor, unit)
+        val actionFloor = petFloor(sim, floor, playFloor)
+        val inter = readInteract(sim, itemX, playFloor, unit)
         val a = sim.outing.swingAngle
         val center=itemX(sim.x)
         c.save()
-        c.translate(center,floor+SwingMotion.offsetY(a,sim.outing.mount)*unit)
+        c.translate(center,actionFloor+SwingMotion.offsetY(a,sim.outing.mount)*unit)
         val perspective=SwingMotion.scale(a)
         c.scale(perspective,perspective)
-        c.translate(-center,-floor)
-        if (inter.target != null) drawArms(c, sim, inter, unit, floor, itemX, rear = true)
-        drawPet(c, sim, itemX(sim.x), floor, unit, inter)
-        if (inter.target == null) drawArms(c, sim, inter, unit, floor, itemX)
+        c.translate(-center,-actionFloor)
+        if (inter.target != null) drawArms(c, sim, inter, unit, actionFloor, itemX, rear = true)
+        drawPet(c, sim, itemX(sim.x), actionFloor, unit, inter)
+        if (inter.target == null) drawArms(c, sim, inter, unit, actionFloor, itemX)
         c.restore()
         for (item in sim.items) {
-            if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), floor, unit)
-            if (item.ageMs in 0L..1700L) drawSpawnLabel(c, item.def.name, itemX(item.x), floor, unit, item.ageMs)
-            if (item.confetti && item.ageMs in 0L..420L) drawConfetti(c,itemX(item.x),floor,unit,item.ageMs/420f)
+            if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), playFloor, unit)
+            if (item.ageMs in 0L..1700L) drawSpawnLabel(c, item.def.name, itemX(item.x), playFloor, unit, item.ageMs)
+            if (item.confetti && item.ageMs in 0L..420L) drawConfetti(c,itemX(item.x),playFloor,unit,item.ageMs/420f)
         }
         if (inter.holding) {
-            drawHeldItem(c,sim,inter,unit,floor)
+            drawHeldItem(c,sim,inter,unit,playFloor)
         }
-        if (inter.target != null) drawArms(c,sim,inter,unit,floor,itemX)
-        if (sim.state == PetSim.State.WAVE) drawHearts(c,sim,itemX(sim.x),floor,unit)
-        drawDiscovery(c, sim, center, floor, unit, itemX)
+        if (inter.target != null) drawArms(c,sim,inter,unit,actionFloor,itemX)
+        if (sim.state == PetSim.State.WAVE) drawHearts(c,sim,itemX(sim.x),actionFloor,unit)
+        drawDiscovery(c, sim, center, actionFloor, unit, itemX)
         drawLocationFade(c,sim)
+    }
+
+    private fun routeInset(floor: Float, unit: Float): Float =
+        ((h - floor) * .47f).coerceAtMost(unit * .96f)
+
+    private fun petFloor(sim: PetSim, back: Float, front: Float): Float {
+        val depth = when {
+            sim.outing.busy -> sim.outing.routeDepth(sim.x)
+            sim.state == PetSim.State.PULL -> 0f
+            sim.state == PetSim.State.SLEEP && sim.sleepingInBed -> 0f
+            sim.walkMode == PetSim.WalkMode.TO_BED -> PetMotion.ease(abs(sim.x - PetSim.BED_X) / .19f)
+            sim.walkMode == PetSim.WalkMode.TO_SWITCH -> PetMotion.ease(abs(sim.x - sim.switchX) / .19f)
+            else -> 1f
+        }
+        return lerp(back, front, depth)
     }
 
     private val roomBounce = SceneLighting.AmbientGlow(0.53f, 0.91f, 0.49f, 0x24FFF1C9)
@@ -902,15 +921,15 @@ class SceneRenderer {
             if (lastPosePhase < 0f) lastPosePhase = sim.animPhase
         }
         val dtAnim = (sim.animPhase - lastPosePhase).coerceIn(0f, 3f)
-        val k = (1f - kotlin.math.exp(-12f * dtAnim)).coerceIn(0f, 1f)
+        val k = (1f - kotlin.math.exp(-10f * dtAnim)).coerceIn(0f, 1f)
 
 
         // тень (в кресле чуть меньше)
-        pF.color = if (onBed) 0x0A000000 else 0x0F000000
+        pF.color = if (onBed) 0x0A000000 else 0x22493D2D
         val shadowR = if (onBed) 1.15f else 1.45f
         rect.set(cx - r * shadowR, floorY - unit * 0.30f, cx + r * shadowR, floorY + unit * 0.18f)
         c.drawOval(rect, pF)
-        pF.color = if (onBed) 0x0E000000 else 0x17000000
+        pF.color = if (onBed) 0x0E000000 else 0x29403628
         rect.set(cx - r * (if (onBed) 0.85f else 1.0f), floorY - unit * 0.20f, cx + r * (if (onBed) 0.85f else 1.0f), floorY + unit * 0.12f)
         c.drawOval(rect, pF)
 
@@ -958,7 +977,7 @@ class SceneRenderer {
         var dRot = rot - tl[2]
         dRot = ((dRot % TWO_PI) + TWO_PI) % TWO_PI
         if (dRot > PI.toFloat()) dRot -= TWO_PI
-        rot = tl[2] + dRot * k
+        rot = if (st == PetSim.State.ROLL) targetRotation else tl[2] + dRot * k
         lastPose[0] = sx; lastPose[1] = sy; lastPose[2] = rot; lastPose[3] = dx
         lastPosePhase = sim.animPhase
         // pet_pose: в кадре пружинная поза живёт в lastPose (память); на диск — раз в
@@ -1588,7 +1607,8 @@ class SceneRenderer {
         val armDark = th("pet_bottom", 0xFF4FA379.toInt())
         val armInk = th("pet_outline", 0xFF4A4038.toInt())
         val material = gradientPaint("arm")
-        val bodyScale = PetMotion.pose(sim).sx
+        val followsBody = !rear && inter.target == null && sim.outing.doorReach <= .01f
+        val bodyScale = if (followsBody) lastPose[0] else PetMotion.pose(sim).sx
 
         fun arm(ax: Float, ay: Float, hxRaw: Float, hyRaw: Float, up: Boolean, bend: Float = 0f) {
             val reach = kotlin.math.hypot(hxRaw - cx, hyRaw - cy)
@@ -1621,11 +1641,18 @@ class SceneRenderer {
                 rootX - nx * width * .36f, ay - ny * width * .36f)
             material.shader = LinearGradient(hx - width, hy - width, hx + width, hy + width,
                 intArrayOf(armLight, armMid, armDark), null, Shader.TileMode.CLAMP)
-            // Fill closes the shoulder. Stroke only the visible contour, leaving the root open.
+            c.save()
+            if (followsBody) {
+                c.translate(lastPose[3], 0f)
+                c.rotate(lastPose[2] * 57.2958f, cx, cy)
+                c.scale(1f, lastPose[1], cx, cy)
+            }
+            // Fill closes the shoulder, while the open stroke blends into the body.
             c.drawPath(path, material)
             pS.color = armInk
             pS.strokeWidth = unit * .073f
             c.drawPath(path, pS)
+            c.restore()
         }
 
         val doorReach = sim.outing.doorReach

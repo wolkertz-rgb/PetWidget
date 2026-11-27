@@ -296,6 +296,9 @@ internal class RoomFurniture {
               rugColor: Int, accent: Int) {
         c.save(); c.translate(0f, floor); c.scale(u, u)
         if (rug) {
+            c.save()
+            c.translate(0f, .38f)
+            c.scale(1f, 1.24f)
             p.color = 0x22000000
             c.drawOval(6.8f, -.22f, 17.2f, .99f, p)
             material.apply(p, rugColor, 7f, -.35f, 17f, .95f)
@@ -309,6 +312,7 @@ internal class RoomFurniture {
             c.drawOval(7.47f,-.20f,16.53f,.76f,edge)
             edge.strokeWidth = .09f
             edge.color = 0xFF4A4038.toInt()
+            c.restore()
         }
         if (tv) {
             c.save(); c.translate(0.65f, 0f)
