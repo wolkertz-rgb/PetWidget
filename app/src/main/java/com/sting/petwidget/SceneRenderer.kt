@@ -267,6 +267,9 @@ class SceneRenderer {
         // питомец
         try { drawPet(c, sim, itemX(sim.x) + switchOffset(sim, unit), actionFloor, unit, inter) } catch (t: Throwable) { logErr("pet", t) }
 
+        // Forward arm is above the torso, beneath both grounded and carried props.
+        try { drawArms(c, sim, inter, unit, actionFloor, itemX) } catch (t: Throwable) { logErr("arms", t) }
+
         // предметы ПОВЕРХ питомца (стоят перед ним)
         for (item in sim.items) {
             if (inter.holding && item === inter.target) continue // этот в руках
@@ -285,9 +288,6 @@ class SceneRenderer {
         if (inter.holding) {
             try { drawHeldItem(c, sim, inter, unit, playFloor) } catch (t: Throwable) { logErr("held", t) }
         }
-
-        // ручки
-        try { drawArms(c, sim, inter, unit, actionFloor, itemX) } catch (t: Throwable) { logErr("arms", t) }
 
         // сердечки при приветствии
         if (sim.state == PetSim.State.WAVE) drawHearts(c, sim, itemX(sim.x), actionFloor, unit)
@@ -336,6 +336,7 @@ class SceneRenderer {
         drawPet(c, sim, itemX(sim.x), actionFloor, unit, inter)
         if (inter.target == null) drawArms(c, sim, inter, unit, actionFloor, itemX)
         c.restore()
+        if (inter.target != null) drawArms(c, sim, inter, unit, actionFloor, itemX)
         for (item in sim.items) {
             if (!(inter.holding && item === inter.target)) drawFloorItem(c, sim, item, inter, itemX(item.x), playFloor, unit)
             if (item.ageMs in 0L..1700L) drawSpawnLabel(c, item.def.name, itemX(item.x), playFloor, unit, item.ageMs)
@@ -344,7 +345,6 @@ class SceneRenderer {
         if (inter.holding) {
             drawHeldItem(c,sim,inter,unit,playFloor)
         }
-        if (inter.target != null) drawArms(c,sim,inter,unit,actionFloor,itemX)
         if (sim.state == PetSim.State.WAVE) drawHearts(c,sim,itemX(sim.x),actionFloor,unit)
         drawDiscovery(c, sim, center, actionFloor, unit, itemX)
         drawLocationFade(c,sim)
@@ -1742,9 +1742,12 @@ class SceneRenderer {
                 val far = cx - sim.dir * r * .83f
                 val ay = cy + r * .18f
                 fun reach(ax: Float, tx: Float, ty: Float, amount: Float, up: Boolean = false) {
-                    if (amount <= .01f) return
+                    if (rear && amount <= .01f) return
+                    val side = if (ax < cx) -1f else 1f
+                    val restX = cx + side * r * .99f
+                    val restY = cy + r * .46f
                     val arc = 4f * amount * (1f - amount) * unit * .27f
-                    arm(ax, ay, lerp(ax, tx, amount), lerp(ay, ty, amount) - arc, up)
+                    arm(ax, ay, lerp(restX, tx, amount), lerp(restY, ty, amount) - arc, up)
                 }
                 val propUnit = unit * modelScale(item.def)
                 val held = inter.held

@@ -310,6 +310,23 @@ internal class YardLandscape {
         path.lineTo(-1.3f, f)
         path.close()
         shape(c, cream, outline, .087f)
+        c.save()
+        c.clipPath(path)
+        val seam = mix(plaster, frame, .24f)
+        val highlight = mix(cream, Color.WHITE, .38f)
+        for (board in 1..13) {
+            val y = f - .33f - board * .64f
+            line(c,-1.3f,y,corner,y,seam,.030f)
+            line(c,-1.3f,y+.055f,corner,y+.055f,highlight,.037f)
+            val x = .14f + (board * 11 % 18) * .35f
+            path.reset()
+            path.moveTo(x,y+.32f)
+            path.quadTo(x+.31f,y+.24f,x+.72f,y+.33f)
+            ink.color = mix(seam, cream, .38f)
+            ink.strokeWidth = .023f
+            c.drawPath(path,ink)
+        }
+        c.restore()
         box(c, corner - .37f, eave + .05f, corner, f, honey, .09f)
         box(c, -1.2f, f - .32f, corner, f + .01f, honey, .065f, outline)
 
